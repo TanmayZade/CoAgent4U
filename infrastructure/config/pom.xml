@@ -20,5 +20,9 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.coagent4u</groupId>
+            <artifactId>coagent4u-security</artifactId>
+        </dependency>
     </dependencies>
 </project>

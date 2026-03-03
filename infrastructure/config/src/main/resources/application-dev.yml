@@ -1,12 +1,14 @@
 # ============================================================
 # CoAgent4U — Development Profile
 # ============================================================
+# Secrets come from .env file or IDE run configuration.
+# NEVER commit secrets to VCS.
 
 spring:
   datasource:
-    url: jdbc:postgresql://ep-crimson-credit-airhrjj7-pooler.c-4.us-east-1.aws.neon.tech/CoAgent4U?sslmode=require&channel_binding=require
-    username: neondb_owner
-    password: npg_1NhOTH5poMEk
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate

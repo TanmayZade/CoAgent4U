@@ -1,8 +1,8 @@
 # ============================================================
 # CoAgent4U — Application Configuration
 # ============================================================
-# This file contains shared defaults. Profile-specific overrides
-# are in application-dev.yml / application-prod.yml.
+# All secrets MUST come from environment variables. No fallback defaults.
+# Application will fail to boot if required env vars are missing.
 
 server:
   port: 8080
@@ -11,9 +11,9 @@ spring:
   application:
     name: coagent4u
   datasource:
-    url: ${DATABASE_URL:jdbc:postgresql://ep-crimson-credit-airhrjj7-pooler.c-4.us-east-1.aws.neon.tech/CoAgent4U?sslmode=require&channel_binding=require}
-    username: ${DATABASE_USERNAME:neondb_owner}
-    password: ${DATABASE_PASSWORD:npg_1NhOTH5poMEk}
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
@@ -43,21 +43,22 @@ management:
       show-details: when-authorized
 
 # ── CoAgent4U custom configuration ──────────────────────────
+# All secrets from env vars — no placeholder fallbacks
 coagent:
   slack:
-    signing-secret: ${SLACK_SIGNING_SECRET:placeholder}
-    bot-token: ${SLACK_BOT_TOKEN:placeholder}
-    app-id: ${SLACK_APP_ID:placeholder}
+    signing-secret: ${SLACK_SIGNING_SECRET}
+    bot-token: ${SLACK_BOT_TOKEN}
+    app-id: ${SLACK_APP_ID}
 
   google:
-    client-id: ${GOOGLE_CLIENT_ID:placeholder}
-    client-secret: ${GOOGLE_CLIENT_SECRET:placeholder}
+    client-id: ${GOOGLE_CLIENT_ID}
+    client-secret: ${GOOGLE_CLIENT_SECRET}
     redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth2/callback}
 
   security:
-    jwt-secret: ${JWT_SECRET:dev-jwt-secret-change-in-production-min-32-chars}
-    jwt-expiry-minutes: 60
-    token-encryption-key: ${AES_ENCRYPTION_KEY:placeholder}
+    jwt-secret: ${JWT_SECRET}
+    jwt-expiry-minutes: 1440    # 24 hours
+    token-encryption-key: ${AES_ENCRYPTION_KEY}
 
   coordination:
     approval-timeout-minutes: 720
@@ -65,7 +66,7 @@ coagent:
 
   llm:
     enabled: ${LLM_ENABLED:true}
-    groq-api-key: ${GROQ_API_KEY:placeholder}
+    groq-api-key: ${GROQ_API_KEY}
     model: llama3-8b-8192
     timeout-ms: 5000
 
