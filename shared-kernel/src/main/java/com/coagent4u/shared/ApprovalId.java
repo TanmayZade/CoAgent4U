@@ -3,11 +3,8 @@ package com.coagent4u.shared;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * Strongly-typed identifier for an approval request.
- */
+/** Strongly-typed identifier for an Approval. */
 public record ApprovalId(UUID value) {
-
     public ApprovalId {
         Objects.requireNonNull(value, "ApprovalId value must not be null");
     }
@@ -16,8 +13,8 @@ public record ApprovalId(UUID value) {
         return new ApprovalId(UUID.randomUUID());
     }
 
-    public static ApprovalId from(String raw) {
-        return new ApprovalId(UUID.fromString(raw));
+    public static ApprovalId of(UUID value) {
+        return new ApprovalId(value);
     }
 
     @Override

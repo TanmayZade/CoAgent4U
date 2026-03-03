@@ -4,24 +4,23 @@ import java.time.Instant;
 import java.util.Objects;
 
 /**
- * Represents a concrete time slot: a start time combined with a duration.
- * Used for meeting proposals and calendar event creation.
+ * A specific time slot with a start and end instant.
+ * Used for calendar event slots and availability blocks.
  */
-public record TimeSlot(Instant start, java.time.Duration duration) {
-
+public record TimeSlot(Instant start, Instant end) {
     public TimeSlot {
         Objects.requireNonNull(start, "TimeSlot start must not be null");
-        Objects.requireNonNull(duration, "TimeSlot duration must not be null");
-        if (duration.isNegative() || duration.isZero()) {
-            throw new IllegalArgumentException("TimeSlot duration must be positive");
+        Objects.requireNonNull(end, "TimeSlot end must not be null");
+        if (!start.isBefore(end)) {
+            throw new IllegalArgumentException("TimeSlot start must be before end");
         }
     }
 
-    public Instant end() {
-        return start.plus(duration);
+    public boolean overlaps(TimeSlot other) {
+        return this.start.isBefore(other.end) && other.start.isBefore(this.end);
     }
 
-    public TimeRange toTimeRange() {
-        return new TimeRange(start, end());
+    public java.time.Duration duration() {
+        return java.time.Duration.between(start, end);
     }
 }

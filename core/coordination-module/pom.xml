@@ -26,5 +26,15 @@
         </dependency>
         <!-- NOTE: NO dependency on calendar-module, user-module, approval-module, or messaging-module.
              Agent Sovereignty: coordination accesses agent capabilities ONLY via ports declared here. -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

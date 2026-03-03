@@ -2,16 +2,16 @@ package com.coagent4u.shared;
 
 import java.util.Objects;
 
-/**
- * Strongly-typed wrapper for a Slack workspace ID.
- */
+/** Slack workspace / team identifier (e.g. "T01ABC123"). */
 public record WorkspaceId(String value) {
-
     public WorkspaceId {
         Objects.requireNonNull(value, "WorkspaceId value must not be null");
-        if (value.isBlank()) {
+        if (value.isBlank())
             throw new IllegalArgumentException("WorkspaceId value must not be blank");
-        }
+    }
+
+    public static WorkspaceId of(String value) {
+        return new WorkspaceId(value);
     }
 
     @Override
