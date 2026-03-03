@@ -1,0 +1,224 @@
+# CoAgent4U — Codebase Walkthrough
+
+> **AI-powered collaborative scheduling platform** built as a **Java 21 / Spring Boot 3.4 modular monolith** using **hexagonal architecture**.
+
+---
+
+## What Is CoAgent4U?
+
+CoAgent4U is a **Personal Agent Coordination Platform** — not a chatbot. It assigns each user a personal AI agent that can:
+
+1. **Manage personal calendar events** — parse natural-language Slack commands ("add gym tomorrow at 7 AM"), check for conflicts, request user approval, and create events in Google Calendar.
+2. **Coordinate meetings between two users** — one user asks their agent to schedule with another user; the two agents negotiate via a **deterministic state-machine** (Agent-to-Agent coordination), find overlapping availability, propose a time, get dual approval, and create events in both calendars.
+
+> [!IMPORTANT]
+> The coordination logic is **fully deterministic** — no LLM is used for scheduling decisions. LLM (via Groq) is only a **fallback** for intent parsing when rule-based parsing fails.
+
+---
+
+## High-Level Architecture
+
+```mermaid
+graph TD
+    subgraph "Driving Adapters (Inbound)"
+        SLACK["Slack Webhook<br/>(messaging-module)"]
+        REST["REST API<br/>(coagent-app)"]
+    end
+
+    subgraph "Core Domain (Pure Java — zero framework imports)"
+        USER["user-module"]
+        AGENT["agent-module"]
+        COORD["coordination-module"]
+        APPROVAL["approval-module"]
+    end
+
+    subgraph "Driven Adapters (Outbound)"
+        CAL["Google Calendar<br/>(calendar-module)"]
+        LLM["Groq LLM<br/>(llm-module)"]
+        MSG["Slack Notifications<br/>(messaging-module)"]
+    end
+
+    subgraph "Infrastructure"
+        PERSIST["PostgreSQL<br/>(persistence)"]
+        SEC["JWT / AES / Rate Limiting<br/>(security)"]
+        MON["Event Bus / Audit / Metrics<br/>(monitoring)"]
+        CFG["Config / Profiles<br/>(config)"]
+    end
+
+    SLACK --> AGENT
+    REST --> USER
+    REST --> AGENT
+    AGENT --> COORD
+    AGENT --> APPROVAL
+    AGENT --> CAL
+    AGENT --> LLM
+    COORD --> AGENT
+    USER --> PERSIST
+    AGENT --> PERSIST
+    COORD --> PERSIST
+    APPROVAL --> PERSIST
+    AGENT --> MSG
+```
+
+---
+
+## Project Structure & Modules
+
+The codebase is a **Maven multi-module reactor** with **14 modules**:
+
+| Layer | Module | Purpose |
+|-------|--------|---------|
+| **Foundation** | [shared-kernel](file:///e:/CoAgent4U/shared-kernel) | Pure Java value objects — `UserId`, [AgentId](file:///e:/CoAgent4U/shared-kernel/src/main/java/com/coagent4u/shared/AgentId.java#9-28), `CoordinationId`, [TimeSlot](file:///e:/CoAgent4U/shared-kernel/src/main/java/com/coagent4u/shared/TimeSlot.java#10-28), `Email`, etc. Zero dependencies. |
+| **Foundation** | [common-domain](file:///e:/CoAgent4U/common-domain) | [DomainEvent](file:///e:/CoAgent4U/common-domain/src/main/java/com/coagent4u/common/DomainEvent.java#11-23) interface + published event types (`UserRegistered`, [CoordinationCompleted](file:///e:/CoAgent4U/common-domain/src/main/java/com/coagent4u/common/event/CoordinationCompleted.java#13-23), `ApprovalDecisionMade`, etc.) |
+| **Core** | [user-module](file:///e:/CoAgent4U/core/user-module) | User aggregate, Slack identity, service connections. Ports: `RegisterUserUseCase`, `UserPersistencePort`, etc. |
+| **Core** | [agent-module](file:///e:/CoAgent4U/core/agent-module) | Agent aggregate, `IntentParser` (rule-based), `ConflictDetector`. Inbound: `HandleMessageUseCase`, `ViewScheduleUseCase`. Outbound: `CalendarPort`, `LLMPort`, `ApprovalPort`. Also implements coordination capability ports. |
+| **Core** | [coordination-module](file:///e:/CoAgent4U/core/coordination-module) | Coordination aggregate, 14-state state machine, `AvailabilityMatcher`, `ProposalGenerator`, `EventCreationSaga`. |
+| **Core** | [approval-module](file:///e:/CoAgent4U/core/approval-module) | Approval aggregate with status tracking and expiration policy. |
+| **Integration** | [calendar-module](file:///e:/CoAgent4U/integration/calendar-module) | `GoogleCalendarAdapter` — implements `CalendarPort` for Google Calendar API. |
+| **Integration** | [messaging-module](file:///e:/CoAgent4U/integration/messaging-module) | `SlackInboundAdapter` (webhook handler) + `SlackNotificationAdapter` (outbound notifications). |
+| **Integration** | [llm-module](file:///e:/CoAgent4U/integration/llm-module) | `GroqLLMAdapter` — implements `LLMPort` for Groq cloud API (intent parsing fallback + schedule summary). |
+| **Infra** | [persistence](file:///e:/CoAgent4U/infrastructure/persistence) | JPA entities, mappers, Spring Data repositories implementing all `PersistencePort` interfaces. Houses Flyway migrations. |
+| **Infra** | [security](file:///e:/CoAgent4U/infrastructure/security) | JWT validation/issuing, AES-256-GCM token encryption, Slack signature verification, rate limiting. |
+| **Infra** | [config](file:///e:/CoAgent4U/infrastructure/config) | `application.yml` profiles (dev, prod). |
+| **Infra** | [monitoring](file:///e:/CoAgent4U/infrastructure/monitoring) | `SpringEventPublisherAdapter` (implements `DomainEventPublisher`), audit logging, metrics. |
+| **Assembly** | [coagent-app](file:///e:/CoAgent4U/coagent-app) | Spring Boot entry point — wires all modules together via component scanning. |
+
+---
+
+## Key Domain Flows
+
+### Flow 1: Personal Event Creation
+
+```
+User in Slack: "@CoAgent4U add gym tomorrow at 7 AM"
+  │
+  ▼
+SlackInboundAdapter → HandleMessageUseCase (agent-module)
+  │
+  ▼
+IntentParser (rule-based, then LLM fallback) → ParsedIntent
+  │
+  ▼
+ConflictDetector → checks CalendarPort for overlaps
+  │
+  ├─ No conflict → create Approval (approval-module)
+  │                    │
+  │                    ▼
+  │              Slack notification to user: [Approve] / [Reject]
+  │                    │
+  │                    ▼
+  │              User approves → CalendarPort.createEvent()
+  │              → Confirmation sent
+  │
+  └─ Conflict found → notify user with conflict details
+                       → user decides: add anyway or cancel
+```
+
+### Flow 2: Two-User Collaborative Scheduling
+
+```
+User A: "@CoAgent4U schedule meeting with @UserB on Friday evening"
+  │
+  ▼
+Agent A: parse intent → check A's availability via CalendarPort
+  │
+  ▼
+CoordinationProtocolPort → Coordination State Machine (14 states)
+  │
+  ├─ INITIATED
+  ├─ CHECKING_AVAILABILITY_A → Agent A's free slots
+  ├─ CHECKING_AVAILABILITY_B → Agent B's free slots (via AgentAvailabilityPort)
+  ├─ MATCHING → AvailabilityMatcher finds overlap
+  ├─ PROPOSAL_GENERATED → ProposalGenerator picks earliest slot
+  ├─ AWAITING_APPROVAL_B → User B gets [Approve]/[Reject]
+  ├─ AWAITING_APPROVAL_A → User A gets [Approve]/[Reject]
+  ├─ APPROVED_BY_BOTH
+  ├─ CREATING_EVENT_B → EventCreationSaga creates in B's calendar
+  ├─ CREATING_EVENT_A → Saga creates in A's calendar
+  └─ COMPLETED (or REJECTED / FAILED with saga compensation)
+```
+
+> [!NOTE]
+> If event creation fails for User B after User A's event was already created, the **saga compensation** deletes User A's event automatically.
+
+---
+
+## Current Implementation Status
+
+The codebase is in **Phase 0 (Project Bootstrap)** — the structural skeleton is fully set up:
+
+| What | Status |
+|------|--------|
+| Maven multi-module build | ✅ Compiles |
+| Shared-kernel value objects (`UserId`, [AgentId](file:///e:/CoAgent4U/shared-kernel/src/main/java/com/coagent4u/shared/AgentId.java#9-28), [TimeSlot](file:///e:/CoAgent4U/shared-kernel/src/main/java/com/coagent4u/shared/TimeSlot.java#10-28), etc.) | ✅ Implemented |
+| Common domain events (9 event types) | ✅ Implemented |
+| Core module skeletons (package-info.java placeholders) | ✅ Created |
+| Infrastructure module skeletons | ✅ Created |
+| Integration module skeletons | ✅ Created |
+| Spring Boot application entry point | ✅ Boots |
+| Docker Compose (PostgreSQL) | ✅ Configured |
+| Dockerfile (multi-stage build) | ✅ Configured |
+| NeonDB connection | ✅ Configured |
+| Domain logic (aggregates, services, use cases) | ⏳ Not yet implemented |
+| Persistence adapters & Flyway migrations | ⏳ Not yet implemented |
+| Integration adapters (Slack, Google, Groq) | ⏳ Not yet implemented |
+| REST API controllers | ⏳ Not yet implemented |
+| Tests | ⏳ Not yet implemented |
+
+The project is ready to begin **Phase 1 (Domain Core)** — implementing pure domain logic and port interfaces.
+
+---
+
+## Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| Language | Java 21 (records, sealed classes) |
+| Framework | Spring Boot 3.4.3 |
+| Database | PostgreSQL 15 (NeonDB remote or local Docker) |
+| Migrations | Flyway |
+| ORM | Spring Data JPA / Hibernate |
+| Messaging | Slack SDK (webhooks + Block Kit) |
+| Calendar | Google Calendar API |
+| LLM | Groq API (Tier 2 intent parsing fallback) |
+| Security | JWT (HS256), AES-256-GCM, Slack HMAC-SHA256 |
+| Testing | JUnit 5, Mockito, Testcontainers, WireMock, ArchUnit |
+| Build | Maven 3.9+, Docker multi-stage |
+| Monitoring | Micrometer, structured JSON logging |
+
+---
+
+## External Service Connections
+
+Configured via [.env](file:///e:/CoAgent4U/.env.example):
+
+| Service | Purpose |
+|---------|---------|
+| **NeonDB (PostgreSQL)** | Primary data store — users, agents, coordinations, approvals, audit logs |
+| **Slack** | User interaction channel — commands, approvals, notifications |
+| **Google Calendar** | Read/write calendar events, check availability (FreeBusy API) |
+| **Groq** | Cloud LLM for fallback intent parsing and schedule summarization |
+
+---
+
+## Key Architectural Principles
+
+1. **Hexagonal Architecture** — domain logic is isolated from infrastructure via ports (interfaces) and adapters (implementations)
+2. **Agent Sovereignty** — only the agent-module can access `CalendarPort`; the coordination-module talks to agents through capability ports, never directly to external APIs
+3. **Deterministic Coordination** — the A2A state machine is fully deterministic; no LLM/AI influences scheduling decisions
+4. **Human-in-the-Loop (HITL)** — every calendar mutation requires explicit user approval
+5. **GDPR by Design** — user deletion cascades all data; audit logs track agent actions
+6. **Interface-First Development** — port interfaces are defined before implementations
+
+---
+
+## Documentation
+
+Comprehensive architecture documentation lives in [documentation/](file:///e:/CoAgent4U/documentation):
+
+| Document | Content |
+|----------|---------|
+| [PRD.md](file:///e:/CoAgent4U/documentation/PRD.md) | 6500+ line Product Requirements Document covering all functional/non-functional requirements |
+| [IMPLEMENTATION_ROADMAP.md](file:///e:/CoAgent4U/documentation/IMPLEMENTATION_ROADMAP.md) | 6-phase development roadmap with exit criteria |
+| [arcs42/](file:///e:/CoAgent4U/documentation/arcs42) | Arc42 architecture documentation (13 sections) |
+| [c4/](file:///e:/CoAgent4U/documentation/c4) | C4 model diagrams (context, container, component, code) |

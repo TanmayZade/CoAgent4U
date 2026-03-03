@@ -1,0 +1,22 @@
+version: '3.9'
+
+services:
+  coagent-db:
+    image: postgres:15-alpine
+    container_name: coagent4u-db
+    environment:
+      POSTGRES_DB: coagent4u
+      POSTGRES_USER: coagent4u
+      POSTGRES_PASSWORD: coagent4u_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - coagent_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coagent4u"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  coagent_pgdata:

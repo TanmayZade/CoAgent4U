@@ -1,0 +1,41 @@
+# === Java / Maven ===
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+
+# === IDE ===
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+*.swp
+*.swo
+*~
+
+# === OS ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === Environment / Secrets ===
+.env
+.env.local
+.env.production
+
+# === Docker ===
+docker-compose.override.yml
+
+# === Python (legacy) ===
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
