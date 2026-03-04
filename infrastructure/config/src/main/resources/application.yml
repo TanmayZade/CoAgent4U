@@ -65,9 +65,9 @@ coagent:
     max-availability-window-days: 14
 
   llm:
-    enabled: ${LLM_ENABLED:true}
-    groq-api-key: ${GROQ_API_KEY}
-    model: llama3-8b-8192
+    enabled: ${LLM_ENABLED:false}
+    groq-api-key: ${GROQ_API_KEY:gsk_dev_placeholder_key}
+    model: llama-3.1-8b-instant
     timeout-ms: 5000
 
   rate-limiting:

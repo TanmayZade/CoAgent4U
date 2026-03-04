@@ -3,6 +3,7 @@ package com.coagent4u.persistence.user;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.coagent4u.shared.SlackUserId;
 import com.coagent4u.shared.UserId;
@@ -31,11 +32,13 @@ public class UserPersistenceAdapter implements UserPersistencePort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<User> findById(UserId userId) {
         return repository.findById(userId.value()).map(UserMapper::toDomain);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<User> findBySlackUserId(SlackUserId slackUserId, WorkspaceId workspaceId) {
         return repository.findBySlackIdentity_SlackUserIdAndSlackIdentity_WorkspaceId(
                 slackUserId.value(), workspaceId.value()).map(UserMapper::toDomain);

@@ -36,5 +36,32 @@
             <groupId>com.coagent4u</groupId>
             <artifactId>user-module</artifactId>
         </dependency>
+
+        <!-- Spring -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
+        <!-- Infrastructure -->
+        <dependency>
+            <groupId>com.coagent4u</groupId>
+            <artifactId>coagent4u-security</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.coagent4u</groupId>
+            <artifactId>coagent4u-config</artifactId>
+        </dependency>
+
+        <!-- Test -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>
