@@ -53,4 +53,10 @@ public class UserPersistenceAdapter implements UserPersistencePort {
     public boolean existsByUsername(String username) {
         return repository.existsByUsername(username);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<User> findByUsername(String username) {
+        return repository.findByUsername(username).map(UserMapper::toDomain);
+    }
 }

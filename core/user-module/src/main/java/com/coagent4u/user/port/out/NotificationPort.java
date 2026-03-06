@@ -16,4 +16,15 @@ public interface NotificationPort {
      * @param message     the message text to send
      */
     void sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String message);
+
+    /**
+     * Sends an interactive approval request with [Approve] and [Reject] buttons.
+     *
+     * @param slackUserId  recipient's Slack user ID
+     * @param workspaceId  the Slack workspace
+     * @param proposalText human-readable proposal details
+     * @param approvalId   the approval ID to embed in button actions
+     */
+    void sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String proposalText, String approvalId);
 }

@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * CoAgent4U Application — AI-powered collaborative scheduling platform.
@@ -15,6 +16,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * </p>
  */
 @SpringBootApplication
+@EnableScheduling
 @EnableJpaRepositories(basePackages = "com.coagent4u.persistence")
 @EntityScan(basePackages = "com.coagent4u.persistence")
 public class CoAgent4UApplication {

@@ -1,6 +1,7 @@
 package com.coagent4u.persistence.approval;
 
 import java.lang.reflect.Field;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -42,6 +43,12 @@ public class ApprovalPersistenceAdapter implements ApprovalPersistencePort {
                 .stream().map(this::toDomain).collect(Collectors.toList());
     }
 
+    @Override
+    public List<Approval> findExpiredPending(Instant now) {
+        return repository.findByDecisionAndExpiresAtBefore("PENDING", now)
+                .stream().map(this::toDomain).collect(Collectors.toList());
+    }
+
     private ApprovalJpaEntity toJpa(Approval a) {
         return new ApprovalJpaEntity(
                 a.getApprovalId().value(),
@@ -61,7 +68,6 @@ public class ApprovalPersistenceAdapter implements ApprovalPersistencePort {
      */
     private Approval toDomain(ApprovalJpaEntity e) {
         try {
-            // Create via public constructor (PENDING state, generates Instant.now())
             Approval approval = new Approval(
                     new ApprovalId(e.getApprovalId()),
                     e.getCoordinationId() != null ? new CoordinationId(e.getCoordinationId()) : null,
@@ -69,7 +75,6 @@ public class ApprovalPersistenceAdapter implements ApprovalPersistencePort {
                     ApprovalType.valueOf(e.getApprovalType()),
                     e.getExpiresAt());
 
-            // Override state fields via reflection
             setField(approval, "status", ApprovalStatus.valueOf(e.getDecision()));
             setField(approval, "createdAt", e.getCreatedAt());
             setField(approval, "decidedAt", e.getDecidedAt());

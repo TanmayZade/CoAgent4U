@@ -21,20 +21,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 /**
  * Sends Slack messages via the Slack Web API (chat.postMessage).
  * Implements {@link NotificationPort} from the user domain.
- *
- * <p>
- * Error mapping:
- * </p>
- * <ul>
- * <li>Slack 403 → {@link NotificationFailureException}</li>
- * <li>Slack 429 / 5xx → {@link ExternalServiceUnavailableException}</li>
- * </ul>
  */
 @Component
 public class SlackNotificationAdapter implements NotificationPort {
 
     private static final Logger log = LoggerFactory.getLogger(SlackNotificationAdapter.class);
-    private static final String SLACK_API_URL = "https://slack.com/api/chat.postMessage";
 
     private final WebClient webClient;
     private final CoagentProperties properties;
@@ -53,9 +44,22 @@ public class SlackNotificationAdapter implements NotificationPort {
 
     @Override
     public void sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String message) {
-        try {
-            String payload = buildBlockKitPayload(slackUserId.value(), message);
+        String payload = buildBlockKitPayload(slackUserId.value(), message);
+        postToSlack(payload, slackUserId.value());
+    }
 
+    @Override
+    public void sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String proposalText, String approvalId) {
+        String payload = buildApprovalPayload(slackUserId.value(), proposalText, approvalId);
+        postToSlack(payload, slackUserId.value());
+    }
+
+    /**
+     * Posts a JSON payload to Slack's chat.postMessage API.
+     */
+    private void postToSlack(String payload, String userId) {
+        try {
             String response = webClient.post()
                     .uri("/chat.postMessage")
                     .header("Authorization", "Bearer " + properties.getSlack().getBotToken())
@@ -65,16 +69,14 @@ public class SlackNotificationAdapter implements NotificationPort {
                     .bodyToMono(String.class)
                     .block();
 
-            // Slack returns 200 even on errors — check the "ok" field
             JsonNode responseJson = objectMapper.readTree(response);
             if (!responseJson.path("ok").asBoolean(false)) {
                 String error = responseJson.path("error").asText("unknown_error");
-                log.error("Slack API error: {} for user={}", error, slackUserId.value());
+                log.error("Slack API error: {} for user={}", error, userId);
 
                 if ("not_authed".equals(error) || "invalid_auth".equals(error)
                         || "account_inactive".equals(error)) {
-                    throw new NotificationFailureException(
-                            "Slack auth failure: " + error);
+                    throw new NotificationFailureException("Slack auth failure: " + error);
                 }
                 if ("ratelimited".equals(error)) {
                     throw new ExternalServiceUnavailableException("Slack", "Rate limited");
@@ -82,7 +84,7 @@ public class SlackNotificationAdapter implements NotificationPort {
                 throw new NotificationFailureException("Slack API error: " + error);
             }
 
-            log.info("Slack message sent to user={}", slackUserId.value());
+            log.info("Slack message sent to user={}", userId);
 
         } catch (WebClientResponseException.Forbidden e) {
             throw new NotificationFailureException("Slack forbidden: " + e.getMessage(), e);
@@ -95,7 +97,7 @@ public class SlackNotificationAdapter implements NotificationPort {
             }
             throw new NotificationFailureException("Slack error: " + e.getMessage(), e);
         } catch (NotificationFailureException | ExternalServiceUnavailableException e) {
-            throw e; // re-throw domain exceptions
+            throw e;
         } catch (Exception e) {
             throw new NotificationFailureException(
                     "Failed to send Slack message: " + e.getMessage(), e);
@@ -103,15 +105,14 @@ public class SlackNotificationAdapter implements NotificationPort {
     }
 
     /**
-     * Builds a Slack Block Kit message payload.
+     * Builds a plain text Block Kit message.
      */
     private String buildBlockKitPayload(String channel, String text) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("channel", channel);
-            root.put("text", text); // fallback for notifications
+            root.put("text", text);
 
-            // Block Kit section
             ArrayNode blocks = objectMapper.createArrayNode();
             ObjectNode section = objectMapper.createObjectNode();
             section.put("type", "section");
@@ -126,6 +127,82 @@ public class SlackNotificationAdapter implements NotificationPort {
 
         } catch (Exception e) {
             throw new NotificationFailureException("Failed to build Block Kit payload", e);
+        }
+    }
+
+    /**
+     * Builds an interactive Block Kit payload with [Approve] and [Reject] buttons.
+     */
+    private String buildApprovalPayload(String channel, String proposalText, String approvalId) {
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("channel", channel);
+            root.put("text", "📋 Approval Request: " + proposalText);
+
+            ArrayNode blocks = objectMapper.createArrayNode();
+
+            // Header section
+            ObjectNode header = objectMapper.createObjectNode();
+            header.put("type", "header");
+            ObjectNode headerText = objectMapper.createObjectNode();
+            headerText.put("type", "plain_text");
+            headerText.put("text", "📋 Approval Request");
+            header.set("text", headerText);
+            blocks.add(header);
+
+            // Proposal details section
+            ObjectNode section = objectMapper.createObjectNode();
+            section.put("type", "section");
+            ObjectNode sectionText = objectMapper.createObjectNode();
+            sectionText.put("type", "mrkdwn");
+            sectionText.put("text", proposalText);
+            section.set("text", sectionText);
+            blocks.add(section);
+
+            // Divider
+            ObjectNode divider = objectMapper.createObjectNode();
+            divider.put("type", "divider");
+            blocks.add(divider);
+
+            // Actions block with Approve and Reject buttons
+            ObjectNode actions = objectMapper.createObjectNode();
+            actions.put("type", "actions");
+            actions.put("block_id", "approval_" + approvalId);
+
+            ArrayNode elements = objectMapper.createArrayNode();
+
+            // Approve button
+            ObjectNode approveBtn = objectMapper.createObjectNode();
+            approveBtn.put("type", "button");
+            ObjectNode approveText = objectMapper.createObjectNode();
+            approveText.put("type", "plain_text");
+            approveText.put("text", "✅ Approve");
+            approveBtn.set("text", approveText);
+            approveBtn.put("style", "primary");
+            approveBtn.put("action_id", "approve_action");
+            approveBtn.put("value", approvalId);
+            elements.add(approveBtn);
+
+            // Reject button
+            ObjectNode rejectBtn = objectMapper.createObjectNode();
+            rejectBtn.put("type", "button");
+            ObjectNode rejectText = objectMapper.createObjectNode();
+            rejectText.put("type", "plain_text");
+            rejectText.put("text", "❌ Reject");
+            rejectBtn.set("text", rejectText);
+            rejectBtn.put("style", "danger");
+            rejectBtn.put("action_id", "reject_action");
+            rejectBtn.put("value", approvalId);
+            elements.add(rejectBtn);
+
+            actions.set("elements", elements);
+            blocks.add(actions);
+
+            root.set("blocks", blocks);
+            return objectMapper.writeValueAsString(root);
+
+        } catch (Exception e) {
+            throw new NotificationFailureException("Failed to build approval payload", e);
         }
     }
 }

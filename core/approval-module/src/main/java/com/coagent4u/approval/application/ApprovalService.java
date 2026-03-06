@@ -1,6 +1,7 @@
 package com.coagent4u.approval.application;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 import com.coagent4u.approval.domain.Approval;
@@ -24,6 +25,7 @@ import com.coagent4u.shared.UserId;
  *
  * <p>
  * No Spring annotations — assembled by the DI container in coagent-app.
+ * </p>
  */
 public class ApprovalService implements CreateApprovalUseCase, DecideApprovalUseCase {
 
@@ -71,5 +73,26 @@ public class ApprovalService implements CreateApprovalUseCase, DecideApprovalUse
                 approvalId, userId,
                 decision.name(),
                 approval.getApprovalType().name()));
+    }
+
+    /**
+     * Proactively expires all PENDING approvals whose deadline has passed.
+     * Intended to be called by a scheduled job.
+     *
+     * @return number of approvals expired
+     */
+    public int expireOverdue() {
+        Instant now = Instant.now();
+        List<Approval> overdue = persistence.findExpiredPending(now);
+        for (Approval approval : overdue) {
+            approval.expire();
+            persistence.save(approval);
+            eventPublisher.publish(ApprovalExpired.of(
+                    approval.getApprovalId(),
+                    approval.getUserId(),
+                    approval.getApprovalType().name(),
+                    approval.getExpiresAt()));
+        }
+        return overdue.size();
     }
 }

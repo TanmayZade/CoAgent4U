@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,17 +19,21 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.coagent4u.agent.port.out.LLMPort;
+import com.coagent4u.config.CoagentProperties;
 import com.coagent4u.shared.Email;
 import com.coagent4u.shared.UserId;
 import com.coagent4u.user.domain.User;
+import com.coagent4u.user.port.in.ConnectServiceUseCase;
 import com.coagent4u.user.port.in.RegisterUserUseCase;
+import com.coagent4u.user.port.out.OAuthTokenExchangePort;
+import com.coagent4u.user.port.out.OAuthTokenExchangePort.OAuthTokenResult;
 import com.coagent4u.user.port.out.UserPersistencePort;
 
 /**
  * Standalone MockMvc tests for RestApiController.
  * Uses MockMvcBuilders.standaloneSetup() to avoid loading the full Spring
- * context,
- * which would otherwise pull in JPA/DataSource auto-configuration and fail.
+ * context.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("RestApiController Tests")
@@ -38,19 +43,30 @@ class RestApiControllerTest {
         private RegisterUserUseCase registerUserUseCase;
 
         @Mock
+        private ConnectServiceUseCase connectServiceUseCase;
+
+        @Mock
         private UserPersistencePort userPersistencePort;
 
         @Mock
-        private com.coagent4u.agent.port.out.LLMPort llmPort;
+        private OAuthTokenExchangePort oAuthTokenExchangePort;
 
         @Mock
-        private com.coagent4u.config.CoagentProperties coagentProperties;
+        private LLMPort llmPort;
+
+        @Mock
+        private CoagentProperties coagentProperties;
 
         private MockMvc mockMvc;
 
         @BeforeEach
         void setUp() {
-                RestApiController controller = new RestApiController(registerUserUseCase, userPersistencePort, llmPort,
+                RestApiController controller = new RestApiController(
+                                registerUserUseCase,
+                                connectServiceUseCase,
+                                userPersistencePort,
+                                oAuthTokenExchangePort,
+                                llmPort,
                                 coagentProperties);
                 mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
         }
@@ -118,9 +134,47 @@ class RestApiControllerTest {
         }
 
         @Test
-        @DisplayName("GET /oauth2/callback with code returns success")
+        @DisplayName("GET /oauth2/callback with code and state exchanges tokens and connects")
         void oauthCallbackSuccess() throws Exception {
+                UUID userId = UUID.randomUUID();
+                OAuthTokenResult mockResult = new OAuthTokenResult(
+                                "encrypted_access", "encrypted_refresh", Instant.now().plusSeconds(3600));
+                when(oAuthTokenExchangePort.exchangeCode("auth_code_123")).thenReturn(mockResult);
+
+                mockMvc.perform(get("/api/oauth2/callback")
+                                .param("code", "auth_code_123")
+                                .param("state", userId.toString()))
+                                .andExpect(status().isOk())
+                                .andExpect(content().string(
+                                                "Google Calendar connected successfully! You can close this window."));
+
+                verify(oAuthTokenExchangePort).exchangeCode("auth_code_123");
+                verify(connectServiceUseCase).connect(
+                                eq(new UserId(userId)),
+                                eq("GOOGLE_CALENDAR"),
+                                eq("encrypted_access"),
+                                eq("encrypted_refresh"),
+                                any(Instant.class));
+        }
+
+        @Test
+        @DisplayName("GET /oauth2/callback without state returns 400")
+        void oauthCallbackMissingState() throws Exception {
                 mockMvc.perform(get("/api/oauth2/callback").param("code", "auth_code_123"))
-                                .andExpect(status().isOk());
+                                .andExpect(status().isBadRequest())
+                                .andExpect(content().string("Missing state (userId)"));
+        }
+
+        @Test
+        @DisplayName("GET /oauth2/authorize redirects to Google consent screen")
+        void oauthAuthorizeRedirects() throws Exception {
+                CoagentProperties.Google googleProps = new CoagentProperties.Google();
+                googleProps.setClientId("test-client-id");
+                googleProps.setRedirectUri("http://localhost:8080/oauth2/callback");
+                when(coagentProperties.getGoogle()).thenReturn(googleProps);
+
+                mockMvc.perform(get("/api/oauth2/authorize").param("userId", UUID.randomUUID().toString()))
+                                .andExpect(status().isFound())
+                                .andExpect(header().exists("Location"));
         }
 }

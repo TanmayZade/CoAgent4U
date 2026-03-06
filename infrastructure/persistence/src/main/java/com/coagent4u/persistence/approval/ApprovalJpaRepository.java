@@ -1,5 +1,6 @@
 package com.coagent4u.persistence.approval;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -9,4 +10,6 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ApprovalJpaRepository extends JpaRepository<ApprovalJpaEntity, UUID> {
     List<ApprovalJpaEntity> findByUserIdAndDecision(UUID userId, String decision);
+
+    List<ApprovalJpaEntity> findByDecisionAndExpiresAtBefore(String decision, Instant now);
 }

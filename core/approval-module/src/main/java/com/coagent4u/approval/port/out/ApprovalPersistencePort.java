@@ -1,5 +1,6 @@
 package com.coagent4u.approval.port.out;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,4 +18,10 @@ public interface ApprovalPersistencePort {
     Optional<Approval> findById(ApprovalId approvalId);
 
     List<Approval> findPendingByUser(UserId userId);
+
+    /**
+     * Finds all PENDING approvals whose expiration time is before {@code now}.
+     * Used by the scheduled expiration job.
+     */
+    List<Approval> findExpiredPending(Instant now);
 }

@@ -80,10 +80,11 @@ public class BeanWiringConfig {
             ApprovalPort approvalPort,
             CoordinationProtocolPort coordinationProtocol,
             NotificationPort notificationPort,
+            UserPersistencePort userPersistence,
             DomainEventPublisher eventPublisher) {
         return new AgentCommandService(agentPersistence,
                 calendarPort, llmPort, approvalPort,
-                coordinationProtocol, notificationPort, eventPublisher);
+                coordinationProtocol, notificationPort, userPersistence, eventPublisher);
     }
 
     // ── Capability Bridges (agent-module → coordination ports) ──

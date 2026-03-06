@@ -4,6 +4,8 @@ import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -16,13 +18,17 @@ import org.springframework.web.bind.annotation.RestController;
 import com.coagent4u.agent.domain.IntentParser;
 import com.coagent4u.agent.domain.ParsedIntent;
 import com.coagent4u.agent.port.out.LLMPort;
+import com.coagent4u.config.CoagentProperties;
 import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.Email;
 import com.coagent4u.shared.SlackUserId;
 import com.coagent4u.shared.UserId;
 import com.coagent4u.shared.WorkspaceId;
 import com.coagent4u.user.domain.User;
+import com.coagent4u.user.port.in.ConnectServiceUseCase;
 import com.coagent4u.user.port.in.RegisterUserUseCase;
+import com.coagent4u.user.port.out.OAuthTokenExchangePort;
+import com.coagent4u.user.port.out.OAuthTokenExchangePort.OAuthTokenResult;
 import com.coagent4u.user.port.out.UserPersistencePort;
 
 /**
@@ -36,18 +42,24 @@ public class RestApiController {
     private static final Logger log = LoggerFactory.getLogger(RestApiController.class);
 
     private final RegisterUserUseCase registerUserUseCase;
+    private final ConnectServiceUseCase connectServiceUseCase;
     private final UserPersistencePort userPersistencePort;
+    private final OAuthTokenExchangePort oAuthTokenExchangePort;
     private final LLMPort llmPort;
-    private final com.coagent4u.config.CoagentProperties coagentProperties;
+    private final CoagentProperties coagentProperties;
     private final IntentParser intentParser = new IntentParser();
 
     public RestApiController(
             RegisterUserUseCase registerUserUseCase,
+            ConnectServiceUseCase connectServiceUseCase,
             UserPersistencePort userPersistencePort,
+            OAuthTokenExchangePort oAuthTokenExchangePort,
             LLMPort llmPort,
-            com.coagent4u.config.CoagentProperties coagentProperties) {
+            CoagentProperties coagentProperties) {
         this.registerUserUseCase = registerUserUseCase;
+        this.connectServiceUseCase = connectServiceUseCase;
         this.userPersistencePort = userPersistencePort;
+        this.oAuthTokenExchangePort = oAuthTokenExchangePort;
         this.llmPort = llmPort;
         this.coagentProperties = coagentProperties;
     }
@@ -97,12 +109,35 @@ public class RestApiController {
     }
 
     /**
-     * Google OAuth2 callback.
+     * Redirect user to Google OAuth consent screen.
+     * The userId is embedded in the 'state' parameter so we know which user
+     * initiated the flow when the callback arrives.
+     */
+    @GetMapping("/oauth2/authorize")
+    public ResponseEntity<Void> oauthAuthorize(@RequestParam String userId) {
+        String authUrl = "https://accounts.google.com/o/oauth2/v2/auth"
+                + "?client_id=" + coagentProperties.getGoogle().getClientId()
+                + "&redirect_uri=" + coagentProperties.getGoogle().getRedirectUri()
+                + "&response_type=code"
+                + "&scope=https://www.googleapis.com/auth/calendar.events"
+                + "&access_type=offline"
+                + "&prompt=consent"
+                + "&state=" + userId;
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, authUrl)
+                .build();
+    }
+
+    /**
+     * Google OAuth2 callback — exchanges authorization code for tokens,
+     * encrypts them, and stores them via ConnectServiceUseCase.
      */
     @GetMapping("/oauth2/callback")
     public ResponseEntity<String> oauthCallback(
             @RequestParam(required = false) String code,
-            @RequestParam(required = false) String error) {
+            @RequestParam(required = false) String error,
+            @RequestParam(required = false) String state) {
         if (error != null) {
             log.warn("OAuth2 callback error: {}", error);
             return ResponseEntity.badRequest().body("OAuth error: " + error);
@@ -110,9 +145,34 @@ public class RestApiController {
         if (code == null || code.isBlank()) {
             return ResponseEntity.badRequest().body("Missing authorization code");
         }
-        // TODO: Phase 4 — exchange code for tokens and store encrypted
-        log.info("OAuth2 callback received with code (exchange not yet implemented)");
-        return ResponseEntity.ok("OAuth callback received. Token exchange will be implemented in Phase 4.");
+        if (state == null || state.isBlank()) {
+            return ResponseEntity.badRequest().body("Missing state (userId)");
+        }
+
+        try {
+            UserId userId = new UserId(java.util.UUID.fromString(state));
+
+            // 1. Exchange code for encrypted tokens
+            OAuthTokenResult tokens = oAuthTokenExchangePort.exchangeCode(code);
+
+            // 2. Store encrypted tokens via ConnectServiceUseCase
+            connectServiceUseCase.connect(
+                    userId,
+                    "GOOGLE_CALENDAR",
+                    tokens.encryptedAccessToken(),
+                    tokens.encryptedRefreshToken(),
+                    tokens.expiresAt());
+
+            log.info("Google Calendar connected for user={}", userId);
+            return ResponseEntity.ok("Google Calendar connected successfully! You can close this window.");
+
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Invalid user ID in state parameter: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("OAuth2 callback failed", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to connect Google Calendar: " + e.getMessage());
+        }
     }
 
     /**
