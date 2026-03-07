@@ -81,10 +81,12 @@ public class BeanWiringConfig {
             CoordinationProtocolPort coordinationProtocol,
             NotificationPort notificationPort,
             UserPersistencePort userPersistence,
-            DomainEventPublisher eventPublisher) {
+            DomainEventPublisher eventPublisher,
+            com.coagent4u.agent.port.out.EventProposalPersistencePort proposalPersistence) {
         return new AgentCommandService(agentPersistence,
                 calendarPort, llmPort, approvalPort,
-                coordinationProtocol, notificationPort, userPersistence, eventPublisher);
+                coordinationProtocol, notificationPort, userPersistence, eventPublisher,
+                proposalPersistence);
     }
 
     // ── Capability Bridges (agent-module → coordination ports) ──

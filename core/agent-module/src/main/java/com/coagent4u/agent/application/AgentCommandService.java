@@ -1,15 +1,22 @@
 package com.coagent4u.agent.application;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.coagent4u.agent.domain.Agent;
 import com.coagent4u.agent.domain.ConflictDetector;
+import com.coagent4u.agent.domain.EventProposal;
+import com.coagent4u.agent.domain.EventProposalStatus;
 import com.coagent4u.agent.domain.IntentParser;
 import com.coagent4u.agent.domain.IntentType;
+import com.coagent4u.agent.domain.NaturalDateResolver;
 import com.coagent4u.agent.domain.ParsedIntent;
 import com.coagent4u.agent.port.in.CreatePersonalEventUseCase;
 import com.coagent4u.agent.port.in.HandleMessageUseCase;
@@ -17,14 +24,17 @@ import com.coagent4u.agent.port.in.ViewScheduleUseCase;
 import com.coagent4u.agent.port.out.AgentPersistencePort;
 import com.coagent4u.agent.port.out.ApprovalPort;
 import com.coagent4u.agent.port.out.CalendarPort;
+import com.coagent4u.agent.port.out.EventProposalPersistencePort;
 import com.coagent4u.agent.port.out.LLMPort;
 import com.coagent4u.common.DomainEventPublisher;
 import com.coagent4u.common.events.PersonalEventCreated;
 import com.coagent4u.coordination.port.in.CoordinationProtocolPort;
 import com.coagent4u.shared.AgentId;
+import com.coagent4u.shared.ApprovalId;
 import com.coagent4u.shared.CalendarEvent;
 import com.coagent4u.shared.Duration;
 import com.coagent4u.shared.EventId;
+import com.coagent4u.shared.EventProposalId;
 import com.coagent4u.shared.TimeRange;
 import com.coagent4u.shared.TimeSlot;
 import com.coagent4u.user.domain.User;
@@ -48,6 +58,8 @@ import com.coagent4u.user.port.out.UserPersistencePort;
 public class AgentCommandService
         implements HandleMessageUseCase, ViewScheduleUseCase, CreatePersonalEventUseCase {
 
+    private static final Logger log = LoggerFactory.getLogger(AgentCommandService.class);
+
     private final AgentPersistencePort agentPersistence;
     private final CalendarPort calendarPort;
     private final LLMPort llmPort;
@@ -56,9 +68,11 @@ public class AgentCommandService
     private final NotificationPort notificationPort;
     private final UserPersistencePort userPersistence;
     private final DomainEventPublisher eventPublisher;
+    private final EventProposalPersistencePort proposalPersistence;
 
     private final IntentParser intentParser = new IntentParser();
     private final ConflictDetector conflictDetector = new ConflictDetector();
+    private final NaturalDateResolver dateResolver = new NaturalDateResolver();
 
     public AgentCommandService(AgentPersistencePort agentPersistence,
             CalendarPort calendarPort,
@@ -67,7 +81,8 @@ public class AgentCommandService
             CoordinationProtocolPort coordinationProtocol,
             NotificationPort notificationPort,
             UserPersistencePort userPersistence,
-            DomainEventPublisher eventPublisher) {
+            DomainEventPublisher eventPublisher,
+            EventProposalPersistencePort proposalPersistence) {
         this.agentPersistence = agentPersistence;
         this.calendarPort = calendarPort;
         this.llmPort = llmPort;
@@ -76,6 +91,7 @@ public class AgentCommandService
         this.notificationPort = notificationPort;
         this.userPersistence = userPersistence;
         this.eventPublisher = eventPublisher;
+        this.proposalPersistence = proposalPersistence;
     }
 
     @Override
@@ -84,12 +100,26 @@ public class AgentCommandService
 
         // Tier 1: rule-based parsing
         ParsedIntent intent = intentParser.parse(rawText);
+        log.info("[IntentParser] Parsed intent={} from text=\"{}\"", intent.type(), rawText);
 
         // Tier 2: LLM fallback for UNKNOWN
         if (intent.type() == IntentType.UNKNOWN) {
-            llmPort.classifyIntent(agentId, rawText)
-                    .map(type -> new ParsedIntent(IntentType.valueOf(type), rawText, intent.params()))
-                    .ifPresent(llmIntent -> routeIntent(agent, llmIntent));
+            log.info("[IntentParser] Tier 1 returned UNKNOWN, falling back to LLM");
+            Optional<String> llmResult = llmPort.classifyIntent(agentId, rawText);
+            log.info("[LLMAdapter] LLM classified intent={}", llmResult.orElse("EMPTY"));
+            if (llmResult.isPresent() && !"UNKNOWN".equalsIgnoreCase(llmResult.get())) {
+                try {
+                    IntentType llmType = IntentType.valueOf(llmResult.get().toUpperCase());
+                    intent = new ParsedIntent(llmType, rawText, intent.params());
+                    log.info("[IntentParser] LLM resolved to intent={}", llmType);
+                } catch (IllegalArgumentException e) {
+                    log.warn("[IntentParser] LLM returned unrecognized intent: {}", llmResult.get());
+                }
+            }
+        }
+
+        if (intent.type() == IntentType.UNKNOWN) {
+            sendUnknownIntentReply(agent);
             return;
         }
 
@@ -97,13 +127,12 @@ public class AgentCommandService
     }
 
     private void routeIntent(Agent agent, ParsedIntent intent) {
+        log.info("[EventService] Routing intent={} for agent={}", intent.type(), agent.getAgentId());
         switch (intent.type()) {
             case VIEW_SCHEDULE -> notifySchedule(agent);
             case ADD_EVENT -> requestPersonalEventApproval(agent, intent);
             case SCHEDULE_WITH -> initiateCollaboration(agent, intent);
-            default -> {
-                // CANCEL_EVENT, UNKNOWN — future phases
-            }
+            default -> sendUnknownIntentReply(agent);
         }
     }
 
@@ -122,10 +151,14 @@ public class AgentCommandService
         List<TimeSlot> existing = calendarPort.getEvents(agentId, range);
 
         if (conflictDetector.hasConflict(existing, timeSlot)) {
+            log.warn("[EventService] Conflict detected for agent={} at {}", agentId, timeSlot);
             throw new IllegalStateException("Time slot conflicts with existing event for agent " + agentId);
         }
 
+        log.info("[CalendarAdapter] Creating event in Google Calendar: {} @ {}", title, timeSlot.start());
         EventId eventId = calendarPort.createEvent(agentId, timeSlot, title);
+        log.info("[CalendarAdapter] Event created successfully id={}", eventId.value());
+
         eventPublisher.publish(PersonalEventCreated.of(agentId, agent.getUserId(), eventId, timeSlot, title));
         return eventId;
     }
@@ -146,22 +179,18 @@ public class AgentCommandService
         sb.append("📅 *Your upcoming schedule (next 7 days):*\n\n");
 
         if (events.isEmpty()) {
-            sb.append("✨ No events scheduled. Your calendar is clear!");
+            sb.append("No events scheduled.\n");
         } else {
-            for (int i = 0; i < events.size(); i++) {
-                CalendarEvent ev = events.get(i);
-                java.time.ZonedDateTime startIST = ev.slot().start().atZone(ist);
-                java.time.ZonedDateTime endIST = ev.slot().end().atZone(ist);
-                sb.append(String.format("%d. *%s*\n    📆 %s · %s – %s IST\n",
-                        i + 1,
-                        ev.title(),
-                        startIST.format(dayFmt),
-                        startIST.format(timeFmt),
-                        endIST.format(timeFmt)));
+            for (CalendarEvent event : events) {
+                java.time.ZonedDateTime startZdt = event.slot().start().atZone(ist);
+                java.time.ZonedDateTime endZdt = event.slot().end().atZone(ist);
+                sb.append("• *").append(event.title()).append("*\n");
+                sb.append("   ").append(startZdt.format(dayFmt))
+                        .append(", ").append(startZdt.format(timeFmt))
+                        .append(" – ").append(endZdt.format(timeFmt)).append("\n\n");
             }
         }
 
-        // Resolve agent → user → Slack user to send the notification
         User user = userPersistence.findById(agent.getUserId())
                 .orElseThrow(() -> new NoSuchElementException("User not found for agent: " + agent.getAgentId()));
         notificationPort.sendMessage(
@@ -170,14 +199,159 @@ public class AgentCommandService
                 sb.toString());
     }
 
+    // ── Add Event Flow (State Machine) ─────────────────────────
+
     /**
-     * Creates a personal approval request for an ADD_EVENT intent.
+     * Creates a personal event proposal with state machine transitions,
+     * resolves natural-language dates, persists the proposal,
+     * and sends an interactive Slack approval card.
      */
     private void requestPersonalEventApproval(Agent agent, ParsedIntent intent) {
         String title = intent.param("title");
-        approvalPort.requestPersonalApproval(agent.getAgentId(), "Create event: " + title,
-                Duration.ofHours(12));
+        String dateTimeText = intent.param("dateTime");
+
+        log.info("[IntentParser] Parsed title={} dateTime={}", title, dateTimeText);
+
+        // Step 1: Create proposal → INITIATED
+        EventProposalId proposalId = EventProposalId.generate();
+
+        // Step 2: Resolve natural language date → actual Instant
+        Instant eventStart = null;
+        Instant eventEnd = null;
+
+        if (dateTimeText != null && !dateTimeText.isEmpty()) {
+            Optional<Instant> resolved = dateResolver.resolve(dateTimeText);
+            if (resolved.isPresent()) {
+                eventStart = resolved.get();
+                eventEnd = eventStart.plusSeconds(3600); // default 1-hour event
+            }
+        }
+
+        if (eventStart == null) {
+            // Default to tomorrow at 10 AM IST if no date could be parsed
+            log.warn("[DateResolver] Could not resolve date, defaulting to tomorrow 10:00 AM");
+            java.time.LocalDateTime tomorrow = java.time.LocalDateTime.of(
+                    LocalDate.now().plusDays(1), java.time.LocalTime.of(10, 0));
+            eventStart = tomorrow.atZone(java.time.ZoneId.of("Asia/Kolkata")).toInstant();
+            eventEnd = eventStart.plusSeconds(3600);
+        }
+
+        EventProposal proposal = new EventProposal(
+                proposalId, agent.getAgentId(),
+                title != null ? title : "Event",
+                eventStart, eventEnd);
+        log.info("[EventService] Proposal created id={} status=INITIATED", proposalId);
+
+        // Step 3: → PROPOSAL_GENERATED
+        proposal.transitionTo(EventProposalStatus.PROPOSAL_GENERATED);
+        log.info("[EventService] Proposal {} → PROPOSAL_GENERATED", proposalId);
+
+        // Step 4: Request approval
+        ApprovalId approvalId = approvalPort.requestPersonalApproval(
+                agent.getAgentId(), "Create event: " + title, Duration.ofHours(12));
+        proposal.linkApproval(approvalId);
+        log.info("[ApprovalService] Approval created id={} for proposal {}", approvalId, proposalId);
+
+        // Step 5: → AWAITING_USER_APPROVAL
+        proposal.transitionTo(EventProposalStatus.AWAITING_USER_APPROVAL);
+        log.info("[EventService] Proposal {} → AWAITING_USER_APPROVAL", proposalId);
+
+        // Persist the proposal
+        proposalPersistence.save(proposal);
+
+        // Step 6: Send interactive Slack card with resolved date
+        String proposalText = "📅 *Create Event:* " + (title != null ? title : "(No title)")
+                + "\n🕐 " + dateResolver.formatRange(eventStart, eventEnd);
+
+        User user = userPersistence.findById(agent.getUserId())
+                .orElseThrow(() -> new NoSuchElementException("User not found for agent: " + agent.getAgentId()));
+        notificationPort.sendApprovalRequest(
+                user.getSlackIdentity().slackUserId(),
+                user.getSlackIdentity().workspaceId(),
+                proposalText,
+                approvalId.value().toString());
+        log.info("[NotificationService] Approval card sent to user for proposal {}", proposalId);
     }
+
+    /**
+     * Called when a personal approval is decided (via domain event).
+     * Drives the state machine: APPROVED → EVENT_CREATED → COMPLETED
+     * or REJECTED (terminal).
+     */
+    public void onPersonalApprovalDecided(ApprovalId approvalId, String decision, String userId) {
+        log.info("[ApprovalService] Approval {} decided={}", approvalId, decision);
+
+        // Load the proposal by approvalId
+        Optional<EventProposal> proposalOpt = proposalPersistence.findByApprovalId(approvalId);
+        if (proposalOpt.isEmpty()) {
+            log.warn("[EventService] No proposal found for approval={}", approvalId);
+            return;
+        }
+
+        EventProposal proposal = proposalOpt.get();
+        Agent agent = loadAgent(proposal.getAgentId());
+        User user = userPersistence.findById(agent.getUserId()).orElse(null);
+        if (user == null) {
+            log.warn("[EventService] No user found for agent={}", proposal.getAgentId());
+            return;
+        }
+
+        if ("APPROVED".equals(decision)) {
+            // → APPROVED
+            proposal.transitionTo(EventProposalStatus.APPROVED);
+            proposalPersistence.save(proposal);
+            log.info("[EventService] Proposal {} → APPROVED", proposal.getProposalId());
+
+            try {
+                // → EVENT_CREATED (call Google Calendar)
+                TimeSlot timeSlot = new TimeSlot(proposal.getStartTime(), proposal.getEndTime());
+                EventId eventId = createPersonalEvent(proposal.getAgentId(), proposal.getTitle(), timeSlot);
+                proposal.recordEventId(eventId);
+                proposal.transitionTo(EventProposalStatus.EVENT_CREATED);
+                proposalPersistence.save(proposal);
+                log.info("[EventService] Proposal {} → EVENT_CREATED eventId={}", proposal.getProposalId(),
+                        eventId.value());
+
+                // → COMPLETED + send confirmation
+                proposal.transitionTo(EventProposalStatus.COMPLETED);
+                proposalPersistence.save(proposal);
+                log.info("[EventService] Proposal {} → COMPLETED", proposal.getProposalId());
+
+                String confirmMsg = "✅ *Event Created Successfully!*\n\n"
+                        + "📌 *" + proposal.getTitle() + "*\n"
+                        + "🕐 " + dateResolver.formatRange(proposal.getStartTime(), proposal.getEndTime());
+                notificationPort.sendMessage(
+                        user.getSlackIdentity().slackUserId(),
+                        user.getSlackIdentity().workspaceId(),
+                        confirmMsg);
+                log.info("[NotificationService] Success notification sent for proposal {}", proposal.getProposalId());
+
+            } catch (Exception e) {
+                // → FAILED
+                proposal.transitionTo(EventProposalStatus.FAILED);
+                proposalPersistence.save(proposal);
+                log.error("[EventService] Proposal {} → FAILED: {}", proposal.getProposalId(), e.getMessage(), e);
+
+                notificationPort.sendMessage(
+                        user.getSlackIdentity().slackUserId(),
+                        user.getSlackIdentity().workspaceId(),
+                        "❌ Failed to create event: " + e.getMessage());
+            }
+        } else {
+            // → REJECTED
+            proposal.transitionTo(EventProposalStatus.REJECTED);
+            proposalPersistence.save(proposal);
+            log.info("[EventService] Proposal {} → REJECTED", proposal.getProposalId());
+
+            notificationPort.sendMessage(
+                    user.getSlackIdentity().slackUserId(),
+                    user.getSlackIdentity().workspaceId(),
+                    "🚫 Event *" + proposal.getTitle() + "* was rejected.");
+            log.info("[NotificationService] Rejection notification sent for proposal {}", proposal.getProposalId());
+        }
+    }
+
+    // ── Collaboration ──
 
     /**
      * Resolves the target user from an @mention, finds their agent,
@@ -229,6 +403,22 @@ public class AgentCommandService
         coordinationProtocol.initiate(
                 agent.getAgentId(), inviteeAgentId,
                 lookAhead, 30, "Meeting", "UTC");
+    }
+
+    // ── Fallback ──
+
+    private void sendUnknownIntentReply(Agent agent) {
+        log.info("[EventService] Unknown intent for agent={}, sending fallback", agent.getAgentId());
+        User user = userPersistence.findById(agent.getUserId()).orElse(null);
+        if (user != null) {
+            notificationPort.sendMessage(
+                    user.getSlackIdentity().slackUserId(),
+                    user.getSlackIdentity().workspaceId(),
+                    "🤔 I didn't understand that. Try:\n"
+                            + "• `show my schedule`\n"
+                            + "• `add event <title> on <date> at <time>`\n"
+                            + "• `schedule a meeting with @user`");
+        }
     }
 
     private Agent loadAgent(AgentId agentId) {

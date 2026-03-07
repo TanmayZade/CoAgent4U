@@ -117,6 +117,13 @@ public class SlackInboundAdapter {
                 String eventType = event.path("type").asText();
 
                 if ("message".equals(eventType) || "app_mention".equals(eventType)) {
+                    // Skip bot messages (our own replies echo back through Slack)
+                    String subtype = event.path("subtype").asText(null);
+                    if ("bot_message".equals(subtype) || event.has("bot_id")) {
+                        log.debug("Ignoring bot message event_id={}", eventId);
+                        return ResponseEntity.ok("");
+                    }
+
                     String slackUserId = event.path("user").asText();
                     String teamId = payload.path("team_id").asText();
                     String text = event.path("text").asText();

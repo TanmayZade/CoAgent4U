@@ -16,9 +16,9 @@ import java.util.regex.Pattern;
  */
 public class IntentParser {
 
-    // Pattern: "add/schedule/create event <title> on/at ..."
+    // Pattern: "add/schedule/create event <title> on/at <dateTime>"
     private static final Pattern ADD_EVENT = Pattern.compile(
-            "(?i)\\b(add|create|schedule|book|set up)\\s+(a\\s+)?(meeting|event|appointment|call|session)?\\s*(?:called|named|titled)?\\s*[\"']?([^\"']+?)[\"']?\\s*(?:on|at|for)\\b",
+            "(?i)\\b(add|create|schedule|book|set up)\\s+(a\\s+)?(meeting|event|appointment|call|session)?\\s*(?:called|named|titled)?\\s*[\"']?([^\"']+?)[\"']?\\s+(?:on|at|for)\\s+(.+)",
             Pattern.CASE_INSENSITIVE);
 
     // Pattern: "cancel/delete/remove event <title>"
@@ -62,6 +62,8 @@ public class IntentParser {
             Map<String, String> params = new HashMap<>();
             if (m.group(4) != null)
                 params.put("title", m.group(4).trim());
+            if (m.group(5) != null)
+                params.put("dateTime", m.group(5).trim());
             return new ParsedIntent(IntentType.ADD_EVENT, rawText, params);
         }
 

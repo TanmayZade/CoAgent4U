@@ -4,6 +4,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -16,6 +17,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * </p>
  */
 @SpringBootApplication
+@EnableAsync
 @EnableScheduling
 @EnableJpaRepositories(basePackages = "com.coagent4u.persistence")
 @EntityScan(basePackages = "com.coagent4u.persistence")
