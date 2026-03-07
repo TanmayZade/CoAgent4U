@@ -79,11 +79,15 @@ public class SlackInboundAdapter {
             @RequestHeader("X-Slack-Signature") String signature,
             @RequestBody String rawBody) {
 
+        // log.info("Received Slack event request, verifying signature...");
+
         // 1. Verify Slack signature (replay protection)
         if (!signatureVerifier.verify(timestamp, rawBody, signature)) {
-            log.warn("Slack signature verification failed");
+            log.warn("Slack signature verification failed - timestamp={}, signature={}", timestamp, signature);
             return ResponseEntity.status(401).body("Invalid signature");
         }
+
+        // log.info("Slack signature verified successfully");
 
         try {
             JsonNode payload = objectMapper.readTree(rawBody);
@@ -92,7 +96,11 @@ public class SlackInboundAdapter {
             // 2. URL Verification challenge (Slack app setup)
             if ("url_verification".equals(type)) {
                 String challenge = payload.path("challenge").asText();
-                return ResponseEntity.ok(challenge);
+                // log.info("Slack URL verification challenge received, responding with
+                // challenge");
+                return ResponseEntity.ok()
+                        .header("Content-Type", "text/plain")
+                        .body(challenge);
             }
 
             // 3. Event callback — acknowledge immediately, process async
@@ -112,6 +120,9 @@ public class SlackInboundAdapter {
                     String slackUserId = event.path("user").asText();
                     String teamId = payload.path("team_id").asText();
                     String text = event.path("text").asText();
+
+                    // Strip Slack mention prefix like "<@U0BOTID> " so intent parsing works
+                    text = text.replaceAll("<@[A-Z0-9]+>\\s*", "").trim();
 
                     // Fire-and-forget async processing
                     processMessageAsync(slackUserId, teamId, text, eventId);

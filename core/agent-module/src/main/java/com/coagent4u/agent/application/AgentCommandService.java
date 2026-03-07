@@ -22,6 +22,7 @@ import com.coagent4u.common.DomainEventPublisher;
 import com.coagent4u.common.events.PersonalEventCreated;
 import com.coagent4u.coordination.port.in.CoordinationProtocolPort;
 import com.coagent4u.shared.AgentId;
+import com.coagent4u.shared.CalendarEvent;
 import com.coagent4u.shared.Duration;
 import com.coagent4u.shared.EventId;
 import com.coagent4u.shared.TimeRange;
@@ -131,20 +132,32 @@ public class AgentCommandService
 
     /**
      * Fetches upcoming events and sends a formatted schedule summary via Slack.
+     * Times are displayed in Indian Standard Time (IST, UTC+05:30).
      */
     private void notifySchedule(Agent agent) {
         TimeRange nextWeek = TimeRange.of(LocalDate.now(), LocalDate.now().plusDays(7));
-        List<TimeSlot> events = calendarPort.getEvents(agent.getAgentId(), nextWeek);
+        List<CalendarEvent> events = calendarPort.getCalendarEvents(agent.getAgentId(), nextWeek);
+
+        java.time.ZoneId ist = java.time.ZoneId.of("Asia/Kolkata");
+        java.time.format.DateTimeFormatter dayFmt = java.time.format.DateTimeFormatter.ofPattern("EEE, MMM dd");
+        java.time.format.DateTimeFormatter timeFmt = java.time.format.DateTimeFormatter.ofPattern("hh:mm a");
 
         StringBuilder sb = new StringBuilder();
-        sb.append("📅 *Your upcoming schedule (next 7 days):*\n");
+        sb.append("📅 *Your upcoming schedule (next 7 days):*\n\n");
 
         if (events.isEmpty()) {
-            sb.append("No events scheduled. Your calendar is clear!");
+            sb.append("✨ No events scheduled. Your calendar is clear!");
         } else {
             for (int i = 0; i < events.size(); i++) {
-                TimeSlot e = events.get(i);
-                sb.append(String.format("%d. %s → %s\n", i + 1, e.start(), e.end()));
+                CalendarEvent ev = events.get(i);
+                java.time.ZonedDateTime startIST = ev.slot().start().atZone(ist);
+                java.time.ZonedDateTime endIST = ev.slot().end().atZone(ist);
+                sb.append(String.format("%d. *%s*\n    📆 %s · %s – %s IST\n",
+                        i + 1,
+                        ev.title(),
+                        startIST.format(dayFmt),
+                        startIST.format(timeFmt),
+                        endIST.format(timeFmt)));
             }
         }
 

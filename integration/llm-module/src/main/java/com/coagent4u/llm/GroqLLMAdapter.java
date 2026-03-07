@@ -1,5 +1,6 @@
 package com.coagent4u.llm;
 
+import java.time.Duration;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -76,6 +77,7 @@ public class GroqLLMAdapter implements LLMPort {
                     .bodyValue(payload)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(10))
                     .block();
 
             String intent = extractContent(response);
@@ -122,6 +124,7 @@ public class GroqLLMAdapter implements LLMPort {
                     .bodyValue(payload)
                     .retrieve()
                     .bodyToMono(String.class)
+                    .timeout(Duration.ofSeconds(10))
                     .block();
 
             String summary = extractContent(response);

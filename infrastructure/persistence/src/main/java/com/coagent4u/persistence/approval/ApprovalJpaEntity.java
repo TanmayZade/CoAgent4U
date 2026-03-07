@@ -3,6 +3,9 @@ package com.coagent4u.persistence.approval;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -28,6 +31,7 @@ public class ApprovalJpaEntity {
     @Column(name = "decision", nullable = false, length = 16)
     private String decision;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "event_details", columnDefinition = "JSONB")
     private String eventDetailsJson;
 

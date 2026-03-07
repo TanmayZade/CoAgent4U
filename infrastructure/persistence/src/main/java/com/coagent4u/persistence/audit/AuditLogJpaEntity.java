@@ -3,6 +3,9 @@ package com.coagent4u.persistence.audit;
 import java.time.Instant;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -22,6 +25,7 @@ public class AuditLogJpaEntity {
     @Column(name = "event_type", nullable = false, length = 64)
     private String eventType;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "payload", columnDefinition = "JSONB")
     private String payloadJson;
 

@@ -15,8 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.coagent4u.agent.domain.Agent;
 import com.coagent4u.agent.domain.IntentParser;
 import com.coagent4u.agent.domain.ParsedIntent;
+import com.coagent4u.agent.port.out.AgentPersistencePort;
 import com.coagent4u.agent.port.out.LLMPort;
 import com.coagent4u.config.CoagentProperties;
 import com.coagent4u.shared.AgentId;
@@ -47,6 +49,7 @@ public class RestApiController {
     private final OAuthTokenExchangePort oAuthTokenExchangePort;
     private final LLMPort llmPort;
     private final CoagentProperties coagentProperties;
+    private final AgentPersistencePort agentPersistencePort;
     private final IntentParser intentParser = new IntentParser();
 
     public RestApiController(
@@ -55,13 +58,15 @@ public class RestApiController {
             UserPersistencePort userPersistencePort,
             OAuthTokenExchangePort oAuthTokenExchangePort,
             LLMPort llmPort,
-            CoagentProperties coagentProperties) {
+            CoagentProperties coagentProperties,
+            AgentPersistencePort agentPersistencePort) {
         this.registerUserUseCase = registerUserUseCase;
         this.connectServiceUseCase = connectServiceUseCase;
         this.userPersistencePort = userPersistencePort;
         this.oAuthTokenExchangePort = oAuthTokenExchangePort;
         this.llmPort = llmPort;
         this.coagentProperties = coagentProperties;
+        this.agentPersistencePort = agentPersistencePort;
     }
 
     /**
@@ -80,6 +85,30 @@ public class RestApiController {
             return ResponseEntity.ok("User registered successfully");
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Provision an agent for a registered user (local testing helper).
+     * Pass the userId returned by GET /api/users/{userId} or from logs.
+     */
+    @PostMapping("/agents")
+    public ResponseEntity<String> provisionAgent(@RequestBody ProvisionAgentRequest request) {
+        try {
+            UserId userId = new UserId(java.util.UUID.fromString(request.userId()));
+            if (userPersistencePort.findById(userId).isEmpty()) {
+                return ResponseEntity.badRequest().body("User not found: " + request.userId());
+            }
+            // Idempotent: skip if agent already exists
+            if (agentPersistencePort.findByUserId(userId).isPresent()) {
+                return ResponseEntity.ok("Agent already provisioned for user: " + request.userId());
+            }
+            Agent agent = new Agent(new AgentId(java.util.UUID.randomUUID()), userId);
+            agentPersistencePort.save(agent);
+            log.info("Agent provisioned: agentId={} for userId={}", agent.getAgentId(), userId);
+            return ResponseEntity.ok("Agent provisioned: " + agent.getAgentId().value());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Invalid userId format: " + e.getMessage());
         }
     }
 
@@ -236,6 +265,9 @@ public class RestApiController {
             String email,
             String slackUserId,
             String workspaceId) {
+    }
+
+    public record ProvisionAgentRequest(String userId) {
     }
 
     public record UserProfileResponse(

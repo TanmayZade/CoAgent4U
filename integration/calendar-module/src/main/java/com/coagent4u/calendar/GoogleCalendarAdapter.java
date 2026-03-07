@@ -24,6 +24,7 @@ import com.coagent4u.common.exception.TokenExpiredException;
 import com.coagent4u.config.CoagentProperties;
 import com.coagent4u.security.AesTokenEncryption;
 import com.coagent4u.shared.AgentId;
+import com.coagent4u.shared.CalendarEvent;
 import com.coagent4u.shared.EventId;
 import com.coagent4u.shared.TimeRange;
 import com.coagent4u.shared.TimeSlot;
@@ -143,7 +144,13 @@ public class GoogleCalendarAdapter implements CalendarPort, OAuthTokenExchangePo
 
     @Override
     public List<TimeSlot> getEvents(AgentId agentId, TimeRange range) {
-        String token = resolveAccessToken(agentId);
+        Optional<String> tokenOpt = resolveAccessTokenOptional(agentId);
+        if (tokenOpt.isEmpty()) {
+            log.warn("No Google Calendar token for agentId={} — returning empty event list (local testing mode)",
+                    agentId);
+            return java.util.Collections.emptyList();
+        }
+        String token = tokenOpt.get();
         Instant rangeStart = range.start().atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant rangeEnd = range.end().plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         try {
@@ -168,8 +175,46 @@ public class GoogleCalendarAdapter implements CalendarPort, OAuthTokenExchangePo
     }
 
     @Override
+    public List<CalendarEvent> getCalendarEvents(AgentId agentId, TimeRange range) {
+        Optional<String> tokenOpt = resolveAccessTokenOptional(agentId);
+        if (tokenOpt.isEmpty()) {
+            log.warn("No Google Calendar token for agentId={} — returning empty event list",
+                    agentId);
+            return java.util.Collections.emptyList();
+        }
+        String token = tokenOpt.get();
+        Instant rangeStart = range.start().atStartOfDay(ZoneOffset.UTC).toInstant();
+        Instant rangeEnd = range.end().plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+        try {
+            String response = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/calendars/primary/events")
+                            .queryParam("timeMin", formatRfc3339(rangeStart))
+                            .queryParam("timeMax", formatRfc3339(rangeEnd))
+                            .queryParam("singleEvents", true)
+                            .queryParam("orderBy", "startTime")
+                            .build())
+                    .header("Authorization", "Bearer " + token)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            return parseCalendarEvents(response);
+
+        } catch (WebClientResponseException e) {
+            throw mapGoogleError(e);
+        }
+    }
+
+    @Override
     public List<TimeSlot> getFreeBusy(AgentId agentId, TimeRange range) {
-        String token = resolveAccessToken(agentId);
+        Optional<String> tokenOpt = resolveAccessTokenOptional(agentId);
+        if (tokenOpt.isEmpty()) {
+            log.warn("No Google Calendar token for agentId={} — returning empty busy slots (local testing mode)",
+                    agentId);
+            return java.util.Collections.emptyList();
+        }
+        String token = tokenOpt.get();
         Instant rangeStart = range.start().atStartOfDay(ZoneOffset.UTC).toInstant();
         Instant rangeEnd = range.end().plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
         try {
@@ -257,23 +302,31 @@ public class GoogleCalendarAdapter implements CalendarPort, OAuthTokenExchangePo
     // ── Internal helpers ──────────────────────────────────────
 
     /**
+     * /**
      * Resolves the decrypted access token for the agent's user.
+     * Returns empty if the user has no active Google Calendar connection (graceful
+     * fallback for local testing).
      */
-    private String resolveAccessToken(AgentId agentId) {
+    private Optional<String> resolveAccessTokenOptional(AgentId agentId) {
         var agent = agentPersistencePort.findById(agentId)
                 .orElseThrow(() -> new IllegalStateException("Agent not found: " + agentId));
-
         UserId userId = agent.getUserId();
         User user = userPersistencePort.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("User not found for agent: " + agentId));
-
-        Optional<ServiceConnection> connection = user.activeConnectionFor("google_calendar");
+        Optional<ServiceConnection> connection = user.activeConnectionFor("GOOGLE_CALENDAR");
         if (connection.isEmpty()) {
-            throw new TokenExpiredException("GoogleCalendar",
-                    "No active Google Calendar connection for user " + userId);
+            return Optional.empty();
         }
+        return Optional.of(encryptionService.decrypt(connection.get().getEncryptedToken()));
+    }
 
-        return encryptionService.decrypt(connection.get().getEncryptedToken());
+    /**
+     * Resolves the decrypted access token for the agent's user.
+     */
+    private String resolveAccessToken(AgentId agentId) {
+        return resolveAccessTokenOptional(agentId)
+                .orElseThrow(() -> new TokenExpiredException("GoogleCalendar",
+                        "No active Google Calendar connection for agent " + agentId));
     }
 
     /**
@@ -309,6 +362,25 @@ public class GoogleCalendarAdapter implements CalendarPort, OAuthTokenExchangePo
             log.warn("Failed to parse Google Calendar events response", e);
         }
         return slots;
+    }
+
+    private List<CalendarEvent> parseCalendarEvents(String json) {
+        List<CalendarEvent> events = new ArrayList<>();
+        try {
+            JsonNode root = objectMapper.readTree(json);
+            JsonNode items = root.path("items");
+            for (JsonNode item : items) {
+                String title = item.path("summary").asText("(No title)");
+                Instant start = parseDateTime(item.path("start"));
+                Instant end = parseDateTime(item.path("end"));
+                if (start != null && end != null) {
+                    events.add(new CalendarEvent(title, new TimeSlot(start, end)));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse Google Calendar events response", e);
+        }
+        return events;
     }
 
     private List<TimeSlot> parseFreeBusy(String json) {

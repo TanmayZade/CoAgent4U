@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -31,6 +34,7 @@ public class CoordinationJpaEntity {
     @Column(name = "state", nullable = false, length = 32)
     private String state;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "proposal", columnDefinition = "JSONB")
     private String proposalJson;
 

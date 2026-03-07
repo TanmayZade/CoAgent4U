@@ -3,6 +3,9 @@ package com.coagent4u.coordination.application;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.coagent4u.common.DomainEventPublisher;
 import com.coagent4u.common.events.CoordinationStateChanged;
 import com.coagent4u.coordination.domain.AvailabilityBlock;
@@ -36,7 +39,10 @@ import com.coagent4u.shared.TimeRange;
  */
 public class CoordinationService implements CoordinationProtocolPort {
 
+    private static final Logger log = LoggerFactory.getLogger(CoordinationService.class);
+
     private final CoordinationPersistencePort persistence;
+
     private final AgentAvailabilityPort agentAvailabilityPort;
     private final AgentEventExecutionPort agentEventExecutionPort;
     private final AgentProfilePort agentProfilePort;
@@ -100,7 +106,8 @@ public class CoordinationService implements CoordinationProtocolPort {
 
         // Request approval from invitee first (B), then requester (A)
         coordination.transition(CoordinationState.AWAITING_APPROVAL_B, "Awaiting invitee approval");
-        agentApprovalPort.requestApproval(inviteeAgentId, proposal);
+        var approvalId = agentApprovalPort.requestApproval(inviteeAgentId, proposal);
+        log.info("COORDINATION INITIATED: {} | Created approval for invitee: {}", coordId, approvalId);
         persistence.save(coordination);
 
         publishStateChange(coordination);
@@ -109,12 +116,14 @@ public class CoordinationService implements CoordinationProtocolPort {
 
     @Override
     public void advance(CoordinationId coordinationId, CoordinationState toState, String reason) {
+        log.info("ADVANCING COORDINATION: {} → {} | Reason: {}", coordinationId, toState, reason);
         Coordination coordination = load(coordinationId);
         coordination.transition(toState, reason);
         persistence.save(coordination);
 
         // If both approved — run the event creation saga
         if (toState == CoordinationState.APPROVED_BY_BOTH) {
+            log.info("COORDINATION APPROVED BY BOTH: {} | Executing event creation saga", coordinationId);
             eventCreationSaga.execute(coordination, agentEventExecutionPort);
             persistence.save(coordination);
         }
@@ -124,6 +133,7 @@ public class CoordinationService implements CoordinationProtocolPort {
 
     @Override
     public void terminate(CoordinationId coordinationId, String reason) {
+        log.warn("TERMINATING COORDINATION: {} | Reason: {}", coordinationId, reason);
         Coordination coordination = load(coordinationId);
         if (!coordination.isTerminal()) {
             coordination.transition(CoordinationState.FAILED, reason);

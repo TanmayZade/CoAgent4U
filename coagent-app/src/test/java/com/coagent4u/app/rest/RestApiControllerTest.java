@@ -19,6 +19,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.coagent4u.agent.port.out.AgentPersistencePort;
 import com.coagent4u.agent.port.out.LLMPort;
 import com.coagent4u.config.CoagentProperties;
 import com.coagent4u.shared.Email;
@@ -57,6 +58,9 @@ class RestApiControllerTest {
         @Mock
         private CoagentProperties coagentProperties;
 
+        @Mock
+        private AgentPersistencePort agentPersistencePort;
+
         private MockMvc mockMvc;
 
         @BeforeEach
@@ -67,7 +71,8 @@ class RestApiControllerTest {
                                 userPersistencePort,
                                 oAuthTokenExchangePort,
                                 llmPort,
-                                coagentProperties);
+                                coagentProperties,
+                                agentPersistencePort);
                 mockMvc = MockMvcBuilders.standaloneSetup(controller).build();
         }
 

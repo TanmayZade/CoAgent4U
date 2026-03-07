@@ -24,6 +24,10 @@
             <groupId>com.coagent4u</groupId>
             <artifactId>common-domain</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
         <!-- NOTE: NO dependency on calendar-module, user-module, approval-module, or messaging-module.
              Agent Sovereignty: coordination accesses agent capabilities ONLY via ports declared here. -->
         <dependency>
