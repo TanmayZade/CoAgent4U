@@ -37,14 +37,30 @@ public class JwtIssuer {
         this.expiryMinutes = expiryMinutes;
     }
 
+    /** Backward-compatible: issues JWT with userId only. */
     public String issue(UUID userId) {
+        return issue(userId, null, false);
+    }
+
+    /**
+     * Issues a JWT with full claims.
+     *
+     * @param userId              the user's UUID (subject)
+     * @param username            display username (may be null for legacy calls)
+     * @param pendingRegistration true if user has not yet completed onboarding
+     * @return signed JWT string
+     */
+    public String issue(UUID userId, String username, boolean pendingRegistration) {
         Instant now = Instant.now();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .id(UUID.randomUUID().toString())
                 .subject(userId.toString())
+                .claim("pending_registration", pendingRegistration)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusSeconds(expiryMinutes * 60)))
-                .signWith(key)
-                .compact();
+                .expiration(Date.from(now.plusSeconds(expiryMinutes * 60)));
+        if (username != null) {
+            builder.claim("username", username);
+        }
+        return builder.signWith(key).compact();
     }
 }

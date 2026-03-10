@@ -41,4 +41,9 @@ public class SecurityBeanConfig {
     public CaffeineRateLimiter rateLimiter(CoagentProperties props) {
         return new CaffeineRateLimiter(props.getRateLimiting().getRequestsPerMinute());
     }
+
+    @Bean
+    public JwtTokenBlacklist jwtTokenBlacklist(CoagentProperties props) {
+        return new JwtTokenBlacklist(props.getSecurity().getJwtExpiryMinutes());
+    }
 }

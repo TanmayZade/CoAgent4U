@@ -45,15 +45,20 @@ management:
 # ── CoAgent4U custom configuration ──────────────────────────
 # All secrets from env vars — no placeholder fallbacks
 coagent:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+
   slack:
     signing-secret: ${SLACK_SIGNING_SECRET}
     bot-token: ${SLACK_BOT_TOKEN}
     app-id: ${SLACK_APP_ID}
+    client-id: ${SLACK_CLIENT_ID}
+    client-secret: ${SLACK_CLIENT_SECRET}
+    redirect-uri: ${SLACK_REDIRECT_URI:http://localhost:8080/auth/slack/callback}
 
   google:
     client-id: ${GOOGLE_CLIENT_ID}
     client-secret: ${GOOGLE_CLIENT_SECRET}
-    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/oauth2/callback}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8080/integrations/google/callback}
 
   security:
     jwt-secret: ${JWT_SECRET}

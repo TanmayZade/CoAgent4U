@@ -15,6 +15,15 @@ public class CoagentProperties {
     private Coordination coordination = new Coordination();
     private Llm llm = new Llm();
     private RateLimiting rateLimiting = new RateLimiting();
+    private String frontendUrl = "http://localhost:3000";
+
+    public String getFrontendUrl() {
+        return frontendUrl;
+    }
+
+    public void setFrontendUrl(String frontendUrl) {
+        this.frontendUrl = frontendUrl;
+    }
 
     public Slack getSlack() {
         return slack;
@@ -68,6 +77,9 @@ public class CoagentProperties {
         private String signingSecret;
         private String botToken;
         private String appId;
+        private String clientId;
+        private String clientSecret;
+        private String redirectUri = "http://localhost:8080/auth/slack/callback";
 
         public String getSigningSecret() {
             return signingSecret;
@@ -91,6 +103,30 @@ public class CoagentProperties {
 
         public void setAppId(String s) {
             this.appId = s;
+        }
+
+        public String getClientId() {
+            return clientId;
+        }
+
+        public void setClientId(String s) {
+            this.clientId = s;
+        }
+
+        public String getClientSecret() {
+            return clientSecret;
+        }
+
+        public void setClientSecret(String s) {
+            this.clientSecret = s;
+        }
+
+        public String getRedirectUri() {
+            return redirectUri;
+        }
+
+        public void setRedirectUri(String s) {
+            this.redirectUri = s;
         }
     }
 

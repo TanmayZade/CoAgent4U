@@ -30,6 +30,12 @@
         </dependency>
         <!-- NOTE: NO dependency on calendar-module, user-module, approval-module, or messaging-module.
              Agent Sovereignty: coordination accesses agent capabilities ONLY via ports declared here. -->
+        <!-- Test-scope only: MockNotificationAdapter references NotificationPort -->
+        <dependency>
+            <groupId>com.coagent4u</groupId>
+            <artifactId>user-module</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
