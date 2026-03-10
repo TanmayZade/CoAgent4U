@@ -72,7 +72,8 @@ public class ApprovalService implements CreateApprovalUseCase, DecideApprovalUse
         eventPublisher.publish(ApprovalDecisionMade.of(
                 approvalId, userId,
                 decision.name(),
-                approval.getApprovalType().name()));
+                approval.getApprovalType().name(),
+                approval.getCoordinationId()));
     }
 
     /**

@@ -111,8 +111,10 @@ public class BeanWiringConfig {
     @Bean
     AgentApprovalPortImpl agentApprovalPort(
             AgentPersistencePort agentPersistence,
-            CreateApprovalUseCase createApprovalUseCase) {
-        return new AgentApprovalPortImpl(agentPersistence, createApprovalUseCase);
+            com.coagent4u.user.port.out.UserPersistencePort userPersistence,
+            CreateApprovalUseCase createApprovalUseCase,
+            com.coagent4u.user.port.out.NotificationPort notificationPort) {
+        return new AgentApprovalPortImpl(agentPersistence, userPersistence, createApprovalUseCase, notificationPort);
     }
 
     @Bean

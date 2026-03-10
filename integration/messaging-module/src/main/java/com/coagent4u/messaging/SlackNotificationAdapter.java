@@ -205,4 +205,95 @@ public class SlackNotificationAdapter implements NotificationPort {
             throw new NotificationFailureException("Failed to build approval payload", e);
         }
     }
+
+    // ── Slot Selection Card ──
+
+    @Override
+    public void sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String coordinationId, java.util.List<com.coagent4u.shared.TimeSlot> slots,
+            String requesterMention) {
+        log.info("[NotificationService] Sending slot selection card to user={} for coordination={}",
+                slackUserId.value(), coordinationId);
+        String payload = buildSlotSelectionPayload(slackUserId.value(), coordinationId, slots, requesterMention);
+        postToSlack(payload, slackUserId.value());
+    }
+
+    /**
+     * Builds a Slack Block Kit payload with buttons for each available time slot.
+     */
+    private String buildSlotSelectionPayload(String channel, String coordinationId,
+            java.util.List<com.coagent4u.shared.TimeSlot> slots, String requesterMention) {
+        try {
+            java.time.ZoneId ist = java.time.ZoneId.of("Asia/Kolkata");
+            java.time.format.DateTimeFormatter dateFmt = java.time.format.DateTimeFormatter
+                    .ofPattern("EEE, dd MMM yyyy");
+            java.time.format.DateTimeFormatter timeFmt = java.time.format.DateTimeFormatter.ofPattern("hh:mm a");
+
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("channel", channel);
+            root.put("text", requesterMention + " wants to schedule a meeting with you");
+
+            ArrayNode blocks = objectMapper.createArrayNode();
+
+            // Header section with requester name
+            ObjectNode headerSection = objectMapper.createObjectNode();
+            headerSection.put("type", "section");
+            ObjectNode headerText = objectMapper.createObjectNode();
+            headerText.put("type", "mrkdwn");
+            headerText.put("text",
+                    "*" + requesterMention
+                            + " wants to schedule a meeting with you.*\n\nPlease select one of the available slots below.");
+            headerSection.set("text", headerText);
+            blocks.add(headerSection);
+
+            // Divider
+            ObjectNode divider = objectMapper.createObjectNode();
+            divider.put("type", "divider");
+            blocks.add(divider);
+
+            // Slot buttons (in groups of 5 — Slack limit per actions block)
+            int slotIndex = 0;
+            ArrayNode currentActions = null;
+            ObjectNode currentActionsBlock = null;
+
+            for (com.coagent4u.shared.TimeSlot slot : slots) {
+                if (slotIndex % 5 == 0) {
+                    currentActionsBlock = objectMapper.createObjectNode();
+                    currentActionsBlock.put("type", "actions");
+                    currentActions = objectMapper.createArrayNode();
+                    currentActionsBlock.set("elements", currentActions);
+                    blocks.add(currentActionsBlock);
+                }
+
+                java.time.ZonedDateTime startZdt = slot.start().atZone(ist);
+                java.time.ZonedDateTime endZdt = slot.end().atZone(ist);
+
+                String label = startZdt.format(timeFmt) + " – " + endZdt.format(timeFmt);
+                if (slotIndex == 0) {
+                    // Show date on first slot
+                    label = startZdt.format(dateFmt) + "\n" + label;
+                }
+
+                ObjectNode button = objectMapper.createObjectNode();
+                button.put("type", "button");
+                ObjectNode btnText = objectMapper.createObjectNode();
+                btnText.put("type", "plain_text");
+                btnText.put("text", "🕐 " + startZdt.format(timeFmt) + "–" + endZdt.format(timeFmt));
+                button.set("text", btnText);
+                // action_id encodes: slot_select_{coordinationId}_{slotIndex}
+                button.put("action_id", "slot_select_" + coordinationId + "_" + slotIndex);
+                // value encodes: start_end as epoch millis
+                button.put("value", slot.start().toEpochMilli() + "_" + slot.end().toEpochMilli());
+                currentActions.add(button);
+
+                slotIndex++;
+            }
+
+            root.set("blocks", blocks);
+            return objectMapper.writeValueAsString(root);
+
+        } catch (Exception e) {
+            throw new NotificationFailureException("Failed to build slot selection payload", e);
+        }
+    }
 }

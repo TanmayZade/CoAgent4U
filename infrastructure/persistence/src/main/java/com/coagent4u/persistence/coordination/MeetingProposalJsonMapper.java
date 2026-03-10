@@ -38,15 +38,16 @@ public final class MeetingProposalJsonMapper {
     public static String toJson(MeetingProposal p) {
         try {
             // Explicit field mapping — no @JsonTypeInfo, no automatic type detection
-            Map<String, Object> map = Map.of(
-                    "proposalId", p.proposalId(),
-                    "requesterAgentId", p.requesterAgentId().value().toString(),
-                    "inviteeAgentId", p.inviteeAgentId().value().toString(),
-                    "suggestedStart", p.suggestedTime().start().toString(),
-                    "suggestedEnd", p.suggestedTime().end().toString(),
-                    "durationMinutes", p.durationMinutes(),
-                    "title", p.title(),
-                    "timezone", p.timezone());
+            Map<String, Object> map = new java.util.LinkedHashMap<>();
+            map.put("proposalId", p.proposalId());
+            map.put("coordinationIdStr", p.coordinationIdStr());
+            map.put("requesterAgentId", p.requesterAgentId().value().toString());
+            map.put("inviteeAgentId", p.inviteeAgentId().value().toString());
+            map.put("suggestedStart", p.suggestedTime().start().toString());
+            map.put("suggestedEnd", p.suggestedTime().end().toString());
+            map.put("durationMinutes", p.durationMinutes());
+            map.put("title", p.title());
+            map.put("timezone", p.timezone());
             return MAPPER.writeValueAsString(map);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to serialize MeetingProposal", e);
@@ -59,6 +60,7 @@ public final class MeetingProposalJsonMapper {
             Map<String, Object> map = MAPPER.readValue(json, Map.class);
             return new MeetingProposal(
                     (String) map.get("proposalId"),
+                    (String) map.getOrDefault("coordinationIdStr", ""),
                     new AgentId(UUID.fromString((String) map.get("requesterAgentId"))),
                     new AgentId(UUID.fromString((String) map.get("inviteeAgentId"))),
                     new TimeSlot(

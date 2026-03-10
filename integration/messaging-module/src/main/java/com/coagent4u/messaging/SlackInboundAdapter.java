@@ -4,11 +4,12 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -32,7 +33,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *
  * <p>
  * Critical contract: Slack requires HTTP 200 within 3 seconds.
- * This adapter immediately acknowledges and processes async.
+ * This adapter immediately acknowledges and processes async via
+ * a dedicated thread pool (not Spring @Async self-invocation).
  * </p>
  *
  * <p>
@@ -51,6 +53,7 @@ public class SlackInboundAdapter {
     private final AgentPersistencePort agentPersistencePort;
     private final HandleMessageUseCase handleMessageUseCase;
     private final ObjectMapper objectMapper;
+    private final Executor taskExecutor;
 
     // Bounded in-memory dedup cache: event_id → timestamp
     private final Map<String, Instant> processedEvents = new ConcurrentHashMap<>();
@@ -60,18 +63,20 @@ public class SlackInboundAdapter {
             UserPersistencePort userPersistencePort,
             AgentPersistencePort agentPersistencePort,
             HandleMessageUseCase handleMessageUseCase,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            @Qualifier("taskExecutor") Executor taskExecutor) {
         this.signatureVerifier = signatureVerifier;
         this.userPersistencePort = userPersistencePort;
         this.agentPersistencePort = agentPersistencePort;
         this.handleMessageUseCase = handleMessageUseCase;
         this.objectMapper = objectMapper;
+        this.taskExecutor = taskExecutor;
     }
 
     /**
      * Handles all Slack Events API webhooks.
      * - URL verification challenge: responds synchronously
-     * - Event callbacks: acknowledges immediately, processes async
+     * - Event callbacks: acknowledges IMMEDIATELY, processes on a separate thread
      */
     @PostMapping("/events")
     public ResponseEntity<String> handleEvent(
@@ -79,15 +84,11 @@ public class SlackInboundAdapter {
             @RequestHeader("X-Slack-Signature") String signature,
             @RequestBody String rawBody) {
 
-        // log.info("Received Slack event request, verifying signature...");
-
         // 1. Verify Slack signature (replay protection)
         if (!signatureVerifier.verify(timestamp, rawBody, signature)) {
-            log.warn("Slack signature verification failed - timestamp={}, signature={}", timestamp, signature);
+            log.warn("[SlackAdapter] Signature verification failed");
             return ResponseEntity.status(401).body("Invalid signature");
         }
-
-        // log.info("Slack signature verified successfully");
 
         try {
             JsonNode payload = objectMapper.readTree(rawBody);
@@ -96,20 +97,17 @@ public class SlackInboundAdapter {
             // 2. URL Verification challenge (Slack app setup)
             if ("url_verification".equals(type)) {
                 String challenge = payload.path("challenge").asText();
-                // log.info("Slack URL verification challenge received, responding with
-                // challenge");
                 return ResponseEntity.ok()
                         .header("Content-Type", "text/plain")
                         .body(challenge);
             }
 
-            // 3. Event callback — acknowledge immediately, process async
+            // 3. Event callback — acknowledge IMMEDIATELY, process async
             if ("event_callback".equals(type)) {
                 String eventId = payload.path("event_id").asText();
 
                 // Idempotency guard
                 if (isDuplicate(eventId)) {
-                    log.debug("Duplicate event_id={}, skipping", eventId);
                     return ResponseEntity.ok("");
                 }
 
@@ -120,7 +118,6 @@ public class SlackInboundAdapter {
                     // Skip bot messages (our own replies echo back through Slack)
                     String subtype = event.path("subtype").asText(null);
                     if ("bot_message".equals(subtype) || event.has("bot_id")) {
-                        log.debug("Ignoring bot message event_id={}", eventId);
                         return ResponseEntity.ok("");
                     }
 
@@ -128,39 +125,55 @@ public class SlackInboundAdapter {
                     String teamId = payload.path("team_id").asText();
                     String text = event.path("text").asText();
 
-                    // Strip Slack mention prefix like "<@U0BOTID> " so intent parsing works
-                    text = text.replaceAll("<@[A-Z0-9]+>\\s*", "").trim();
+                    // Preserve user mentions as slack:USER_ID for intent parsing
+                    // but strip the bot self-mention (for app_mention events)
+                    java.util.regex.Matcher mentionMatcher = java.util.regex.Pattern
+                            .compile("<@([A-Z0-9]+)>").matcher(text);
+                    StringBuilder sb = new StringBuilder();
+                    boolean first = true;
+                    while (mentionMatcher.find()) {
+                        String mentionedUserId = mentionMatcher.group(1);
+                        if (first && "app_mention".equals(eventType)) {
+                            mentionMatcher.appendReplacement(sb, "");
+                            first = false;
+                        } else {
+                            mentionMatcher.appendReplacement(sb, "slack:" + mentionedUserId);
+                        }
+                    }
+                    mentionMatcher.appendTail(sb);
+                    text = sb.toString().trim();
 
-                    // Fire-and-forget async processing
-                    processMessageAsync(slackUserId, teamId, text, eventId);
+                    // Fire-and-forget on thread pool (NOT @Async self-invocation)
+                    final String finalText = text;
+                    taskExecutor.execute(() -> processMessage(slackUserId, teamId, finalText, eventId));
                 }
 
+                // Return OK immediately — processing continues on background thread
                 return ResponseEntity.ok("");
             }
 
             return ResponseEntity.ok("");
 
         } catch (Exception e) {
-            log.error("Error parsing Slack event payload", e);
-            // Still return 200 to prevent Slack retries
+            log.warn("[SlackAdapter] Error parsing event payload: {}", e.getMessage());
             return ResponseEntity.ok("");
         }
     }
 
     /**
-     * Async processing — runs outside the 3-second Slack deadline.
+     * Background processing — runs on a separate thread, outside the Slack
+     * deadline.
      */
-    @Async
-    public void processMessageAsync(String slackUserId, String teamId, String text, String eventId) {
+    private void processMessage(String slackUserId, String teamId, String text, String eventId) {
         try {
-            log.info("Processing Slack message event_id={} from user={}", eventId, slackUserId);
+            log.info("[SlackAdapter] Processing event_id={} from user={}", eventId, slackUserId);
 
             // Resolve Slack user → domain User → Agent
             Optional<User> userOpt = userPersistencePort.findBySlackUserId(
                     new SlackUserId(slackUserId), new WorkspaceId(teamId));
 
             if (userOpt.isEmpty()) {
-                log.warn("No registered user for slackUserId={}, teamId={}", slackUserId, teamId);
+                log.warn("[SlackAdapter] No registered user for slackUserId={}", slackUserId);
                 return;
             }
 
@@ -169,7 +182,7 @@ public class SlackInboundAdapter {
 
             var agentOpt = agentPersistencePort.findByUserId(userId);
             if (agentOpt.isEmpty()) {
-                log.warn("No agent provisioned for userId={}", userId);
+                log.warn("[SlackAdapter] No agent for userId={}", userId);
                 return;
             }
 
@@ -179,7 +192,8 @@ public class SlackInboundAdapter {
             handleMessageUseCase.handleMessage(agentId, text);
 
         } catch (Exception e) {
-            log.error("Failed to process Slack message event_id={}: {}", eventId, e.getMessage(), e);
+            // Catch ALL exceptions — no stack traces in terminal
+            log.warn("[SlackAdapter] Failed to process event_id={}: {}", eventId, e.getMessage());
         }
     }
 
@@ -188,12 +202,8 @@ public class SlackInboundAdapter {
      */
     private boolean isDuplicate(String eventId) {
         Instant now = Instant.now();
-
-        // Evict stale entries (older than TTL)
         processedEvents.entrySet().removeIf(
                 entry -> java.time.Duration.between(entry.getValue(), now).getSeconds() > DEDUP_TTL_SECONDS);
-
-        // Check and mark
         return processedEvents.putIfAbsent(eventId, now) != null;
     }
 }

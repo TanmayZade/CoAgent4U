@@ -35,8 +35,10 @@ import com.coagent4u.shared.CalendarEvent;
 import com.coagent4u.shared.Duration;
 import com.coagent4u.shared.EventId;
 import com.coagent4u.shared.EventProposalId;
+import com.coagent4u.shared.SlackUserId;
 import com.coagent4u.shared.TimeRange;
 import com.coagent4u.shared.TimeSlot;
+import com.coagent4u.shared.WorkspaceId;
 import com.coagent4u.user.domain.User;
 import com.coagent4u.user.port.out.NotificationPort;
 import com.coagent4u.user.port.out.UserPersistencePort;
@@ -131,7 +133,20 @@ public class AgentCommandService
         switch (intent.type()) {
             case VIEW_SCHEDULE -> notifySchedule(agent);
             case ADD_EVENT -> requestPersonalEventApproval(agent, intent);
-            case SCHEDULE_WITH -> initiateCollaboration(agent, intent);
+            case SCHEDULE_WITH -> {
+                try {
+                    initiateCollaboration(agent, intent);
+                } catch (Exception e) {
+                    log.warn("[AgentService] Collaboration initiation failed: {}", e.getMessage());
+                    User user = userPersistence.findById(agent.getUserId()).orElse(null);
+                    if (user != null) {
+                        notificationPort.sendMessage(
+                                user.getSlackIdentity().slackUserId(),
+                                user.getSlackIdentity().workspaceId(),
+                                "❌ Failed to schedule meeting: " + e.getMessage());
+                    }
+                }
+            }
             default -> sendUnknownIntentReply(agent);
         }
     }
@@ -356,11 +371,14 @@ public class AgentCommandService
     /**
      * Resolves the target user from an @mention, finds their agent,
      * and initiates the A2A coordination protocol.
+     * After coordination initiation, sends a slot selection card to the invitee.
      */
     private void initiateCollaboration(Agent agent, ParsedIntent intent) {
         String targetUsername = intent.param("targetUser");
+        log.info("[AgentService] Initiating collaboration: requester agent={} target=@{}", agent.getAgentId(),
+                targetUsername);
 
-        if (targetUsername.isEmpty()) {
+        if (targetUsername == null || targetUsername.isEmpty()) {
             User user = userPersistence.findById(agent.getUserId()).orElse(null);
             if (user != null) {
                 notificationPort.sendMessage(
@@ -371,8 +389,24 @@ public class AgentCommandService
             return;
         }
 
-        // Resolve @username → User → Agent
-        Optional<User> targetUserOpt = userPersistence.findByUsername(targetUsername);
+        // Resolve target user → User → Agent
+        // targetUser can be either "username" or "slack:U_SLACK_ID"
+        Optional<User> targetUserOpt;
+        if (targetUsername.startsWith("slack:")) {
+            // Resolve by Slack user ID
+            String slackId = targetUsername.substring("slack:".length());
+            User requesterUser = userPersistence.findById(agent.getUserId()).orElse(null);
+            if (requesterUser == null) {
+                log.warn("[AgentService] No requester user found for agent={}", agent.getAgentId());
+                return;
+            }
+            WorkspaceId workspaceId = requesterUser.getSlackIdentity().workspaceId();
+            targetUserOpt = userPersistence.findBySlackUserId(new SlackUserId(slackId), workspaceId);
+            log.info("[AgentService] Resolved slack:{} → user={}", slackId,
+                    targetUserOpt.map(u -> u.getUserId().toString()).orElse("NOT_FOUND"));
+        } else {
+            targetUserOpt = userPersistence.findByUsername(targetUsername);
+        }
         if (targetUserOpt.isEmpty()) {
             User requesterUser = userPersistence.findById(agent.getUserId()).orElse(null);
             if (requesterUser != null) {
@@ -398,11 +432,74 @@ public class AgentCommandService
         }
 
         AgentId inviteeAgentId = targetAgentOpt.get().getAgentId();
-        TimeRange lookAhead = TimeRange.of(LocalDate.now(), LocalDate.now().plusDays(7));
 
-        coordinationProtocol.initiate(
+        // Resolve date — default to tomorrow if not specified
+        String dateText = intent.param("dateTime");
+        java.time.LocalDate targetDate;
+        if (dateText != null && !dateText.isEmpty()) {
+            Optional<java.time.Instant> resolved = dateResolver.resolve(dateText);
+            if (resolved.isPresent()) {
+                targetDate = resolved.get().atZone(java.time.ZoneId.of("Asia/Kolkata")).toLocalDate();
+            } else {
+                targetDate = LocalDate.now().plusDays(1);
+            }
+        } else {
+            targetDate = LocalDate.now().plusDays(1);
+        }
+        log.info("[AgentService] Resolved coordination date: {}", targetDate);
+
+        TimeRange lookAhead = TimeRange.of(targetDate, targetDate);
+
+        // Initiate coordination (generates slots, matches availability →
+        // PROPOSAL_GENERATED)
+        log.info("[AgentService] Calling coordinationProtocol.initiate()");
+        com.coagent4u.shared.CoordinationId coordId = coordinationProtocol.initiate(
                 agent.getAgentId(), inviteeAgentId,
-                lookAhead, 30, "Meeting", "UTC");
+                lookAhead, 60, "Meeting", "Asia/Kolkata");
+        log.info("[AgentService] Coordination initiated id={}", coordId);
+
+        // Get available slots and send selection card to invitee
+        java.util.List<TimeSlot> availableSlots = coordinationProtocol.getAvailableSlots(coordId);
+
+        if (availableSlots.isEmpty()) {
+            // No slots available — notify requester
+            User requesterUser = userPersistence.findById(agent.getUserId()).orElse(null);
+            if (requesterUser != null) {
+                notificationPort.sendMessage(
+                        requesterUser.getSlackIdentity().slackUserId(),
+                        requesterUser.getSlackIdentity().workspaceId(),
+                        "❌ *" + targetUsername + "* is busy during all office hours on " + targetDate
+                                + ". No available slots found.");
+            }
+            log.info("[NotificationService] No-slots notification sent to requester");
+            return;
+        }
+
+        // Build requester mention for the slot card
+        User requesterUser = userPersistence.findById(agent.getUserId()).orElse(null);
+        String requesterMention = requesterUser != null
+                ? "<@" + requesterUser.getSlackIdentity().slackUserId().value() + ">"
+                : "Someone";
+
+        // Send slot selection card to invitee (User B picks the slot)
+        notificationPort.sendSlotSelection(
+                targetUser.getSlackIdentity().slackUserId(),
+                targetUser.getSlackIdentity().workspaceId(),
+                coordId.value().toString(),
+                availableSlots,
+                requesterMention);
+        log.info("[NotificationService] Slot selection card sent to invitee @{} with {} slots",
+                targetUsername, availableSlots.size());
+
+        // Notify requester that coordination is in progress
+        if (requesterUser != null) {
+            notificationPort.sendMessage(
+                    requesterUser.getSlackIdentity().slackUserId(),
+                    requesterUser.getSlackIdentity().workspaceId(),
+                    "🔄 Scheduling in progress! Sent " + availableSlots.size()
+                            + " time slot options to <@" + targetUser.getSlackIdentity().slackUserId().value()
+                            + "> for " + targetDate + ". Waiting for their selection.");
+        }
     }
 
     // ── Fallback ──

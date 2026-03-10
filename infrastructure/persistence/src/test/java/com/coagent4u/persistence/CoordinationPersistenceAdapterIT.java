@@ -52,6 +52,7 @@ class CoordinationPersistenceAdapterIT extends PostgresIntegrationTest {
                 // Create a MeetingProposal and serialize to JSON
                 MeetingProposal original = new MeetingProposal(
                                 "prop-123",
+                                coordId.toString(),
                                 new AgentId(requesterId),
                                 new AgentId(inviteeId),
                                 new TimeSlot(

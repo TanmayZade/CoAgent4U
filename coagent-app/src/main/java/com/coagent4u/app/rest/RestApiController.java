@@ -149,6 +149,7 @@ public class RestApiController {
                 + "&redirect_uri=" + coagentProperties.getGoogle().getRedirectUri()
                 + "&response_type=code"
                 + "&scope=https://www.googleapis.com/auth/calendar.events"
+                + "+https://www.googleapis.com/auth/calendar.readonly"
                 + "&access_type=offline"
                 + "&prompt=consent"
                 + "&state=" + userId;

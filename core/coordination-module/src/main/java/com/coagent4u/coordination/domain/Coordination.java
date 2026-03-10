@@ -8,6 +8,7 @@ import java.util.Objects;
 
 import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.CoordinationId;
+import com.coagent4u.shared.TimeSlot;
 
 /**
  * Aggregate root for the Coordination bounded context.
@@ -30,6 +31,8 @@ public class Coordination {
     private final Instant createdAt;
     private Instant updatedAt;
     private Instant completedAt;
+    private List<TimeSlot> availableSlots = new ArrayList<>();
+    private TimeSlot selectedSlot;
 
     public Coordination(CoordinationId coordinationId, AgentId requesterAgentId, AgentId inviteeAgentId) {
         this.coordinationId = Objects.requireNonNull(coordinationId);
@@ -69,6 +72,29 @@ public class Coordination {
         return state.isTerminal();
     }
 
+    // ── Slot selection ──
+
+    /**
+     * Stores the list of available (free) slots from slot matching.
+     */
+    public void setAvailableSlots(List<TimeSlot> slots) {
+        this.availableSlots = new ArrayList<>(Objects.requireNonNull(slots));
+    }
+
+    /**
+     * Records the user's selected slot from the available options.
+     *
+     * @throws IllegalArgumentException if the selected slot is not in
+     *                                  availableSlots
+     */
+    public void selectSlot(TimeSlot slot) {
+        Objects.requireNonNull(slot, "Selected slot must not be null");
+        if (!availableSlots.contains(slot)) {
+            throw new IllegalArgumentException("Selected slot is not in the available slots list");
+        }
+        this.selectedSlot = slot;
+    }
+
     // Getters
     public CoordinationId getCoordinationId() {
         return coordinationId;
@@ -104,5 +130,13 @@ public class Coordination {
 
     public Instant getCompletedAt() {
         return completedAt;
+    }
+
+    public List<TimeSlot> getAvailableSlots() {
+        return Collections.unmodifiableList(availableSlots);
+    }
+
+    public TimeSlot getSelectedSlot() {
+        return selectedSlot;
     }
 }

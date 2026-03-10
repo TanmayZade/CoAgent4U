@@ -23,12 +23,12 @@ public class ProposalGenerator {
      * @param title           meeting title (derived from coordination context)
      * @param timezone        timezone string (e.g. "Asia/Kolkata")
      */
-    public MeetingProposal generate(String coordinationId,
+    public MeetingProposal generate(String coordinationIdStr,
             AgentId requester, AgentId invitee,
             TimeSlot slot, int durationMinutes,
             String title, String timezone) {
         String proposalId = "proposal-" + UUID.randomUUID();
-        return new MeetingProposal(proposalId, requester, invitee,
+        return new MeetingProposal(proposalId, coordinationIdStr, requester, invitee,
                 slot, durationMinutes, title, timezone);
     }
 }

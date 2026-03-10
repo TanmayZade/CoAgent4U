@@ -11,6 +11,7 @@ import com.coagent4u.shared.TimeSlot;
  */
 public record MeetingProposal(
         String proposalId,
+        String coordinationIdStr, // raw UUID string for the coordination
         AgentId requesterAgentId,
         AgentId inviteeAgentId,
         TimeSlot suggestedTime,
@@ -19,6 +20,7 @@ public record MeetingProposal(
         String timezone) {
     public MeetingProposal {
         Objects.requireNonNull(proposalId, "proposalId must not be null");
+        Objects.requireNonNull(coordinationIdStr, "coordinationIdStr must not be null");
         Objects.requireNonNull(requesterAgentId, "requesterAgentId must not be null");
         Objects.requireNonNull(inviteeAgentId, "inviteeAgentId must not be null");
         Objects.requireNonNull(suggestedTime, "suggestedTime must not be null");

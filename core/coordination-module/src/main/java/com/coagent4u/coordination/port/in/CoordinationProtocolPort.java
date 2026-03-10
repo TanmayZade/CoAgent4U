@@ -1,9 +1,12 @@
 package com.coagent4u.coordination.port.in;
 
+import java.util.List;
+
 import com.coagent4u.coordination.domain.CoordinationState;
 import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.CoordinationId;
 import com.coagent4u.shared.TimeRange;
+import com.coagent4u.shared.TimeSlot;
 
 /**
  * Inbound port — the primary API for managing a collaboration session.
@@ -28,6 +31,28 @@ public interface CoordinationProtocolPort {
     CoordinationId initiate(AgentId requesterAgentId, AgentId inviteeAgentId,
             TimeRange lookAheadRange, int durationMinutes,
             String title, String timezone);
+
+    /**
+     * Returns the available slots for a coordination (after matching).
+     */
+    List<TimeSlot> getAvailableSlots(CoordinationId coordinationId);
+
+    /**
+     * Records the user's slot selection and advances the coordination.
+     *
+     * @param coordinationId the coordination session
+     * @param selectedSlot   the slot chosen by the invitee
+     */
+    void selectSlot(CoordinationId coordinationId, TimeSlot selectedSlot);
+
+    /**
+     * Handles an approval decision from an agent (invitee or requester).
+     *
+     * @param coordinationId the coordination session
+     * @param agentId        the agent who approved/rejected
+     * @param approved       true if approved, false if rejected
+     */
+    void handleApproval(CoordinationId coordinationId, AgentId agentId, boolean approved);
 
     /**
      * Advances an existing coordination to the next state based on an external

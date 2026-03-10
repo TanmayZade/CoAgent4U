@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import com.coagent4u.coordination.domain.Coordination;
@@ -14,9 +16,16 @@ import com.coagent4u.coordination.domain.MeetingProposal;
 import com.coagent4u.coordination.port.out.CoordinationPersistencePort;
 import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.CoordinationId;
+import com.coagent4u.shared.TimeSlot;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 @Component
 public class CoordinationPersistenceAdapter implements CoordinationPersistencePort {
+
+    private static final Logger log = LoggerFactory.getLogger(CoordinationPersistenceAdapter.class);
+    private static final ObjectMapper MAPPER = new ObjectMapper().registerModule(new JavaTimeModule());
 
     private final CoordinationJpaRepository repository;
 
@@ -63,6 +72,18 @@ public class CoordinationPersistenceAdapter implements CoordinationPersistencePo
         entity.setCompletedAt(c.getCompletedAt());
         entity.setReason(null);
 
+        // Serialize available slots and selected slot
+        try {
+            if (c.getAvailableSlots() != null && !c.getAvailableSlots().isEmpty()) {
+                entity.setAvailableSlotsJson(MAPPER.writeValueAsString(c.getAvailableSlots()));
+            }
+            if (c.getSelectedSlot() != null) {
+                entity.setSelectedSlotJson(MAPPER.writeValueAsString(c.getSelectedSlot()));
+            }
+        } catch (Exception e) {
+            log.warn("[Persistence] Failed to serialize slot data: {}", e.getMessage());
+        }
+
         // State log entries
         List<StateLogJpaEntity> logEntities = new ArrayList<>();
         for (CoordinationStateLogEntry le : c.getStateLog()) {
@@ -102,6 +123,20 @@ public class CoordinationPersistenceAdapter implements CoordinationPersistencePo
             if (e.getProposalJson() != null) {
                 MeetingProposal proposal = MeetingProposalJsonMapper.fromJson(e.getProposalJson());
                 coord.setProposal(proposal);
+            }
+
+            // Restore available slots from JSONB
+            if (e.getAvailableSlotsJson() != null && !e.getAvailableSlotsJson().isBlank()) {
+                List<TimeSlot> slots = MAPPER.readValue(e.getAvailableSlotsJson(),
+                        new TypeReference<List<TimeSlot>>() {
+                        });
+                coord.setAvailableSlots(slots);
+            }
+
+            // Restore selected slot from JSONB
+            if (e.getSelectedSlotJson() != null && !e.getSelectedSlotJson().isBlank()) {
+                TimeSlot selectedSlot = MAPPER.readValue(e.getSelectedSlotJson(), TimeSlot.class);
+                setField(coord, "selectedSlot", selectedSlot);
             }
 
             // Clear constructor-created stateLog and restore from DB

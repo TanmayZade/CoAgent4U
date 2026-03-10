@@ -34,6 +34,10 @@
         </dependency>
         <dependency>
             <groupId>com.coagent4u</groupId>
+            <artifactId>coordination-module</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.coagent4u</groupId>
             <artifactId>user-module</artifactId>
         </dependency>
 

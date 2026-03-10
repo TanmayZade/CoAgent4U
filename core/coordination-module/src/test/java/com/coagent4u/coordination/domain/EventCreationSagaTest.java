@@ -34,7 +34,7 @@ class EventCreationSagaTest {
         Coordination c = new Coordination(CoordinationId.generate(), requester, invitee);
         TimeSlot slot = new TimeSlot(Instant.now().plusSeconds(3600), Instant.now().plusSeconds(5400));
         MeetingProposal proposal = new MeetingProposal(
-                "proposal-" + UUID.randomUUID(), requester, invitee,
+                "proposal-" + UUID.randomUUID(), UUID.randomUUID().toString(), requester, invitee,
                 slot, 30, "Sync Meeting", "UTC");
         c.setProposal(proposal);
         // Transition to APPROVED_BY_BOTH

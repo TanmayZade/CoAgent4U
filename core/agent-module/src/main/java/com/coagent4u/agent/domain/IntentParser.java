@@ -32,8 +32,9 @@ public class IntentParser {
             Pattern.CASE_INSENSITIVE);
 
     // Pattern: "schedule a meeting with @user / coordinate with ..."
+    // Matches both @username and slack:USER_ID (from Slack mention preservation)
     private static final Pattern SCHEDULE_WITH = Pattern.compile(
-            "(?i)\\b(schedule|arrange|set up|coordinate|book)\\s+(a\\s+)?(meeting|call|session|event)?\\s*(with|alongside)\\s+(@?[\\w.]+)\\b",
+            "(?i)\\b(schedule|arrange|set up|coordinate|book)\\s+(a\\s+)?(meeting|call|session|event)?\\s*(with|alongside)\\s+(slack:[A-Z0-9]+|@?[\\w.]+)(?:\\s+(.+))?",
             Pattern.CASE_INSENSITIVE);
 
     /**
@@ -54,6 +55,8 @@ public class IntentParser {
             Map<String, String> params = new HashMap<>();
             if (m.group(5) != null)
                 params.put("targetUser", m.group(5).replace("@", ""));
+            if (m.group(6) != null)
+                params.put("dateTime", m.group(6).trim());
             return new ParsedIntent(IntentType.SCHEDULE_WITH, rawText, params);
         }
 

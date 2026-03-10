@@ -130,13 +130,13 @@ public class GoogleCalendarAdapter implements CalendarPort, OAuthTokenExchangePo
             return new OAuthTokenResult(encryptedAccess, encryptedRefresh, expiresAt);
 
         } catch (WebClientResponseException e) {
-            log.error("OAuth token exchange failed: HTTP {} — {}", e.getStatusCode(), e.getResponseBodyAsString(), e);
+            log.warn("OAuth token exchange failed: HTTP {} — {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new ExternalServiceUnavailableException("GoogleOAuth",
                     "Token exchange failed: HTTP " + e.getStatusCode(), e);
         } catch (ExternalServiceUnavailableException e) {
             throw e;
         } catch (Exception e) {
-            log.error("OAuth token exchange failed unexpectedly", e);
+            log.warn("OAuth token exchange failed unexpectedly: {}", e.getMessage());
             throw new ExternalServiceUnavailableException("GoogleOAuth",
                     "Token exchange failed: " + e.getMessage(), e);
         }

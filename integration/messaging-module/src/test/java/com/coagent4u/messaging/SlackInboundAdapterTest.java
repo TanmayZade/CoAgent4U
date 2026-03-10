@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.Executor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -43,11 +44,16 @@ class SlackInboundAdapterTest {
     private SlackInboundAdapter adapter;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * Inline executor — runs tasks on the calling thread for deterministic testing.
+     */
+    private final Executor directExecutor = Runnable::run;
+
     @BeforeEach
     void setUp() {
         adapter = new SlackInboundAdapter(
                 signatureVerifier, userPersistencePort, agentPersistencePort,
-                handleMessageUseCase, objectMapper);
+                handleMessageUseCase, objectMapper, directExecutor);
     }
 
     @Test
@@ -117,8 +123,10 @@ class SlackInboundAdapterTest {
     }
 
     @Test
-    @DisplayName("async processing resolves user and delegates to HandleMessageUseCase")
-    void asyncProcessingDelegates() {
+    @DisplayName("processes message event and delegates to HandleMessageUseCase")
+    void processesMessageAndDelegates() {
+        when(signatureVerifier.verify(anyString(), anyString(), anyString())).thenReturn(true);
+
         UserId userId = new UserId(UUID.randomUUID());
         AgentId agentId = new AgentId(UUID.randomUUID());
 
@@ -132,19 +140,39 @@ class SlackInboundAdapterTest {
                 .thenReturn(Optional.of(mockUser));
         when(agentPersistencePort.findByUserId(userId)).thenReturn(Optional.of(mockAgent));
 
-        adapter.processMessageAsync("U123", "T123", "add meeting tomorrow", "Ev_test");
+        String body = """
+                {
+                  "type":"event_callback",
+                  "event_id":"Ev_delegate_test",
+                  "team_id":"T123",
+                  "event":{"type":"message","user":"U123","text":"add meeting tomorrow"}
+                }
+                """;
 
+        adapter.handleEvent("123456", "v0=valid", body);
+
+        // directExecutor runs inline, so handleMessage should have been called
         verify(handleMessageUseCase).handleMessage(agentId, "add meeting tomorrow");
     }
 
     @Test
-    @DisplayName("async processing handles unknown user gracefully")
-    void asyncProcessingHandlesUnknownUser() {
+    @DisplayName("handles unknown user gracefully")
+    void handlesUnknownUserGracefully() {
+        when(signatureVerifier.verify(anyString(), anyString(), anyString())).thenReturn(true);
         when(userPersistencePort.findBySlackUserId(any(SlackUserId.class), any(WorkspaceId.class)))
                 .thenReturn(Optional.empty());
 
+        String body = """
+                {
+                  "type":"event_callback",
+                  "event_id":"Ev_unknown_user",
+                  "team_id":"T123",
+                  "event":{"type":"message","user":"U_unknown","text":"hello"}
+                }
+                """;
+
         // Should not throw
-        assertDoesNotThrow(() -> adapter.processMessageAsync("U_unknown", "T123", "hello", "Ev_test"));
+        assertDoesNotThrow(() -> adapter.handleEvent("123456", "v0=valid", body));
 
         verify(handleMessageUseCase, never()).handleMessage(any(), any());
     }

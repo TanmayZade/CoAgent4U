@@ -47,7 +47,15 @@ public class CoordinationJpaEntity {
     @Column(name = "completed_at")
     private Instant completedAt;
 
-    @OneToMany(mappedBy = "coordination", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "available_slots_json", columnDefinition = "JSONB")
+    private String availableSlotsJson;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "selected_slot_json", columnDefinition = "JSONB")
+    private String selectedSlotJson;
+
+    @OneToMany(mappedBy = "coordination", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("transitionedAt ASC")
     private List<StateLogJpaEntity> stateLog = new ArrayList<>();
 
@@ -138,5 +146,21 @@ public class CoordinationJpaEntity {
 
     public void setStateLog(List<StateLogJpaEntity> log) {
         this.stateLog = log;
+    }
+
+    public String getAvailableSlotsJson() {
+        return availableSlotsJson;
+    }
+
+    public void setAvailableSlotsJson(String json) {
+        this.availableSlotsJson = json;
+    }
+
+    public String getSelectedSlotJson() {
+        return selectedSlotJson;
+    }
+
+    public void setSelectedSlotJson(String json) {
+        this.selectedSlotJson = json;
     }
 }
