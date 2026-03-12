@@ -1,116 +1,128 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Play, Calendar, Bot, CheckCircle2 } from "lucide-react"
 
 export function HeroSection() {
   return (
-    <section className="relative pt-32 pb-20 lg:pt-40 lg:pb-32">
-      {/* Background gradient */}
-      <div className="absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
+    <section className="relative pt-28 pb-20 lg:pt-36 lg:pb-28 overflow-hidden">
+      {/* Subtle background gradient */}
+      <div className="absolute inset-0 -z-10">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-primary/[0.03] to-transparent rounded-full blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+      <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-3xl text-center">
-          {/* Eyebrow */}
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-1.5">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
-            </span>
-            <span className="text-sm text-muted-foreground">
-              Now in Public Beta
-            </span>
-          </div>
-
           {/* Headline */}
-          <h1 className="text-4xl font-display font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl text-balance">
-            The complete platform for{" "}
-            <span className="text-primary">agent coordination</span>
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground leading-[1.1] text-balance">
+            Your Personal Agent That Coordinates Your Time
           </h1>
 
           {/* Subheadline */}
-          <p className="mt-6 text-lg leading-relaxed text-muted-foreground max-w-2xl mx-auto text-pretty">
-            Two agents. One goal. Zero back-and-forth. CoAgent4U orchestrates deterministic 
-            coordination between personal AI agents so meetings happen without the noise.
+          <p className="mt-6 text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto text-pretty">
+            A deterministic platform where personal agents manage schedules, coordinate meetings, and eliminate calendar friction.
           </p>
 
           {/* CTAs */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" asChild>
+            <Button size="lg" className="h-12 px-6 text-base" asChild>
               <Link href="/signin">
                 Get Started
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link href="#how-it-works">
-                See How It Works
+            <Button variant="outline" size="lg" className="h-12 px-6 text-base" asChild>
+              <Link href="#use-cases">
+                <Play className="mr-2 h-4 w-4" />
+                View Demo
               </Link>
             </Button>
           </div>
         </div>
 
-        {/* Hero Visual */}
-        <div className="mt-16 lg:mt-24">
-          <div className="relative mx-auto max-w-5xl">
-            {/* Browser mockup */}
-            <div className="rounded-xl border border-border bg-card overflow-hidden shadow-2xl">
-              {/* Browser bar */}
-              <div className="flex items-center gap-2 px-4 py-3 bg-muted border-b border-border">
-                <div className="flex gap-1.5">
-                  <div className="w-3 h-3 rounded-full bg-destructive/60" />
-                  <div className="w-3 h-3 rounded-full bg-yellow-500/60" />
-                  <div className="w-3 h-3 rounded-full bg-primary/60" />
-                </div>
-                <div className="flex-1 mx-4">
-                  <div className="bg-background rounded-md px-3 py-1.5 text-xs text-muted-foreground font-mono">
-                    app.coagent4u.com/dashboard
+        {/* Hero Visual - Agent Interaction Preview */}
+        <div className="mt-20 lg:mt-24">
+          <div className="relative mx-auto max-w-4xl">
+            {/* Main card with agent interaction */}
+            <div className="rounded-2xl border border-border/60 bg-card shadow-xl shadow-black/[0.03] overflow-hidden">
+              {/* Header bar */}
+              <div className="flex items-center justify-between px-5 py-3 bg-muted/30 border-b border-border/40">
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-400/80" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-400/80" />
+                    <div className="w-3 h-3 rounded-full bg-green-400/80" />
                   </div>
+                  <span className="text-sm text-muted-foreground">CoAgent4U</span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                  Connected
                 </div>
               </div>
               
-              {/* Dashboard preview */}
-              <div className="p-6 bg-background">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {/* Stats cards */}
-                  <div className="rounded-lg border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">Active Coordinations</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">12</p>
-                    <div className="mt-2 text-xs text-primary">+3 this week</div>
-                  </div>
-                  <div className="rounded-lg border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">Meetings Scheduled</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">47</p>
-                    <div className="mt-2 text-xs text-muted-foreground">This month</div>
-                  </div>
-                  <div className="rounded-lg border border-border bg-card p-4">
-                    <p className="text-sm text-muted-foreground">Time Saved</p>
-                    <p className="text-2xl font-bold text-foreground mt-1">6.2h</p>
-                    <div className="mt-2 text-xs text-primary">Per week avg</div>
-                  </div>
-                </div>
-                
-                {/* Activity preview */}
-                <div className="mt-4 rounded-lg border border-border bg-card p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-sm font-medium text-foreground">Recent Activity</p>
-                    <span className="text-xs text-muted-foreground">Last 24 hours</span>
-                  </div>
-                  <div className="space-y-3">
-                    {[
-                      { action: "Meeting scheduled", detail: "Team sync with Alice", time: "2m ago" },
-                      { action: "Coordination completed", detail: "Project review", time: "1h ago" },
-                      { action: "Approval received", detail: "Budget meeting", time: "3h ago" },
-                    ].map((item, i) => (
-                      <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                        <div>
-                          <p className="text-sm text-foreground">{item.action}</p>
-                          <p className="text-xs text-muted-foreground">{item.detail}</p>
-                        </div>
-                        <span className="text-xs text-muted-foreground">{item.time}</span>
+              {/* Content */}
+              <div className="p-6 lg:p-8">
+                <div className="grid lg:grid-cols-2 gap-8">
+                  {/* Left: Chat/Command */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Bot className="w-4 h-4 text-primary" />
+                      Agent Interaction
+                    </div>
+                    
+                    {/* Command input */}
+                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
+                      <p className="text-sm text-muted-foreground mb-2">You said:</p>
+                      <p className="text-foreground font-medium">
+                        {"@CoAgent4U schedule meeting with @Sarah Friday afternoon"}
+                      </p>
+                    </div>
+                    
+                    {/* Agent response */}
+                    <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
+                      <p className="text-sm text-primary mb-2">Agent Response:</p>
+                      <p className="text-foreground text-sm leading-relaxed">
+                        {"I've found a common slot on Friday at 2:00 PM. Sarah's agent has been contacted for coordination. Awaiting approval."}
+                      </p>
+                      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
+                        Coordination in progress
                       </div>
-                    ))}
+                    </div>
+                  </div>
+                  
+                  {/* Right: Schedule Preview */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                      <Calendar className="w-4 h-4 text-primary" />
+                      Friday Schedule
+                    </div>
+                    
+                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
+                      {[
+                        { time: "9:00 AM", event: "Team Standup", duration: "30m" },
+                        { time: "11:00 AM", event: "Project Review", duration: "1h" },
+                        { time: "2:00 PM", event: "Meeting with Sarah", duration: "30m", pending: true },
+                        { time: "4:00 PM", event: "Weekly Sync", duration: "1h" },
+                      ].map((item, i) => (
+                        <div 
+                          key={i} 
+                          className={`flex items-center justify-between py-2.5 px-3 rounded-lg ${
+                            item.pending 
+                              ? "bg-primary/5 border border-primary/20" 
+                              : "bg-background/50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-mono text-muted-foreground w-16">{item.time}</span>
+                            <span className={`text-sm ${item.pending ? "text-primary font-medium" : "text-foreground"}`}>
+                              {item.event}
+                            </span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">{item.duration}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>

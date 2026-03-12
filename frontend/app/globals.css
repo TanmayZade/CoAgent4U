@@ -2,74 +2,71 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
-@custom-variant dark (&:is(.dark *));
-
-/* CoAgent4U - Modern Dark Theme
-   Primary: Vibrant Green (#10B981)
-   Background: Deep Charcoal (#0A0A0B)
-   Foreground: Soft White (#FAFAFA)
+/* CoAgent4U - Premium Light Theme
+   Inspired by Google, Notion, Stripe, Linear
+   Clean white background with minimal accents
 */
 
 :root {
-  /* Core colors */
-  --background: #0A0A0B;
-  --foreground: #FAFAFA;
+  /* Core colors - Light theme */
+  --background: #FFFFFF;
+  --foreground: #1A1A1A;
   
   /* Card and surfaces */
-  --card: #141415;
-  --card-foreground: #FAFAFA;
-  --popover: #141415;
-  --popover-foreground: #FAFAFA;
+  --card: #FFFFFF;
+  --card-foreground: #1A1A1A;
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
   
-  /* Primary - Green accent */
-  --primary: #10B981;
-  --primary-foreground: #FAFAFA;
+  /* Primary - Subtle blue accent */
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
   
   /* Secondary */
-  --secondary: #1F1F21;
-  --secondary-foreground: #FAFAFA;
+  --secondary: #F8FAFC;
+  --secondary-foreground: #1A1A1A;
   
-  /* Muted */
-  --muted: #1A1A1C;
-  --muted-foreground: #71717A;
+  /* Muted - Soft grays */
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
   
   /* Accent */
-  --accent: #10B981;
-  --accent-foreground: #FAFAFA;
+  --accent: #F1F5F9;
+  --accent-foreground: #1A1A1A;
   
   /* Destructive */
   --destructive: #EF4444;
-  --destructive-foreground: #FAFAFA;
+  --destructive-foreground: #FFFFFF;
   
   /* Border and Input */
-  --border: #27272A;
-  --input: #27272A;
-  --ring: #10B981;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #2563EB;
   
   /* Chart colors */
-  --chart-1: #10B981;
-  --chart-2: #3B82F6;
+  --chart-1: #2563EB;
+  --chart-2: #10B981;
   --chart-3: #F59E0B;
   --chart-4: #8B5CF6;
   --chart-5: #EC4899;
   
-  --radius: 0.5rem;
+  --radius: 0.75rem;
   
   /* Sidebar */
-  --sidebar: #0A0A0B;
-  --sidebar-foreground: #FAFAFA;
-  --sidebar-primary: #10B981;
-  --sidebar-primary-foreground: #FAFAFA;
-  --sidebar-accent: #1A1A1C;
-  --sidebar-accent-foreground: #FAFAFA;
-  --sidebar-border: #27272A;
-  --sidebar-ring: #10B981;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #1A1A1A;
+  --sidebar-primary: #2563EB;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F1F5F9;
+  --sidebar-accent-foreground: #1A1A1A;
+  --sidebar-border: #E2E8F0;
+  --sidebar-ring: #2563EB;
 }
 
 @theme inline {
   --font-sans: var(--font-sans), 'Inter', system-ui, sans-serif;
   --font-mono: var(--font-mono), 'JetBrains Mono', monospace;
-  --font-display: var(--font-display), 'Space Grotesk', system-ui, sans-serif;
+  --font-display: var(--font-display), 'Inter', system-ui, sans-serif;
   
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -125,27 +122,27 @@ html {
 
 /* Text selection */
 ::selection {
-  background: rgba(16, 185, 129, 0.3);
+  background: rgba(37, 99, 235, 0.15);
   color: var(--foreground);
 }
 
-/* Scrollbar */
+/* Scrollbar - minimal */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--background);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #3f3f46;
-  border-radius: 3px;
+  background: #CBD5E1;
+  border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+  background: #94A3B8;
 }
 
 /* Tabular nums for counters */
