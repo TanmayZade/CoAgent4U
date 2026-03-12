@@ -492,6 +492,10 @@ public class AgentCommandService
                 targetUser.getSlackIdentity().slackUserId().value());
         coordinationProtocol.updateMetadata(coordId, "requester_mention", requesterMention);
 
+        // Store agent IDs for downstream event handling (e.g. rejection)
+        coordinationProtocol.updateMetadata(coordId, "requester_agent_id", agent.getAgentId().value().toString());
+        coordinationProtocol.updateMetadata(coordId, "invitee_agent_id", inviteeAgentId.value().toString());
+
         // Step 1: Send invitation message to invitee (persistent — stays visible)
         String inviteeInvitationTs = notificationPort.sendMessage(
                 targetUser.getSlackIdentity().slackUserId(),

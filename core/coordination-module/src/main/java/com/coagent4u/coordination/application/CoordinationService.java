@@ -198,7 +198,7 @@ public class CoordinationService implements CoordinationProtocolPort {
         Coordination coordination = load(coordinationId);
 
         if (!approved) {
-            coordination.transition(CoordinationState.REJECTED, "Rejected by agent " + agentId);
+            coordination.transition(CoordinationState.REJECTED, "REJECTED_BY_AGENT:" + agentId.value());
             persistence.save(coordination);
             publishStateChange(coordination);
             log.info("[CoordinationService] {} → REJECTED by agent {}", coordinationId, agentId);

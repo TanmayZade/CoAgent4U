@@ -66,7 +66,8 @@ public class CoordinationCompletedListener {
     }
 
     /**
-     * Deletes obsolete invitation and notification messages once the coordination is terminal.
+     * Deletes obsolete invitation and notification messages once the coordination
+     * is terminal.
      */
     private void cleanupObsoleteMessages(com.coagent4u.shared.CoordinationId coordId) {
         try {
@@ -77,10 +78,16 @@ public class CoordinationCompletedListener {
                     deleteForAgent(coordination.getInviteeAgentId(), inviteeTs);
                 }
 
+                // Delete the interactive slot selection card (User B picks slot)
+                String slotSelectionTs = coordination.getMetadata("slot_selection_ts");
+                if (slotSelectionTs != null) {
+                    deleteForAgent(coordination.getInviteeAgentId(), slotSelectionTs);
+                }
+
                 // Delete clean invitation header (reposted by I1)
                 // String headerTs = coordination.getMetadata("invitee_header_ts");
                 // if (headerTs != null) {
-                //     deleteForAgent(coordination.getInviteeAgentId(), headerTs);
+                // deleteForAgent(coordination.getInviteeAgentId(), headerTs);
                 // }
 
                 // Delete requester notification (may already be deleted by R1)
@@ -115,9 +122,11 @@ public class CoordinationCompletedListener {
     private void deleteForAgent(AgentId agentId, String ts) {
         try {
             var agent = agentPersistence.findById(agentId).orElse(null);
-            if (agent == null) return;
+            if (agent == null)
+                return;
             User user = userPersistence.findById(agent.getUserId()).orElse(null);
-            if (user == null || user.getSlackIdentity() == null) return;
+            if (user == null || user.getSlackIdentity() == null)
+                return;
 
             notificationPort.deleteMessage(user.getSlackIdentity().slackUserId(), ts);
             log.info("[CoordinationListener] Deleted message ts={} for agent={}", ts, agentId);
@@ -129,7 +138,8 @@ public class CoordinationCompletedListener {
     private void handleCompleted(CoordinationStateChanged event) {
         try {
             Coordination coordination = coordinationPersistence.findById(event.coordinationId()).orElse(null);
-            if (coordination == null) return;
+            if (coordination == null)
+                return;
 
             String requesterMention = resolveSlackMention(coordination.getRequesterAgentId());
             String inviteeMention = resolveSlackMention(coordination.getInviteeAgentId());
@@ -162,14 +172,26 @@ public class CoordinationCompletedListener {
     private void handleRejected(CoordinationStateChanged event) {
         try {
             Coordination coordination = coordinationPersistence.findById(event.coordinationId()).orElse(null);
-            if (coordination == null) return;
+            if (coordination == null)
+                return;
 
-            // The reason contains who rejected ("Rejected by agent <id>")
             String reason = event.reason();
+            String displayReason = reason;
+
+            // Resolve Slack mention if reason follows machine-parseable format
+            if (reason != null && reason.startsWith("REJECTED_BY_AGENT:")) {
+                try {
+                    String agentIdStr = reason.substring("REJECTED_BY_AGENT:".length());
+                    java.util.UUID uuid = java.util.UUID.fromString(agentIdStr);
+                    String mention = resolveSlackMention(new AgentId(uuid));
+                    displayReason = "Rejected by " + mention;
+                } catch (Exception e) {
+                    log.debug("[CoordinationListener] Failed to parse rejection agent: {}", e.getMessage());
+                }
+            }
 
             String message = "🚫 *Meeting Rejected*\n\n"
-                    + reason + "\n\n"
-                    + "Please select a different time slot to continue scheduling.";
+                    + displayReason;
 
             notifyAgent(coordination.getRequesterAgentId(), message);
             notifyAgent(coordination.getInviteeAgentId(), message);
@@ -182,7 +204,8 @@ public class CoordinationCompletedListener {
     private void handleFailed(CoordinationStateChanged event) {
         try {
             Coordination coordination = coordinationPersistence.findById(event.coordinationId()).orElse(null);
-            if (coordination == null) return;
+            if (coordination == null)
+                return;
 
             String message = "❌ *Meeting Scheduling Failed*\n\n"
                     + event.reason();
@@ -198,10 +221,12 @@ public class CoordinationCompletedListener {
     private void notifyAgent(AgentId agentId, String message) {
         try {
             var agent = agentPersistence.findById(agentId).orElse(null);
-            if (agent == null) return;
+            if (agent == null)
+                return;
 
             User user = userPersistence.findById(agent.getUserId()).orElse(null);
-            if (user == null || user.getSlackIdentity() == null) return;
+            if (user == null || user.getSlackIdentity() == null)
+                return;
 
             notificationPort.sendMessage(
                     user.getSlackIdentity().slackUserId(),
@@ -223,7 +248,8 @@ public class CoordinationCompletedListener {
                     return "<@" + user.getSlackIdentity().slackUserId().value() + ">";
                 }
             }
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) {
+        }
         return "a participant";
     }
 }

@@ -352,6 +352,15 @@ public class SlackNotificationAdapter implements NotificationPort {
                 actionsBlock.set("elements", elements);
                 blocks.add(actionsBlock);
             }
+            
+            // ── Footer: Reject Option ──
+            blocks.add(dividerBlock());
+            ObjectNode footerActions = objectMapper.createObjectNode();
+            footerActions.put("type", "actions");
+            ArrayNode footerElements = objectMapper.createArrayNode();
+            footerElements.add(buttonElement("Reject Meeting", "reject_coords_" + coordinationId, "reject", "danger"));
+            footerActions.set("elements", footerElements);
+            blocks.add(footerActions);
 
             attachment.set("blocks", blocks);
             attachments.add(attachment);

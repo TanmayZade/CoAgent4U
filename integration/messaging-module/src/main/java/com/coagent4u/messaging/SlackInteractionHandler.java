@@ -24,6 +24,7 @@ import com.coagent4u.approval.domain.ApprovalStatus;
 import com.coagent4u.approval.port.in.DecideApprovalUseCase;
 import com.coagent4u.coordination.port.in.CoordinationProtocolPort;
 import com.coagent4u.security.SlackSignatureVerifier;
+import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.ApprovalId;
 import com.coagent4u.shared.CoordinationId;
 import com.coagent4u.shared.SlackUserId;
@@ -31,6 +32,7 @@ import com.coagent4u.shared.TimeSlot;
 import com.coagent4u.shared.WorkspaceId;
 import com.coagent4u.user.domain.User;
 import com.coagent4u.user.port.out.UserPersistencePort;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -144,6 +146,10 @@ public class SlackInteractionHandler {
                 taskExecutor.execute(() -> handleSlotSelection(
                         actionId, actionValue, slackUserId, teamId, channel, messageTs));
 
+            } else if (actionId.startsWith("reject_coords_")) {
+                taskExecutor.execute(() -> handleEarlyRejection(
+                        actionId, slackUserId, teamId, channel, messageTs));
+
             } else if ("approve_action".equals(actionId)) {
                 taskExecutor.execute(() -> handleApproval(
                         slackUserId, teamId, actionValue, true, channel, messageTs, payload));
@@ -243,29 +249,31 @@ public class SlackInteractionHandler {
                     + (meetingDetails.isEmpty() ? "" : "\n\n" + meetingDetails)
                     + "\n\n_" + statusLabel + " at " + now.format(TIMESTAMP_FMT) + "_";
 
-            // 2. Delete old approval card + repost clean status card on requester side
-            String newTs = deleteAndRepost(channel, messageTs, channel, statusText, color);
+            // 2. Handle Rejection: Immediate deletion and skip reposting
+            if (!approved) {
+                slackAdapter.deleteMessage(slackUserId, messageTs);
+                log.info("[InteractionHandler] Requestee rejected. Deleting card and skipping status update.");
+            } else {
+                // Approved: Delete old card and repost clean status on requester side
+                deleteAndRepost(channel, messageTs, channel, statusText, color);
+            }
 
             // Resolve coordination ID
-            CoordinationId coordId = null;
-            if (explicitCoordIdStr != null) {
-                coordId = new CoordinationId(UUID.fromString(explicitCoordIdStr));
-            } else {
-                coordId = resolveCoordinationId(payload);
+            CoordinationId coordId = explicitCoordIdStr != null 
+                ? new CoordinationId(UUID.fromString(explicitCoordIdStr)) 
+                : resolveCoordinationId(payload);
+
+            if (coordId != null && approved) {
+                // Only post final status if approved (rejection handled by listener)
+                coordinationProtocol.updateMetadata(coordId, "final_status_ts", "reposted"); 
             }
 
-            if (coordId != null && newTs != null) {
-                coordinationProtocol.updateMetadata(coordId, "final_status_ts", newTs);
-            }
-
-            // ── I2: Delete invitee's "Waiting for approval" card + repost clean ──
-            if (coordId != null) {
+            // ── I2: Clean invitee's card on APPROVAL only (Rejection handled by cleanup) ──
+            if (coordId != null && approved) {
                 String inviteeSlackId = coordinationProtocol.getMetadata(coordId, "invitee_slack_id");
                 String selectedSlotTs = coordinationProtocol.getMetadata(coordId, "selected_slot_ts");
                 if (inviteeSlackId != null && selectedSlotTs != null) {
-                    // Delete the old "Waiting for approval" card
                     slackAdapter.deleteMessage(inviteeSlackId, selectedSlotTs);
-                    // Repost clean version without "Waiting for approval"
                     String cleanSlotText = extractCleanSlotText(selectedSlotTs, coordId);
                     if (cleanSlotText != null) {
                         String cleanPayload = buildStatusCard(inviteeSlackId, cleanSlotText, "#3AA3E3");
@@ -416,6 +424,30 @@ public class SlackInteractionHandler {
      * Extracts meeting details (date, time, participant) from the interaction
      * payload's original message blocks.
      */
+    private void handleEarlyRejection(String actionId, String slackUserId, String teamId, String channel, String messageTs) {
+        try {
+            // Action ID = reject_coords_{UUID}
+            String uuidStr = actionId.substring("reject_coords_".length());
+            CoordinationId coordId = new CoordinationId(UUID.fromString(uuidStr));
+
+            // Resolve Invitee Agent from Metadata
+            String inviteeAgentIdStr = coordinationProtocol.getMetadata(coordId, "invitee_agent_id");
+            if (inviteeAgentIdStr == null) {
+                log.warn("[InteractionHandler] No invitee_agent_id in metadata for {}", coordId);
+                return;
+            }
+            AgentId inviteeAgentId = new AgentId(UUID.fromString(inviteeAgentIdStr));
+
+            log.info("[InteractionHandler] Processing early rejection for coordination={} by invitee={}", coordId, inviteeAgentId);
+
+            // Trigger rejection in domain
+            coordinationProtocol.handleApproval(coordId, inviteeAgentId, false);
+
+        } catch (Exception e) {
+            log.warn("[InteractionHandler] Early rejection failed: {}", e.getMessage());
+        }
+    }
+
     private String extractMeetingDetails(JsonNode payload) {
         try {
             JsonNode attachments = payload.path("message").path("attachments");
