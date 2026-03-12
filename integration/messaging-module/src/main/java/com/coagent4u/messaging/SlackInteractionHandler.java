@@ -249,39 +249,18 @@ public class SlackInteractionHandler {
                     + (meetingDetails.isEmpty() ? "" : "\n\n" + meetingDetails)
                     + "\n\n_" + statusLabel + " at " + now.format(TIMESTAMP_FMT) + "_";
 
-            // 2. Handle Rejection: Immediate deletion and skip reposting
-            if (!approved) {
-                slackAdapter.deleteMessage(slackUserId, messageTs);
-                log.info("[InteractionHandler] Requestee rejected. Deleting card and skipping status update.");
-            } else {
-                // Approved: Delete old card and repost clean status on requester side
-                deleteAndRepost(channel, messageTs, channel, statusText, color);
-            }
+            // 2. Streamlined Flow: Immediate deletion of interactive card, skip status reposts
+            slackAdapter.deleteMessage(slackUserId, messageTs);
+            log.info("[InteractionHandler] Decision processed (approved={}). Deleting card and skipping intermediate status updates.", approved);
 
             // Resolve coordination ID
             CoordinationId coordId = explicitCoordIdStr != null 
                 ? new CoordinationId(UUID.fromString(explicitCoordIdStr)) 
                 : resolveCoordinationId(payload);
 
-            if (coordId != null && approved) {
-                // Only post final status if approved (rejection handled by listener)
-                coordinationProtocol.updateMetadata(coordId, "final_status_ts", "reposted"); 
-            }
-
-            // ── I2: Clean invitee's card on APPROVAL only (Rejection handled by cleanup) ──
-            if (coordId != null && approved) {
-                String inviteeSlackId = coordinationProtocol.getMetadata(coordId, "invitee_slack_id");
-                String selectedSlotTs = coordinationProtocol.getMetadata(coordId, "selected_slot_ts");
-                if (inviteeSlackId != null && selectedSlotTs != null) {
-                    slackAdapter.deleteMessage(inviteeSlackId, selectedSlotTs);
-                    String cleanSlotText = extractCleanSlotText(selectedSlotTs, coordId);
-                    if (cleanSlotText != null) {
-                        String cleanPayload = buildStatusCard(inviteeSlackId, cleanSlotText, "#3AA3E3");
-                        String cleanTs = slackAdapter.postToSlack(cleanPayload, inviteeSlackId);
-                        coordinationProtocol.updateMetadata(coordId, "clean_slot_ts", cleanTs);
-                    }
-                }
-            }
+            // Skip "final_status_ts" metadata as we no longer repost mid-status cards
+            // Skip "I2" repost logic as we want to go directly to "Meeting Confirmed"
+            // The CoordinationCompletedListener will handle final notifications and cleanup.
 
             // 3. Process the approval (domain logic)
             Optional<User> userOpt = userPersistencePort.findBySlackUserId(
