@@ -3,28 +3,28 @@ import { Zap, GitBranch, UserCheck, ShieldAlert, Users } from "lucide-react"
 const benefits = [
   {
     icon: Zap,
-    title: "Zero Scheduling Friction",
-    description: "No more back-and-forth emails. Your agent handles all the coordination while you focus on work.",
-  },
-  {
-    icon: GitBranch,
-    title: "Deterministic Coordination",
-    description: "Predictable outcomes based on explicit rules. No AI hallucinations or unexpected behaviors.",
-  },
-  {
-    icon: UserCheck,
-    title: "Human-in-the-Loop Control",
-    description: "Every action requires your approval. Nothing happens on your calendar without consent.",
-  },
-  {
-    icon: ShieldAlert,
-    title: "Conflict Prevention",
-    description: "Automatic detection of scheduling conflicts before they become problems.",
+    title: "Reduced Coordination Friction",
+    description: "Eliminate constant back-and-forth communication. Your agent handles all the coordination while you focus on work.",
   },
   {
     icon: Users,
-    title: "Agent Collaboration",
-    description: "Agents work together seamlessly to find the perfect meeting time for everyone.",
+    title: "Personal Agents Representing Users",
+    description: "Each user has a personal agent that understands their commitments and coordinates on their behalf.",
+  },
+  {
+    icon: GitBranch,
+    title: "Deterministic Coordination Workflows",
+    description: "Predictable outcomes based on explicit rules. No AI hallucinations or unexpected behaviors.",
+  },
+  {
+    icon: ShieldAlert,
+    title: "Conflict-Aware Scheduling",
+    description: "Automatic detection of scheduling conflicts before they become problems across all commitments.",
+  },
+  {
+    icon: UserCheck,
+    title: "Transparent Approval Control",
+    description: "Every coordination action requires your explicit approval. Nothing happens without consent.",
   },
 ]
 
@@ -41,7 +41,7 @@ export function PlatformBenefits() {
             Built for how you actually work
           </h2>
           <p className="text-muted-foreground text-lg">
-            CoAgent4U removes the friction from scheduling while keeping you in complete control.
+            CoAgent4U removes coordination friction while keeping you in complete control of your commitments.
           </p>
         </div>
 

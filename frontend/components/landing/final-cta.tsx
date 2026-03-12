@@ -8,10 +8,10 @@ export function FinalCTA() {
       <div className="mx-auto max-w-6xl px-6">
         <div className="max-w-3xl mx-auto text-center">
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-foreground mb-6 text-balance">
-            Let Your Personal Agent Handle the Noise
+            Let Your Personal Agent Coordinate Your Commitments
           </h2>
           <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto">
-            Stop wasting time on scheduling. Let your agent coordinate with others while you focus on what matters.
+            Stop wasting time on manual coordination. Let your agent collaborate with others while you focus on what matters.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

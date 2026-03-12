@@ -7,19 +7,24 @@ export function CoordinationSection() {
         {/* Section header */}
         <div className="max-w-2xl mx-auto text-center mb-16">
           <p className="text-sm font-medium text-primary mb-3">
-            Agent-to-Agent Coordination
+            Agent Coordination Visualization
           </p>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
             Agents coordinate so you don't have to
           </h2>
           <p className="text-muted-foreground text-lg">
-            When you need to meet with someone, your agents handle the coordination automatically through a deterministic flow.
+            Personal agents collaborate through a coordination network, eliminating manual back-and-forth communication.
           </p>
         </div>
 
         {/* Coordination flow visual */}
         <div className="max-w-4xl mx-auto">
           <div className="rounded-2xl border border-border/60 bg-card p-6 lg:p-10">
+            {/* Mental model text */}
+            <p className="text-center text-sm text-muted-foreground mb-8">
+              Human → Personal Agent → Agent Coordination Network → Coordinated Outcome
+            </p>
+
             {/* Flow diagram */}
             <div className="flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-4">
               {/* User A */}
@@ -28,7 +33,7 @@ export function CoordinationSection() {
                   <User className="w-7 h-7 text-primary" />
                 </div>
                 <span className="text-sm font-medium text-foreground">User A</span>
-                <span className="text-xs text-muted-foreground">Requests meeting</span>
+                <span className="text-xs text-muted-foreground">Invokes agent</span>
               </div>
 
               <ArrowRight className="w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0" />
@@ -39,7 +44,7 @@ export function CoordinationSection() {
                   <Bot className="w-7 h-7 text-foreground" />
                 </div>
                 <span className="text-sm font-medium text-foreground">Agent A</span>
-                <span className="text-xs text-muted-foreground">Checks availability</span>
+                <span className="text-xs text-muted-foreground">Parses intent</span>
               </div>
 
               <ArrowRight className="w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0" />
@@ -50,7 +55,7 @@ export function CoordinationSection() {
                   <span className="text-background font-bold text-lg">CE</span>
                 </div>
                 <span className="text-sm font-medium text-foreground">Coordination</span>
-                <span className="text-xs text-muted-foreground">Finds common slot</span>
+                <span className="text-xs text-muted-foreground">Engine</span>
               </div>
 
               <ArrowRight className="w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0" />
@@ -61,7 +66,7 @@ export function CoordinationSection() {
                   <Bot className="w-7 h-7 text-foreground" />
                 </div>
                 <span className="text-sm font-medium text-foreground">Agent B</span>
-                <span className="text-xs text-muted-foreground">Validates slot</span>
+                <span className="text-xs text-muted-foreground">Checks availability</span>
               </div>
 
               <ArrowRight className="w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0" />
@@ -80,21 +85,21 @@ export function CoordinationSection() {
             <div className="mt-10 pt-8 border-t border-border/60">
               <div className="grid sm:grid-cols-3 gap-6">
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-1">Step 1</p>
+                  <p className="text-sm font-medium text-foreground mb-1">Step 1: Intent & Availability</p>
                   <p className="text-sm text-muted-foreground">
-                    User A requests a meeting. Agent A checks their calendar for availability.
+                    Agent A parses the request and checks User A's calendar for available time slots.
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-1">Step 2</p>
+                  <p className="text-sm font-medium text-foreground mb-1">Step 2: Deterministic Matching</p>
                   <p className="text-sm text-muted-foreground">
-                    Coordination Engine queries Agent B, who checks User B's availability.
+                    Coordination Engine queries Agent B and performs deterministic matching to find common availability.
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground mb-1">Step 3</p>
+                  <p className="text-sm font-medium text-foreground mb-1">Step 3: Human Approval</p>
                   <p className="text-sm text-muted-foreground">
-                    Common slot found. User B approves first, then User A confirms.
+                    User B approves slot proposals first, then User A confirms. Events created in both calendars.
                   </p>
                 </div>
               </div>

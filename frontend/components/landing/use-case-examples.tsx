@@ -34,11 +34,12 @@ const useCases = [
     id: "coordinate",
     command: "@CoAgent4U schedule meeting with @UserB Friday evening",
     label: "Coordinate",
-    response: "Coordinating with UserB's agent...",
+    response: "Initiating agent-to-agent coordination with UserB's agent...",
     coordination: {
-      userA: "Available: 4-6 PM",
-      userB: "Available: 5-7 PM",
-      match: "5:00 PM - 6:00 PM",
+      userA: "Available: 6:00 PM - 9:00 PM",
+      userB: "Available: 5:00 PM - 7:00 PM",
+      match: "6:00 PM - 7:00 PM",
+      slots: ["6:00 PM", "6:15 PM", "6:30 PM"],
     },
     status: "awaiting",
   },
@@ -55,13 +56,13 @@ export function UseCaseExamples() {
         {/* Section header */}
         <div className="max-w-2xl mx-auto text-center mb-16">
           <p className="text-sm font-medium text-primary mb-3">
-            Real Product Scenarios
+            Real Use Case Examples
           </p>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
             See it in action
           </h2>
           <p className="text-muted-foreground text-lg">
-            Simple commands, powerful results. Here's how users interact with their personal agent.
+            Simple commands, powerful coordination. Here's how users interact with their personal agent.
           </p>
         </div>
 
@@ -168,9 +169,9 @@ export function UseCaseExamples() {
               {currentCase?.coordination && (
                 <div className="rounded-xl border border-border/60 p-4">
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-sm font-medium text-foreground">Coordination Status</span>
+                    <span className="text-sm font-medium text-foreground">Agent Coordination Status</span>
                     <span className="text-xs px-2 py-1 rounded-full bg-blue-500/10 text-blue-600">
-                      Awaiting Approval
+                      Awaiting UserB Approval
                     </span>
                   </div>
                   <div className="space-y-3">
@@ -186,8 +187,18 @@ export function UseCaseExamples() {
                     </div>
                     <div className="flex items-center gap-3 text-sm pt-2 border-t border-border/40">
                       <CheckCircle2 className="w-4 h-4 text-green-500" />
-                      <span className="text-muted-foreground">Matched slot:</span>
+                      <span className="text-muted-foreground">Common window:</span>
                       <span className="text-foreground font-medium">{currentCase.coordination.match}</span>
+                    </div>
+                    <div className="pt-2">
+                      <p className="text-xs text-muted-foreground mb-2">Slot options sent to UserB:</p>
+                      <div className="flex gap-2">
+                        {currentCase.coordination.slots.map((slot, i) => (
+                          <span key={i} className="px-2 py-1 text-xs bg-muted rounded-md text-foreground">
+                            {slot}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -210,7 +221,7 @@ export function UseCaseExamples() {
                 {currentCase?.status === "awaiting" && (
                   <>
                     <Clock className="w-4 h-4 text-blue-500" />
-                    <span className="text-xs text-muted-foreground">Waiting for UserB's approval</span>
+                    <span className="text-xs text-muted-foreground">UserB selects slot, then both users approve</span>
                   </>
                 )}
               </div>

@@ -1,35 +1,35 @@
-import { Calendar, Plus, AlertCircle, CheckSquare, Users, Clock } from "lucide-react"
+import { Calendar, ListChecks, AlertCircle, CheckSquare, Users, History } from "lucide-react"
 
 const capabilities = [
   {
     icon: Calendar,
     title: "View My Schedule",
-    description: "Access your calendar instantly. Your agent retrieves events directly from Google Calendar.",
+    description: "Access your calendar instantly. Your agent retrieves commitments directly from Google Calendar.",
   },
   {
-    icon: Plus,
-    title: "Add Events",
-    description: "Create calendar events through natural commands. Your agent handles parsing and scheduling.",
+    icon: ListChecks,
+    title: "Manage Commitments",
+    description: "Create and organize events, meetings, and time blocks through natural language commands.",
   },
   {
     icon: AlertCircle,
     title: "Detect Conflicts",
-    description: "Automatic conflict detection before any event is created. Never double-book again.",
-  },
-  {
-    icon: CheckSquare,
-    title: "Approve Events",
-    description: "Review and approve every action. Your agent presents proposals, you make the final call.",
+    description: "Automatic conflict detection across all your commitments. Never double-book or miss overlaps.",
   },
   {
     icon: Users,
-    title: "Coordinate with Others",
-    description: "Your agent talks to other agents to find common availability automatically.",
+    title: "Coordinate With Other Agents",
+    description: "Your agent communicates with other users' agents to find common availability automatically.",
   },
   {
-    icon: Clock,
+    icon: CheckSquare,
+    title: "Request Human Approval",
+    description: "Every coordination proposal requires your explicit approval before any action is taken.",
+  },
+  {
+    icon: History,
     title: "Maintain History",
-    description: "Full coordination history and audit logs. Track every interaction and decision.",
+    description: "Full coordination history and audit logs. Track every agent interaction and decision.",
   },
 ]
 

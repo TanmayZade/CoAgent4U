@@ -19,7 +19,7 @@ export function HeroSection() {
 
           {/* Subheadline */}
           <p className="mt-6 text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto text-pretty">
-            A deterministic platform where personal agents manage schedules, coordinate meetings, and eliminate calendar friction.
+            A coordination platform where personal agents represent users and collaborate to manage commitments, schedules, and shared time.
           </p>
 
           {/* CTAs */}
@@ -74,7 +74,7 @@ export function HeroSection() {
                     <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
                       <p className="text-sm text-muted-foreground mb-2">You said:</p>
                       <p className="text-foreground font-medium">
-                        {"@CoAgent4U schedule meeting with @Sarah Friday afternoon"}
+                        {"@CoAgent4U schedule meeting with @Sarah Friday evening"}
                       </p>
                     </div>
                     
@@ -82,11 +82,11 @@ export function HeroSection() {
                     <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
                       <p className="text-sm text-primary mb-2">Agent Response:</p>
                       <p className="text-foreground text-sm leading-relaxed">
-                        {"I've found a common slot on Friday at 2:00 PM. Sarah's agent has been contacted for coordination. Awaiting approval."}
+                        {"Coordinating with Sarah's agent. Common availability found: 6:00 PM - 7:00 PM. Awaiting Sarah's approval before confirming."}
                       </p>
                       <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
                         <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                        Coordination in progress
+                        Agent-to-agent coordination in progress
                       </div>
                     </div>
                   </div>
@@ -102,8 +102,7 @@ export function HeroSection() {
                       {[
                         { time: "9:00 AM", event: "Team Standup", duration: "30m" },
                         { time: "11:00 AM", event: "Project Review", duration: "1h" },
-                        { time: "2:00 PM", event: "Meeting with Sarah", duration: "30m", pending: true },
-                        { time: "4:00 PM", event: "Weekly Sync", duration: "1h" },
+                        { time: "6:00 PM", event: "Meeting with Sarah", duration: "1h", pending: true },
                       ].map((item, i) => (
                         <div 
                           key={i} 

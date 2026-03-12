@@ -3,23 +3,23 @@ import { Shield, UserCheck, Users, Lock } from "lucide-react"
 const rules = [
   {
     icon: Shield,
-    title: "No Automatic Actions",
-    description: "No meeting is ever created automatically. Every event requires explicit human approval.",
+    title: "Agents Propose, Humans Approve",
+    description: "Personal agents propose actions based on coordination. No action is ever executed without explicit human approval.",
   },
   {
     icon: UserCheck,
     title: "Invitee Approves First",
-    description: "The person being invited always approves first. They're never surprised by calendar invites.",
+    description: "The invited user always approves first. They select from proposed slot options before the requester is asked to confirm.",
   },
   {
     icon: Users,
-    title: "Requester Confirms",
-    description: "After the invitee approves, the requester confirms the final time before the event is created.",
+    title: "Requester Confirms Second",
+    description: "After the invitee approves a slot, the requester receives an approval request to confirm the coordination.",
   },
   {
     icon: Lock,
     title: "Full Control Always",
-    description: "Users can decline, reschedule, or cancel at any point. Your calendar, your rules.",
+    description: "Users can decline, reschedule, or cancel at any point in the flow. Your calendar, your rules.",
   },
 ]
 
@@ -37,7 +37,7 @@ export function ApprovalSystem() {
               You're always in control
             </h2>
             <p className="text-muted-foreground text-lg mb-10">
-              CoAgent4U is designed with governance at its core. Every action requires explicit approval from the humans involved.
+              CoAgent4U is designed with governance at its core. Personal agents propose actions, but humans approve before any execution occurs.
             </p>
 
             <div className="space-y-6">
@@ -66,10 +66,10 @@ export function ApprovalSystem() {
                   <span className="text-sm font-semibold text-primary">1</span>
                 </div>
                 <div className="flex-1 pt-1">
-                  <p className="text-sm text-foreground font-medium">Proposal Generated</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Agent finds a common time slot</p>
+                  <p className="text-sm text-foreground font-medium">Coordination Initiated</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Agent A parses intent, finds User A availability</p>
                   <div className="mt-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-                    Meeting: "Project Sync" - Friday 2:00 PM
+                    User A free: 6:00 PM - 9:00 PM
                   </div>
                 </div>
               </div>
@@ -79,12 +79,29 @@ export function ApprovalSystem() {
 
               {/* Step 2 */}
               <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-semibold text-yellow-600">2</span>
+                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-semibold text-blue-600">2</span>
                 </div>
                 <div className="flex-1 pt-1">
-                  <p className="text-sm text-foreground font-medium">Invitee Reviews</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">UserB receives notification</p>
+                  <p className="text-sm text-foreground font-medium">Agent-to-Agent Coordination</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Coordination Engine matches availability</p>
+                  <div className="mt-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
+                    Common slot: 6:00 PM - 7:00 PM
+                  </div>
+                </div>
+              </div>
+
+              {/* Connector */}
+              <div className="ml-4 w-px h-4 bg-border"></div>
+
+              {/* Step 3 */}
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-semibold text-yellow-600">3</span>
+                </div>
+                <div className="flex-1 pt-1">
+                  <p className="text-sm text-foreground font-medium">Invitee Selects & Approves</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">User B selects preferred slot from options</p>
                   <div className="mt-2 flex gap-2">
                     <button className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md">
                       Approve
@@ -99,14 +116,14 @@ export function ApprovalSystem() {
               {/* Connector */}
               <div className="ml-4 w-px h-4 bg-border"></div>
 
-              {/* Step 3 */}
+              {/* Step 4 */}
               <div className="flex items-start gap-4">
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-semibold text-blue-600">3</span>
+                <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                  <span className="text-sm font-semibold text-orange-600">4</span>
                 </div>
                 <div className="flex-1 pt-1">
                   <p className="text-sm text-foreground font-medium">Requester Confirms</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">UserA confirms the approved time</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">User A confirms the approved time</p>
                   <div className="mt-2 flex gap-2">
                     <button className="px-3 py-1.5 text-xs font-medium bg-foreground text-background rounded-md">
                       Confirm
@@ -121,16 +138,16 @@ export function ApprovalSystem() {
               {/* Connector */}
               <div className="ml-4 w-px h-4 bg-border"></div>
 
-              {/* Step 4 */}
+              {/* Step 5 */}
               <div className="flex items-start gap-4">
                 <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sm font-semibold text-green-600">4</span>
+                  <span className="text-sm font-semibold text-green-600">5</span>
                 </div>
                 <div className="flex-1 pt-1">
-                  <p className="text-sm text-foreground font-medium">Event Created</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Added to both calendars</p>
+                  <p className="text-sm text-foreground font-medium">Events Created</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Both calendars updated, confirmations sent</p>
                   <div className="mt-2 rounded-lg bg-green-500/5 border border-green-500/20 p-3 text-xs text-green-700">
-                    Meeting scheduled for Friday 2:00 PM
+                    Meeting scheduled: Friday 6:00 PM
                   </div>
                 </div>
               </div>
