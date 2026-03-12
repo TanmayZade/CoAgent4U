@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Bot, Calendar, CheckCircle2 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
@@ -55,6 +55,7 @@ export function HeroSection() {
   const subheadlineRef = useRef<HTMLParagraphElement>(null)
   const ctaRef = useRef<HTMLDivElement>(null)
   const logoRef = useRef<HTMLDivElement>(null)
+  const cardRef = useRef<HTMLDivElement>(null)
   const particlesRef = useRef<HTMLDivElement>(null)
   
   // Generate particles only on client side to avoid hydration mismatch
@@ -91,36 +92,34 @@ export function HeroSection() {
         { opacity: 1, scale: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.2 }
       )
 
-      // Headline animation with split text effect - word by word
+      // Headline animation - fade in with stagger per word
       if (headlineRef.current) {
-        const text = headlineRef.current.textContent || ""
-        const words = text.split(" ")
-        headlineRef.current.innerHTML = words
-          .map(word => `<span class="inline-block overflow-hidden mr-[0.25em]"><span class="inline-block translate-y-full">${word}</span></span>`)
-          .join("")
-
-        const innerSpans = headlineRef.current.querySelectorAll("span > span")
-        gsap.to(innerSpans, {
-          y: 0,
-          duration: 1.2,
-          stagger: 0.1,
-          ease: "power4.out",
-          delay: 0.5,
-        })
+        gsap.fromTo(
+          headlineRef.current,
+          { opacity: 0, y: 60 },
+          { opacity: 1, y: 0, duration: 1.2, ease: "power4.out", delay: 0.5 }
+        )
       }
 
       // Subheadline fade in with blur effect
       gsap.fromTo(
         subheadlineRef.current,
         { opacity: 0, y: 40, filter: "blur(10px)" },
-        { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.2, delay: 1.5, ease: "power3.out" }
+        { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.2, delay: 1.2, ease: "power3.out" }
       )
 
       // CTA buttons animation with stagger
       gsap.fromTo(
         ctaRef.current?.children || [],
         { opacity: 0, y: 30, scale: 0.95 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.8, stagger: 0.2, delay: 2, ease: "back.out(1.4)" }
+        { opacity: 1, y: 0, scale: 1, duration: 0.8, stagger: 0.2, delay: 1.6, ease: "back.out(1.4)" }
+      )
+
+      // Card animation
+      gsap.fromTo(
+        cardRef.current,
+        { opacity: 0, y: 60, scale: 0.95 },
+        { opacity: 1, y: 0, scale: 1, duration: 1, delay: 2, ease: "power3.out" }
       )
     }, sectionRef)
 
@@ -128,7 +127,7 @@ export function HeroSection() {
   }, [particles])
 
   return (
-    <section ref={sectionRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <section ref={sectionRef} className="relative min-h-screen flex flex-col justify-center overflow-hidden pt-24 pb-16">
       {/* Scattered particles - both sides (only render after mount to avoid hydration mismatch) */}
       <div ref={particlesRef} className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
         {mounted && particles.map((particle) => (
@@ -151,10 +150,10 @@ export function HeroSection() {
         <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-muted/30 to-transparent rounded-full blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-7xl px-6 py-32 lg:py-40">
+      <div className="mx-auto max-w-7xl px-6 w-full">
         <div className="mx-auto max-w-5xl text-center">
           {/* Logo + Brand */}
-          <div ref={logoRef} className="flex items-center justify-center gap-5 mb-14">
+          <div ref={logoRef} className="flex items-center justify-center gap-5 mb-12">
             <Image 
               src="/images/logo.png" 
               alt="CoAgent4U Logo" 
@@ -167,10 +166,10 @@ export function HeroSection() {
             </span>
           </div>
 
-          {/* Headline - Large, bold, centered */}
+          {/* Headline - Large, bold, centered with proper word wrapping */}
           <h1 
             ref={headlineRef}
-            className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight text-foreground leading-[1.05] text-balance"
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] max-w-4xl mx-auto"
           >
             Your Personal Agent That Coordinates Your Time
           </h1>
@@ -178,16 +177,16 @@ export function HeroSection() {
           {/* Subheadline */}
           <p 
             ref={subheadlineRef}
-            className="mt-12 text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto text-pretty"
+            className="mt-8 text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
           >
             A coordination platform where personal agents represent users and collaborate to manage commitments, schedules, and shared time.
           </p>
 
           {/* CTAs */}
-          <div ref={ctaRef} className="mt-14 flex flex-col sm:flex-row items-center justify-center gap-5">
+          <div ref={ctaRef} className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Button 
               size="lg" 
-              className="h-14 px-10 text-lg font-medium rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105" 
+              className="h-13 px-8 text-base font-medium rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" 
               asChild
             >
               <Link href="/signin">
@@ -198,7 +197,7 @@ export function HeroSection() {
             <Button 
               variant="outline" 
               size="lg" 
-              className="h-14 px-10 text-lg font-medium rounded-full border-2 border-foreground/20 hover:border-foreground/40 hover:bg-muted/50 transition-all duration-300 hover:scale-105" 
+              className="h-13 px-8 text-base font-medium rounded-full border-2 border-foreground/20 hover:border-foreground/40 hover:bg-muted/50 transition-all duration-300 hover:scale-105" 
               asChild
             >
               <Link href="#use-cases">
@@ -207,12 +206,102 @@ export function HeroSection() {
             </Button>
           </div>
         </div>
+
+        {/* Agent Preview Card */}
+        <div 
+          ref={cardRef}
+          className="mt-16 max-w-4xl mx-auto"
+        >
+          <div className="rounded-2xl border border-border/60 bg-card shadow-2xl shadow-black/[0.08] overflow-hidden">
+            {/* Window Header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border/60 bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-400" />
+                  <div className="w-3 h-3 rounded-full bg-yellow-400" />
+                  <div className="w-3 h-3 rounded-full bg-green-400" />
+                </div>
+                <span className="text-sm font-medium text-foreground ml-2">CoAgent4U</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-green-600">
+                <div className="w-2 h-2 rounded-full bg-green-500" />
+                Connected
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 lg:p-8">
+              <div className="grid lg:grid-cols-2 gap-8">
+                {/* Left: Chat/Command */}
+                <div className="space-y-5">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Bot className="w-4 h-4 text-foreground" />
+                    Agent Interaction
+                  </div>
+                  
+                  {/* Command input */}
+                  <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
+                    <p className="text-sm text-muted-foreground mb-2">You said:</p>
+                    <p className="text-foreground font-medium">
+                      @CoAgent4U schedule meeting with @Sarah Friday evening
+                    </p>
+                  </div>
+                  
+                  {/* Agent response */}
+                  <div className="rounded-xl border border-foreground/20 bg-foreground/[0.02] p-4">
+                    <p className="text-sm text-foreground font-medium mb-2">Agent Response:</p>
+                    <p className="text-foreground/80 text-sm leading-relaxed">
+                      Coordinating with Sarah&apos;s agent. Common availability found: 6:00 PM - 7:00 PM. Awaiting Sarah&apos;s approval before confirming.
+                    </p>
+                    <div className="mt-3 flex items-center gap-2 text-xs text-green-600">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Agent-to-agent coordination in progress
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Schedule Preview */}
+                <div className="space-y-5">
+                  <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <Calendar className="w-4 h-4 text-foreground" />
+                    Friday Schedule
+                  </div>
+                  
+                  <div className="rounded-xl border border-border/60 bg-muted/30 p-4 space-y-3">
+                    {[
+                      { time: "9:00 AM", event: "Team Standup", duration: "30m" },
+                      { time: "11:00 AM", event: "Project Review", duration: "1h" },
+                      { time: "6:00 PM", event: "Meeting with Sarah", duration: "1h", pending: true },
+                    ].map((item, i) => (
+                      <div 
+                        key={i} 
+                        className={`flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-300 ${
+                          item.pending 
+                            ? "bg-foreground/5 border border-foreground/20" 
+                            : "bg-background/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs font-mono text-muted-foreground w-16">{item.time}</span>
+                          <span className={`text-sm ${item.pending ? "text-foreground font-medium" : "text-foreground"}`}>
+                            {item.event}
+                          </span>
+                        </div>
+                        <span className="text-xs text-muted-foreground">{item.duration}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Scroll indicator */}
-      <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce">
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce">
         <span className="text-xs text-muted-foreground uppercase tracking-widest">Scroll</span>
-        <div className="w-px h-8 bg-gradient-to-b from-foreground/40 to-transparent" />
+        <div className="w-px h-6 bg-gradient-to-b from-foreground/40 to-transparent" />
       </div>
     </section>
   )
