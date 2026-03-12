@@ -4,7 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
-import { useEffect, useRef, useMemo } from "react"
+import { useEffect, useRef, useState } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 
@@ -12,9 +12,19 @@ if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger)
 }
 
+// Particle type
+interface Particle {
+  id: number
+  x: number
+  y: number
+  size: number
+  delay: number
+  duration: number
+}
+
 // Generate random particles for the scattered effect
-function generateParticles(count: number) {
-  const particles = []
+function generateParticles(count: number): Particle[] {
+  const particles: Particle[] = []
   for (let i = 0; i < count; i++) {
     particles.push({
       id: i,
@@ -47,7 +57,14 @@ export function HeroSection() {
   const logoRef = useRef<HTMLDivElement>(null)
   const particlesRef = useRef<HTMLDivElement>(null)
   
-  const particles = useMemo(() => generateParticles(30), [])
+  // Generate particles only on client side to avoid hydration mismatch
+  const [particles, setParticles] = useState<Particle[]>([])
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setParticles(generateParticles(30))
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const ctx = gsap.context(() => {
@@ -112,9 +129,9 @@ export function HeroSection() {
 
   return (
     <section ref={sectionRef} className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Scattered particles - both sides */}
+      {/* Scattered particles - both sides (only render after mount to avoid hydration mismatch) */}
       <div ref={particlesRef} className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-        {particles.map((particle) => (
+        {mounted && particles.map((particle) => (
           <div
             key={particle.id}
             className="particle absolute rounded-full bg-foreground/15"
