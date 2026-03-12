@@ -496,8 +496,8 @@ public class AgentCommandService
         String inviteeInvitationTs = notificationPort.sendMessage(
                 targetUser.getSlackIdentity().slackUserId(),
                 targetUser.getSlackIdentity().workspaceId(),
-                requesterMention + " invited you to a meeting.\nPlease select a suitable time slot.");
-        coordinationProtocol.updateMetadata(coordId, "invitee_invitation_ts", inviteeInvitationTs);
+                requesterMention + " invited you to a meeting.");
+        coordinationProtocol.updateMetadata(coordId, "invitee_header_ts", inviteeInvitationTs);
 
         // Step 2: Send slot selection card to invitee (User B picks the slot)
         String slotSelectionTs = notificationPort.sendSlotSelection(

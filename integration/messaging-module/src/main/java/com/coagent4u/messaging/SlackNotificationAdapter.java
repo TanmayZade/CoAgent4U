@@ -308,7 +308,7 @@ public class SlackNotificationAdapter implements NotificationPort {
 
             // Description
             blocks.add(markdownSection(
-                    "Pick a time that works best for you:"));
+                    "Please select a suitable time slot:"));
 
             // Divider
             blocks.add(dividerBlock());

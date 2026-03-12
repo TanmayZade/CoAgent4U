@@ -186,21 +186,6 @@ public class SlackInteractionHandler {
             ZonedDateTime endZdt = end.atZone(IST);
             ZonedDateTime now = ZonedDateTime.now(IST);
 
-            // ── I1: Delete invitee invitation + repost clean header ──
-            String inviteeInvTs = coordinationProtocol.getMetadata(coordId, "invitee_invitation_ts");
-            if (inviteeInvTs != null) {
-                slackAdapter.deleteMessage(channel, inviteeInvTs);
-            }
-            // Repost clean persistent header (no "Please select a suitable time slot.")
-            String requesterMention = coordinationProtocol.getMetadata(coordId, "requester_mention");
-            if (requesterMention == null) requesterMention = "Someone";
-            
-            String timestampStr = now.format(TIMESTAMP_FMT);
-            String headerPayload = buildStatusCard(channel,
-                    requesterMention + " invited you to a meeting.\n\n_Invited at " + timestampStr + "_", "#745EAF");
-            String headerTs = slackAdapter.postToSlack(headerPayload, channel);
-            coordinationProtocol.updateMetadata(coordId, "invitee_header_ts", headerTs);
-
             // ── R1: Delete requester's "Sent available slots" message ──
             String requesterSlackId = coordinationProtocol.getMetadata(coordId, "requester_slack_id");
             String requesterNotifTs = coordinationProtocol.getMetadata(coordId, "requester_notification_ts");
