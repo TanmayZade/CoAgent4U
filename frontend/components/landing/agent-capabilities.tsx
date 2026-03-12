@@ -50,7 +50,7 @@ export function AgentCapabilities() {
       <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
         <div ref={headerRef} className="max-w-2xl mb-16">
-          <p className="text-sm font-medium text-primary mb-3">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Personal Agent Capabilities
           </p>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
@@ -69,10 +69,10 @@ export function AgentCapabilities() {
               className="group p-6 rounded-2xl border border-border/60 bg-card hover:border-border transition-all duration-500 card-hover"
               style={{ transitionDelay: `${index * 50}ms` }}
             >
-              <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center mb-4 group-hover:bg-primary/10 group-hover:scale-110 transition-all duration-300">
-                <capability.icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+              <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center mb-4 group-hover:bg-foreground/10 group-hover:scale-110 transition-all duration-300">
+                <capability.icon className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors duration-300" />
               </div>
-              <h3 className="text-base font-semibold text-foreground mb-2 group-hover:text-primary transition-colors duration-300">
+              <h3 className="text-base font-semibold text-foreground mb-2 group-hover:text-foreground transition-colors duration-300">
                 {capability.title}
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">

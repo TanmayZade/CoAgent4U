@@ -108,7 +108,7 @@ export function CoordinationSection() {
       <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
         <div ref={headerRef} className="max-w-2xl mx-auto text-center mb-16">
-          <p className="text-sm font-medium text-primary mb-3">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Agent Coordination Visualization
           </p>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
@@ -131,25 +131,25 @@ export function CoordinationSection() {
             <div ref={flowRef} className="flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-4">
               {/* User A */}
               <div className="flow-item flex flex-col items-center text-center group cursor-pointer">
-                <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center mb-3 transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/20">
-                  <User className="w-7 h-7 text-primary" />
+                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3 border border-border transition-all duration-300 group-hover:scale-110 group-hover:border-foreground/50">
+                  <User className="w-7 h-7 text-foreground" />
                 </div>
                 <span className="text-sm font-medium text-foreground">User A</span>
                 <span className="text-xs text-muted-foreground">Invokes agent</span>
               </div>
 
-              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-primary" />
+              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-foreground" />
 
               {/* Agent A */}
               <div className="flow-item flex flex-col items-center text-center group cursor-pointer">
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3 border border-border transition-all duration-300 group-hover:scale-110 group-hover:border-primary/50">
-                  <Bot className="w-7 h-7 text-foreground transition-colors duration-300 group-hover:text-primary" />
+                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3 border border-border transition-all duration-300 group-hover:scale-110 group-hover:border-foreground/50">
+                  <Bot className="w-7 h-7 text-foreground transition-colors duration-300 group-hover:text-foreground" />
                 </div>
                 <span className="text-sm font-medium text-foreground">Agent A</span>
                 <span className="text-xs text-muted-foreground">Parses intent</span>
               </div>
 
-              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-primary" />
+              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-foreground" />
 
               {/* Coordination Engine */}
               <div className="flow-item flex flex-col items-center text-center group cursor-pointer">
@@ -160,18 +160,18 @@ export function CoordinationSection() {
                 <span className="text-xs text-muted-foreground">Engine</span>
               </div>
 
-              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-primary" />
+              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-foreground" />
 
               {/* Agent B */}
               <div className="flow-item flex flex-col items-center text-center group cursor-pointer">
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3 border border-border transition-all duration-300 group-hover:scale-110 group-hover:border-primary/50">
-                  <Bot className="w-7 h-7 text-foreground transition-colors duration-300 group-hover:text-primary" />
+                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3 border border-border transition-all duration-300 group-hover:scale-110 group-hover:border-foreground/50">
+                  <Bot className="w-7 h-7 text-foreground transition-colors duration-300 group-hover:text-foreground" />
                 </div>
                 <span className="text-sm font-medium text-foreground">Agent B</span>
                 <span className="text-xs text-muted-foreground">Checks availability</span>
               </div>
 
-              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-primary" />
+              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-foreground" />
 
               {/* User B */}
               <div className="flow-item flex flex-col items-center text-center group cursor-pointer">

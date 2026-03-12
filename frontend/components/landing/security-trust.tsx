@@ -133,7 +133,7 @@ export function SecurityTrust() {
 
           {/* Right: Content */}
           <div ref={contentRef} className="order-1 lg:order-2">
-            <p className="text-sm font-medium text-primary mb-3">
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
               Security & Trust
             </p>
             <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
@@ -150,8 +150,8 @@ export function SecurityTrust() {
                   className="security-feature p-4 rounded-xl transition-all duration-300 hover:bg-card hover:shadow-md cursor-pointer"
                   style={{ transitionDelay: `${index * 50}ms` }}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mb-3 transition-all duration-300 hover:scale-110 hover:bg-primary/10">
-                    <feature.icon className="w-5 h-5 text-foreground transition-colors duration-300 hover:text-primary" />
+                  <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mb-3 transition-all duration-300 hover:scale-110 hover:bg-foreground/10">
+                    <feature.icon className="w-5 h-5 text-foreground transition-colors duration-300" />
                   </div>
                   <h3 className="font-medium text-foreground mb-1">{feature.title}</h3>
                   <p className="text-sm text-muted-foreground">{feature.description}</p>

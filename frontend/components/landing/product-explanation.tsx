@@ -27,8 +27,8 @@ export function ProductExplanation() {
         {/* Three pillars */}
         <div ref={cardsRef} className="mt-16 grid sm:grid-cols-3 gap-8 lg:gap-12">
           <div className="text-center card-hover p-6 rounded-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center mx-auto mb-5 transition-transform duration-500 hover:scale-110 hover:rotate-3">
-              <Bot className="w-7 h-7 text-primary" />
+            <div className="w-14 h-14 rounded-2xl bg-muted border border-border/60 flex items-center justify-center mx-auto mb-5 transition-transform duration-500 hover:scale-110 hover:rotate-3">
+              <Bot className="w-7 h-7 text-foreground" />
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">
               Agent Coordination
@@ -39,8 +39,8 @@ export function ProductExplanation() {
           </div>
 
           <div className="text-center card-hover p-6 rounded-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center mx-auto mb-5 transition-transform duration-500 hover:scale-110 hover:rotate-3">
-              <Users className="w-7 h-7 text-primary" />
+            <div className="w-14 h-14 rounded-2xl bg-muted border border-border/60 flex items-center justify-center mx-auto mb-5 transition-transform duration-500 hover:scale-110 hover:rotate-3">
+              <Users className="w-7 h-7 text-foreground" />
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">
               Commitment Management
@@ -51,8 +51,8 @@ export function ProductExplanation() {
           </div>
 
           <div className="text-center card-hover p-6 rounded-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-primary/5 border border-primary/10 flex items-center justify-center mx-auto mb-5 transition-transform duration-500 hover:scale-110 hover:rotate-3">
-              <CheckCircle className="w-7 h-7 text-primary" />
+            <div className="w-14 h-14 rounded-2xl bg-muted border border-border/60 flex items-center justify-center mx-auto mb-5 transition-transform duration-500 hover:scale-110 hover:rotate-3">
+              <CheckCircle className="w-7 h-7 text-foreground" />
             </div>
             <h3 className="text-lg font-semibold text-foreground mb-2">
               Human-in-the-Loop Approvals

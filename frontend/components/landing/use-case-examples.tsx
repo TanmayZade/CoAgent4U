@@ -287,7 +287,7 @@ export function UseCaseExamples() {
       <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
         <div ref={headerRef} className="max-w-2xl mx-auto text-center mb-16">
-          <p className="text-sm font-medium text-primary mb-3">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Real Use Case Examples
           </p>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
@@ -321,7 +321,7 @@ export function UseCaseExamples() {
             {/* Header */}
             <div className="px-5 py-3 bg-muted/30 border-b border-border/40 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bot className="w-4 h-4 text-primary" />
+                <Bot className="w-4 h-4 text-foreground" />
                 <span className="text-sm font-medium text-foreground">CoAgent4U</span>
               </div>
               {currentCase?.type === "flow" && (
@@ -343,7 +343,7 @@ export function UseCaseExamples() {
               {activeCase === "view" && (
                 <>
                   <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
-                    <p className="text-xs text-primary mb-1.5">Agent response:</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-1.5">Agent response:</p>
                     <p className="text-sm text-foreground">{viewScheduleData.response}</p>
                   </div>
                   <div className="rounded-xl border border-border/60 p-4">
@@ -398,7 +398,7 @@ export function UseCaseExamples() {
 
                   {/* Agent Response */}
                   <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
-                    <p className="text-xs text-primary mb-1.5">Agent response:</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-1.5">Agent response:</p>
                     <p className="text-sm text-foreground">{currentStepData.agentResponse}</p>
                   </div>
 
@@ -534,7 +534,7 @@ export function UseCaseExamples() {
 
                   {/* Agent Response */}
                   <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
-                    <p className="text-xs text-primary mb-1.5">Agent response:</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-1.5">Agent response:</p>
                     <p className="text-sm text-foreground">{currentStepData.agentResponse}</p>
                   </div>
 
@@ -544,7 +544,7 @@ export function UseCaseExamples() {
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Bot className="w-5 h-5 text-primary" />
+                            <Bot className="w-5 h-5 text-foreground" />
                           </div>
                           <span className="text-xs text-muted-foreground">Your Agent</span>
                         </div>
@@ -569,7 +569,7 @@ export function UseCaseExamples() {
                         <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                              <span className="text-xs font-medium text-primary">Y</span>
+                              <span className="text-xs font-medium text-foreground">Y</span>
                             </div>
                             <span className="text-sm font-medium text-foreground">{currentStepData.content.userA?.name}</span>
                           </div>

@@ -18,8 +18,8 @@
   --popover: #FFFFFF;
   --popover-foreground: #1A1A1A;
   
-  /* Primary - Subtle blue accent */
-  --primary: #2563EB;
+  /* Primary - Neutral black */
+  --primary: #1A1A1A;
   --primary-foreground: #FFFFFF;
   
   /* Secondary */
@@ -41,7 +41,7 @@
   /* Border and Input */
   --border: #E2E8F0;
   --input: #E2E8F0;
-  --ring: #2563EB;
+  --ring: #1A1A1A;
   
   /* Chart colors */
   --chart-1: #2563EB;
@@ -55,17 +55,18 @@
   /* Sidebar */
   --sidebar: #FFFFFF;
   --sidebar-foreground: #1A1A1A;
-  --sidebar-primary: #2563EB;
+  --sidebar-primary: #1A1A1A;
   --sidebar-primary-foreground: #FFFFFF;
   --sidebar-accent: #F1F5F9;
   --sidebar-accent-foreground: #1A1A1A;
   --sidebar-border: #E2E8F0;
-  --sidebar-ring: #2563EB;
+  --sidebar-ring: #1A1A1A;
 }
 
 @theme inline {
   --font-sans: var(--font-sans), 'Poppins', system-ui, sans-serif;
   --font-mono: var(--font-mono), 'JetBrains Mono', monospace;
+  --font-serif: var(--font-serif), 'Playfair Display', Georgia, serif;
   --font-display: var(--font-display), 'Poppins', system-ui, sans-serif;
   
   --color-background: var(--background);
@@ -118,7 +119,7 @@
 
 /* Text selection */
 ::selection {
-  background: rgba(37, 99, 235, 0.15);
+  background: rgba(26, 26, 26, 0.15);
   color: var(--foreground);
 }
 
@@ -226,10 +227,10 @@
 /* Pulse glow effect */
 @keyframes pulse-glow {
   0%, 100% {
-    box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 0 20px rgba(26, 26, 26, 0.1);
   }
   50% {
-    box-shadow: 0 0 40px rgba(37, 99, 235, 0.4);
+    box-shadow: 0 0 40px rgba(26, 26, 26, 0.2);
   }
 }
 
@@ -254,10 +255,10 @@
   content: '';
   position: absolute;
   width: 0;
-  height: 2px;
+  height: 1px;
   bottom: -2px;
   left: 0;
-  background-color: var(--primary);
+  background-color: var(--foreground);
   transition: width 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 

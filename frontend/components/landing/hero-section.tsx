@@ -114,7 +114,7 @@ export function HeroSection() {
         {particles.map((particle) => (
           <div
             key={particle.id}
-            className="particle absolute rounded-full bg-[#6B8DD6]/60"
+            className="particle absolute rounded-full bg-foreground/20"
             style={{
               left: `${particle.x}%`,
               top: `${particle.y}%`,
@@ -127,22 +127,22 @@ export function HeroSection() {
 
       {/* Subtle gradient background */}
       <div className="absolute inset-0 -z-20">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-gradient-to-br from-[#6B8DD6]/[0.03] to-transparent rounded-full blur-3xl" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-gradient-to-tl from-[#8B9DC3]/[0.02] to-transparent rounded-full blur-3xl" />
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-gradient-to-br from-muted/30 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-gradient-to-tl from-muted/20 to-transparent rounded-full blur-3xl" />
       </div>
 
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-4xl text-center">
           {/* Logo + Brand */}
-          <div ref={logoRef} className="flex items-center justify-center gap-3 mb-8 opacity-0">
+          <div ref={logoRef} className="flex items-center justify-center gap-4 mb-10 opacity-0">
             <Image 
               src="/images/logo.png" 
               alt="CoAgent4U Logo" 
-              width={48} 
-              height={48}
+              width={56} 
+              height={56}
               className="drop-shadow-sm"
             />
-            <span className="text-xl font-medium text-foreground tracking-tight">CoAgent4U</span>
+            <span className="text-2xl font-serif font-medium text-foreground tracking-tight italic">CoAgent4U</span>
           </div>
 
           {/* Headline - Large, bold, centered */}
@@ -213,7 +213,7 @@ export function HeroSection() {
                   {/* Left: Chat/Command */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Bot className="w-4 h-4 text-primary" />
+                      <Bot className="w-4 h-4 text-foreground" />
                       Agent Interaction
                     </div>
                     
@@ -226,8 +226,8 @@ export function HeroSection() {
                     </div>
                     
                     {/* Agent response */}
-                    <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4 interactive-hover">
-                      <p className="text-sm text-primary mb-2">Agent Response:</p>
+                    <div className="rounded-xl border border-foreground/20 bg-foreground/[0.02] p-4 interactive-hover">
+                      <p className="text-sm text-foreground font-medium mb-2">Agent Response:</p>
                       <p className="text-foreground text-sm leading-relaxed">
                         {"Coordinating with Sarah's agent. Common availability found: 6:00 PM - 7:00 PM. Awaiting Sarah's approval before confirming."}
                       </p>
@@ -241,7 +241,7 @@ export function HeroSection() {
                   {/* Right: Schedule Preview */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Calendar className="w-4 h-4 text-primary" />
+                      <Calendar className="w-4 h-4 text-foreground" />
                       Friday Schedule
                     </div>
                     
@@ -255,13 +255,13 @@ export function HeroSection() {
                           key={i} 
                           className={`flex items-center justify-between py-2.5 px-3 rounded-lg transition-all duration-300 hover:scale-[1.02] ${
                             item.pending 
-                              ? "bg-primary/5 border border-primary/20 animate-pulse-glow" 
+                              ? "bg-foreground/5 border border-foreground/20" 
                               : "bg-background/50 hover:bg-background/80"
                           }`}
                         >
                           <div className="flex items-center gap-3">
                             <span className="text-xs font-mono text-muted-foreground w-16">{item.time}</span>
-                            <span className={`text-sm ${item.pending ? "text-primary font-medium" : "text-foreground"}`}>
+                            <span className={`text-sm ${item.pending ? "text-foreground font-medium" : "text-foreground"}`}>
                               {item.event}
                             </span>
                           </div>

@@ -45,7 +45,7 @@ export function PlatformBenefits() {
       <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
         <div ref={headerRef} className="max-w-2xl mx-auto text-center mb-16">
-          <p className="text-sm font-medium text-primary mb-3">
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Platform Benefits
           </p>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
@@ -68,10 +68,10 @@ export function PlatformBenefits() {
               }`}
               style={{ transitionDelay: `${index * 50}ms` }}
             >
-              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-5 transition-all duration-300 group-hover:scale-110 group-hover:bg-primary/10">
-                <benefit.icon className="w-6 h-6 text-foreground transition-colors duration-300 group-hover:text-primary" />
+              <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-5 transition-all duration-300 group-hover:scale-110 group-hover:bg-foreground/10">
+                <benefit.icon className="w-6 h-6 text-foreground transition-colors duration-300" />
               </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2 transition-colors duration-300 group-hover:text-primary">
+              <h3 className="text-lg font-semibold text-foreground mb-2 transition-colors duration-300">
                 {benefit.title}
               </h3>
               <p className="text-muted-foreground leading-relaxed">

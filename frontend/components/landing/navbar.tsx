@@ -75,15 +75,15 @@ export function Navbar() {
       <nav className="mx-auto max-w-6xl px-6">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link ref={logoRef} href="/" className="flex items-center gap-2 group">
+          <Link ref={logoRef} href="/" className="flex items-center gap-3 group">
             <Image 
               src="/images/logo.png" 
               alt="CoAgent4U Logo" 
-              width={40} 
-              height={40}
-              className="transition-transform duration-300 group-hover:scale-110"
+              width={48} 
+              height={48}
+              className="transition-transform duration-300 group-hover:scale-105"
             />
-            <span className="text-lg font-semibold tracking-tight text-foreground">
+            <span className="text-xl font-serif font-medium tracking-tight text-foreground italic">
               CoAgent4U
             </span>
           </Link>

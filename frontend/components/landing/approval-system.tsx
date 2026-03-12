@@ -75,7 +75,7 @@ export function ApprovalSystem() {
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           {/* Left: Content */}
           <div ref={contentRef}>
-            <p className="text-sm font-medium text-primary mb-3">
+            <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
               Human Approval System
             </p>
             <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
@@ -92,8 +92,8 @@ export function ApprovalSystem() {
                   className="rule-item flex gap-4 p-4 rounded-xl transition-all duration-300 hover:bg-card hover:shadow-md cursor-pointer"
                   style={{ transitionDelay: `${index * 50}ms` }}
                 >
-                  <div className="w-10 h-10 rounded-xl bg-card border border-border/60 flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110 hover:border-primary/50">
-                    <rule.icon className="w-5 h-5 text-primary" />
+                  <div className="w-10 h-10 rounded-xl bg-card border border-border/60 flex items-center justify-center flex-shrink-0 transition-all duration-300 hover:scale-110 hover:border-foreground/50">
+                    <rule.icon className="w-5 h-5 text-foreground" />
                   </div>
                   <div>
                     <h3 className="font-medium text-foreground mb-1">{rule.title}</h3>
@@ -111,8 +111,8 @@ export function ApprovalSystem() {
             <div className="space-y-4">
               {/* Step 1 */}
               <div className="flow-step flex items-start gap-4 p-3 rounded-xl transition-all duration-300 hover:bg-muted/30">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
-                  <span className="text-sm font-semibold text-primary">1</span>
+                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
+                  <span className="text-sm font-semibold text-foreground">1</span>
                 </div>
                 <div className="flex-1 pt-1">
                   <p className="text-sm text-foreground font-medium">Coordination Initiated</p>
@@ -128,8 +128,8 @@ export function ApprovalSystem() {
 
               {/* Step 2 */}
               <div className="flow-step flex items-start gap-4 p-3 rounded-xl transition-all duration-300 hover:bg-muted/30">
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
-                  <span className="text-sm font-semibold text-blue-600">2</span>
+                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
+                  <span className="text-sm font-semibold text-foreground">2</span>
                 </div>
                 <div className="flex-1 pt-1">
                   <p className="text-sm text-foreground font-medium">Agent-to-Agent Coordination</p>
@@ -145,8 +145,8 @@ export function ApprovalSystem() {
 
               {/* Step 3 */}
               <div className="flow-step flex items-start gap-4 p-3 rounded-xl transition-all duration-300 hover:bg-muted/30">
-                <div className="w-8 h-8 rounded-full bg-yellow-500/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
-                  <span className="text-sm font-semibold text-yellow-600">3</span>
+                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
+                  <span className="text-sm font-semibold text-foreground">3</span>
                 </div>
                 <div className="flex-1 pt-1">
                   <p className="text-sm text-foreground font-medium">Invitee Selects & Approves</p>
@@ -167,8 +167,8 @@ export function ApprovalSystem() {
 
               {/* Step 4 */}
               <div className="flow-step flex items-start gap-4 p-3 rounded-xl transition-all duration-300 hover:bg-muted/30">
-                <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
-                  <span className="text-sm font-semibold text-orange-600">4</span>
+                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
+                  <span className="text-sm font-semibold text-foreground">4</span>
                 </div>
                 <div className="flex-1 pt-1">
                   <p className="text-sm text-foreground font-medium">Requester Confirms</p>
@@ -189,8 +189,8 @@ export function ApprovalSystem() {
 
               {/* Step 5 */}
               <div className="flow-step flex items-start gap-4 p-3 rounded-xl transition-all duration-300 hover:bg-muted/30">
-                <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
-                  <span className="text-sm font-semibold text-green-600">5</span>
+                <div className="w-8 h-8 rounded-full bg-foreground/10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 hover:scale-110">
+                  <span className="text-sm font-semibold text-foreground">5</span>
                 </div>
                 <div className="flex-1 pt-1">
                   <p className="text-sm text-foreground font-medium">Events Created</p>
