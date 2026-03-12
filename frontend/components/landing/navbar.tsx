@@ -81,7 +81,8 @@ export function Navbar() {
               alt="CoAgent4U Logo" 
               width={56} 
               height={56}
-              className="transition-transform duration-300 group-hover:scale-105 w-auto h-auto"
+              className="transition-transform duration-300 group-hover:scale-105"
+              style={{ width: '48px', height: '48px' }}
             />
             <span className="text-2xl font-serif font-medium tracking-tight text-foreground italic">
               CoAgent4U
