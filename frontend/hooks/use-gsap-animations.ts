@@ -96,7 +96,11 @@ export function useStaggerReveal<T extends HTMLElement>(
     const container = ref.current
     if (!container) return
 
-    const children = container.querySelectorAll(childSelector)
+    // Handle relative selectors by prepending :scope
+    const selector = childSelector.startsWith(">") 
+      ? `:scope ${childSelector}` 
+      : childSelector
+    const children = container.querySelectorAll(selector)
     if (!children.length) return
 
     gsap.fromTo(
