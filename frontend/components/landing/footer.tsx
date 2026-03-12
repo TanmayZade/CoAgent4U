@@ -1,5 +1,8 @@
+"use client"
+
 import Link from "next/link"
 import { Github, Twitter } from "lucide-react"
+import { useScrollReveal, useStaggerReveal } from "@/hooks/use-gsap-animations"
 
 const footerLinks = {
   product: [
@@ -20,14 +23,22 @@ const footerLinks = {
 }
 
 export function Footer() {
+  const footerRef = useScrollReveal<HTMLElement>({ y: 30, duration: 0.8 })
+  const linksRef = useStaggerReveal<HTMLDivElement>({ 
+    stagger: 0.05, 
+    y: 20, 
+    duration: 0.5,
+    childSelector: "li"
+  })
+
   return (
-    <footer className="border-t border-border/40">
+    <footer ref={footerRef} className="border-t border-border/40">
       <div className="mx-auto max-w-6xl px-6 py-12 lg:py-16">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8 lg:gap-12 mb-12">
+        <div ref={linksRef} className="grid grid-cols-2 md:grid-cols-5 gap-8 lg:gap-12 mb-12">
           {/* Logo & Description */}
           <div className="col-span-2">
-            <Link href="/" className="inline-flex items-center gap-2.5 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center">
+            <Link href="/" className="inline-flex items-center gap-2.5 mb-4 group">
+              <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
                 <span className="text-sm font-semibold text-background">C4</span>
               </div>
               <span className="text-lg font-semibold tracking-tight text-foreground">
@@ -47,7 +58,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-all duration-200 underline-hover"
                   >
                     {link.label}
                   </Link>
@@ -64,7 +75,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-all duration-200 underline-hover"
                   >
                     {link.label}
                   </Link>
@@ -81,7 +92,7 @@ export function Footer() {
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-sm text-muted-foreground hover:text-foreground transition-all duration-200 underline-hover"
                   >
                     {link.label}
                   </Link>
@@ -101,7 +112,7 @@ export function Footer() {
               href="https://github.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-110"
               aria-label="GitHub"
             >
               <Github className="w-5 h-5" />
@@ -110,7 +121,7 @@ export function Footer() {
               href="https://twitter.com"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="text-muted-foreground hover:text-foreground transition-all duration-300 hover:scale-110"
               aria-label="Twitter"
             >
               <Twitter className="w-5 h-5" />

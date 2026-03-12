@@ -1,4 +1,7 @@
+"use client"
+
 import { Calendar, ListChecks, AlertCircle, CheckSquare, Users, History } from "lucide-react"
+import { useScrollReveal, useStaggerReveal } from "@/hooks/use-gsap-animations"
 
 const capabilities = [
   {
@@ -34,11 +37,19 @@ const capabilities = [
 ]
 
 export function AgentCapabilities() {
+  const headerRef = useScrollReveal<HTMLDivElement>({ y: 40, duration: 0.8 })
+  const cardsRef = useStaggerReveal<HTMLDivElement>({ 
+    stagger: 0.1, 
+    y: 40, 
+    duration: 0.7,
+    childSelector: "> div"
+  })
+
   return (
     <section id="capabilities" className="py-24 lg:py-32">
       <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
-        <div className="max-w-2xl mb-16">
+        <div ref={headerRef} className="max-w-2xl mb-16">
           <p className="text-sm font-medium text-primary mb-3">
             Personal Agent Capabilities
           </p>
@@ -51,16 +62,17 @@ export function AgentCapabilities() {
         </div>
 
         {/* Capability cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {capabilities.map((capability) => (
+        <div ref={cardsRef} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {capabilities.map((capability, index) => (
             <div
               key={capability.title}
-              className="group p-6 rounded-2xl border border-border/60 bg-card hover:border-border hover:shadow-lg hover:shadow-black/[0.02] transition-all duration-300"
+              className="group p-6 rounded-2xl border border-border/60 bg-card hover:border-border transition-all duration-500 card-hover"
+              style={{ transitionDelay: `${index * 50}ms` }}
             >
-              <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center mb-4 group-hover:bg-primary/5 transition-colors">
-                <capability.icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center mb-4 group-hover:bg-primary/10 group-hover:scale-110 transition-all duration-300">
+                <capability.icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
               </div>
-              <h3 className="text-base font-semibold text-foreground mb-2">
+              <h3 className="text-base font-semibold text-foreground mb-2 group-hover:text-primary transition-colors duration-300">
                 {capability.title}
               </h3>
               <p className="text-sm text-muted-foreground leading-relaxed">
