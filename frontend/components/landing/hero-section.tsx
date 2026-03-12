@@ -84,7 +84,7 @@ export function HeroSection() {
               alt="CoAgent4U Logo" 
               width={72} 
               height={72}
-              className="drop-shadow-md"
+              className="drop-shadow-md w-auto h-auto"
             />
             <span className="text-3xl font-serif font-medium text-foreground tracking-tight italic">
               CoAgent4U

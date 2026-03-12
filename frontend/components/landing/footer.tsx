@@ -44,7 +44,7 @@ export function Footer() {
                 alt="CoAgent4U Logo" 
                 width={48} 
                 height={48}
-                className="transition-transform duration-300 group-hover:scale-105"
+                className="transition-transform duration-300 group-hover:scale-105 w-auto h-auto"
               />
               <span className="text-2xl font-serif font-medium text-foreground tracking-tight italic">
                 CoAgent4U
