@@ -298,11 +298,6 @@ export function HeroSection() {
         </div>
       </div>
 
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce">
-        <span className="text-xs text-muted-foreground uppercase tracking-widest">Scroll</span>
-        <div className="w-px h-6 bg-gradient-to-b from-foreground/40 to-transparent" />
-      </div>
     </section>
   )
 }
