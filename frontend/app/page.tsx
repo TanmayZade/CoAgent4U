@@ -1,22 +1,21 @@
-import { NavHeader } from "@/components/layout/nav-header"
 import { HeroSection } from "@/components/landing/hero-section"
+import { LogoCloud } from "@/components/landing/logo-cloud"
 import { FeaturesSection } from "@/components/landing/features-section"
-import { A2AFlowSection } from "@/components/landing/a2a-flow-section"
-import { MetricsSection } from "@/components/landing/metrics-section"
+import { HowItWorksSection } from "@/components/landing/how-it-works-section"
+import { CTASection } from "@/components/landing/cta-section"
 import { Footer } from "@/components/landing/footer"
-import { GSAPProvider } from "@/components/providers/gsap-provider"
+import { Navbar } from "@/components/landing/navbar"
 
 export default function LandingPage() {
   return (
-    <GSAPProvider>
-      <main className="min-h-screen bg-charcoal overflow-hidden">
-        <NavHeader />
-        <HeroSection />
-        <FeaturesSection />
-        <A2AFlowSection />
-        <MetricsSection />
-        <Footer />
-      </main>
-    </GSAPProvider>
+    <main className="min-h-screen bg-background">
+      <Navbar />
+      <HeroSection />
+      <LogoCloud />
+      <FeaturesSection />
+      <HowItWorksSection />
+      <CTASection />
+      <Footer />
+    </main>
   )
 }

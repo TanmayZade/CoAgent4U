@@ -1,8 +1,3 @@
-"use client"
-
-import { useEffect, useRef } from "react"
-import gsap from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
 import { 
   Bot, 
   Eye, 
@@ -14,10 +9,6 @@ import {
   FileText,
   KeyRound,
 } from "lucide-react"
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger)
-}
 
 const differentiators = [
   {
@@ -71,111 +62,36 @@ const features = [
 ]
 
 export function FeaturesSection() {
-  const sectionRef = useRef<HTMLElement>(null)
-  const headingRef = useRef<HTMLDivElement>(null)
-  const cardsRef = useRef<HTMLDivElement>(null)
-  const gridRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!sectionRef.current) return
-
-    const ctx = gsap.context(() => {
-      // Heading animation
-      if (headingRef.current) {
-        gsap.fromTo(
-          headingRef.current.children,
-          { y: 40, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.8,
-            stagger: 0.15,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: headingRef.current,
-              start: "top 85%",
-            },
-          }
-        )
-      }
-
-      // Differentiator cards
-      if (cardsRef.current) {
-        const cards = cardsRef.current.children
-        gsap.fromTo(
-          cards,
-          { y: 60, opacity: 0 },
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.8,
-            stagger: 0.12,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: cardsRef.current,
-              start: "top 80%",
-            },
-          }
-        )
-      }
-
-      // Feature grid
-      if (gridRef.current) {
-        const items = gridRef.current.children
-        gsap.fromTo(
-          items,
-          { y: 40, opacity: 0, scale: 0.95 },
-          {
-            y: 0,
-            opacity: 1,
-            scale: 1,
-            duration: 0.6,
-            stagger: 0.08,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: gridRef.current,
-              start: "top 85%",
-            },
-          }
-        )
-      }
-    }, sectionRef)
-
-    return () => ctx.revert()
-  }, [])
-
   return (
-    <section ref={sectionRef} id="features" className="relative py-32 noise-overlay">
-      <div className="absolute inset-0 bg-charcoal-light" />
-      
-      <div className="relative z-10 max-w-6xl mx-auto px-6 sm:px-8 lg:px-12">
+    <section id="features" className="relative py-24 lg:py-32 bg-muted/30">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8">
         {/* Section header */}
-        <div ref={headingRef} className="text-center mb-20">
-          <span className="inline-block text-xs font-mono text-accent tracking-widest uppercase mb-4">
+        <div className="text-center mb-16">
+          <p className="text-sm font-medium text-primary mb-3">
             What Makes It Different
-          </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-cream font-[family-name:var(--font-display)] tracking-tight mb-6">
+          </p>
+          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-display font-bold text-foreground tracking-tight mb-4 text-balance">
             Not another chatbot
           </h2>
-          <p className="text-foreground-secondary max-w-lg mx-auto text-lg">
+          <p className="text-muted-foreground max-w-lg mx-auto text-lg">
             A deterministic coordination engine built for trust and transparency.
           </p>
         </div>
 
         {/* Differentiator cards */}
-        <div ref={cardsRef} className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-32">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-24">
           {differentiators.map((item) => (
             <div
               key={item.title}
-              className="group p-8 bg-charcoal rounded-2xl border border-border hover:border-accent/30 transition-all duration-500 card-lift"
+              className="group p-8 bg-card rounded-xl border border-border hover:border-primary/30 transition-all duration-300"
             >
-              <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center mb-6 group-hover:bg-accent/20 transition-colors duration-300">
-                <item.icon className="w-6 h-6 text-accent" />
+              <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center mb-6 group-hover:bg-primary/20 transition-colors duration-300">
+                <item.icon className="w-6 h-6 text-primary" />
               </div>
-              <h3 className="text-xl font-semibold text-cream mb-3 font-[family-name:var(--font-display)]">
+              <h3 className="text-xl font-semibold text-foreground mb-3 font-display">
                 {item.title}
               </h3>
-              <p className="text-foreground-secondary leading-relaxed">
+              <p className="text-muted-foreground leading-relaxed">
                 {item.description}
               </p>
             </div>
@@ -183,28 +99,28 @@ export function FeaturesSection() {
         </div>
 
         {/* Feature grid section */}
-        <div className="text-center mb-16">
-          <span className="inline-block text-xs font-mono text-accent tracking-widest uppercase mb-4">
+        <div className="text-center mb-12">
+          <p className="text-sm font-medium text-primary mb-3">
             Capabilities
-          </span>
-          <h2 className="text-3xl sm:text-4xl font-bold text-cream font-[family-name:var(--font-display)] tracking-tight">
+          </p>
+          <h2 className="text-3xl sm:text-4xl font-display font-bold text-foreground tracking-tight">
             Built for modern workflows
           </h2>
         </div>
 
-        <div ref={gridRef} className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group p-6 bg-charcoal/50 rounded-xl border border-border/50 hover:border-border-light hover:bg-charcoal transition-all duration-300"
+              className="group p-6 bg-card/50 rounded-lg border border-border/50 hover:border-border hover:bg-card transition-all duration-300"
             >
               <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-lg bg-charcoal-lighter flex items-center justify-center flex-shrink-0 group-hover:bg-accent/10 transition-colors duration-300">
-                  <feature.icon className="w-5 h-5 text-foreground-secondary group-hover:text-accent transition-colors duration-300" />
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 group-hover:bg-primary/10 transition-colors duration-300">
+                  <feature.icon className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
                 </div>
                 <div>
-                  <h3 className="font-medium text-cream mb-1">{feature.title}</h3>
-                  <p className="text-sm text-foreground-muted">{feature.description}</p>
+                  <h3 className="font-medium text-foreground mb-1">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground">{feature.description}</p>
                 </div>
               </div>
             </div>

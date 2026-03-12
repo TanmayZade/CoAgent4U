@@ -24,7 +24,6 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: 'CoAgent4U | Deterministic Personal Agent Coordination Platform',
   description: 'Two agents. One goal. Zero back-and-forth. CoAgent4U is a deterministic personal agent coordination platform that handles the noise while you stay in control.',
-  generator: 'v0.app',
   keywords: ['AI agent', 'coordination', 'scheduling', 'Slack', 'automation', 'deterministic'],
   icons: {
     icon: [
@@ -46,7 +45,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#050A14',
+  themeColor: '#0A0A0B',
   width: 'device-width',
   initialScale: 1,
 }
