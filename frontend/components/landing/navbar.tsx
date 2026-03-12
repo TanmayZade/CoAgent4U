@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, useRef } from "react"
 import { Menu, X } from "lucide-react"
@@ -74,10 +75,14 @@ export function Navbar() {
       <nav className="mx-auto max-w-6xl px-6">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link ref={logoRef} href="/" className="flex items-center gap-2.5 group">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-foreground transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-              <span className="text-background font-semibold text-sm">C4</span>
-            </div>
+          <Link ref={logoRef} href="/" className="flex items-center gap-2 group">
+            <Image 
+              src="/images/logo.png" 
+              alt="CoAgent4U Logo" 
+              width={40} 
+              height={40}
+              className="transition-transform duration-300 group-hover:scale-110"
+            />
             <span className="text-lg font-semibold tracking-tight text-foreground">
               CoAgent4U
             </span>
