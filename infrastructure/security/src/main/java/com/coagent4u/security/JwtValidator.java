@@ -42,13 +42,19 @@ public class JwtValidator {
     }
 
     /**
-     * Full JWT claims including username, jti, and pending_registration.
+     * Full JWT claims including username, jti, pending_registration,
+     * auth_provider, and optional Slack identity fields.
      */
     public record JwtClaims(
             UUID userId,
             String username,
             String jti,
             boolean pendingRegistration,
+            String authProvider,
+            String slackUserId,
+            String workspaceId,
+            String email,
+            String displayName,
             Instant issuedAt,
             Instant expiry) {
     }
@@ -56,6 +62,7 @@ public class JwtValidator {
     /**
      * Parses the JWT and returns full claims.
      * Returns empty if the token is invalid, expired, or malformed.
+     * All optional claims are null-safe — missing claims return null.
      */
     public Optional<JwtClaims> validateFull(String token) {
         try {
@@ -69,6 +76,14 @@ public class JwtValidator {
             String username = claims.get("username", String.class);
             String jti = claims.getId();
             Boolean pendingReg = claims.get("pending_registration", Boolean.class);
+
+            // Extended claims — all null-safe
+            String authProvider = claims.get("auth_provider", String.class);
+            String slackUserId = claims.get("slack_user_id", String.class);
+            String workspaceId = claims.get("workspace_id", String.class);
+            String email = claims.get("email", String.class);
+            String displayName = claims.get("display_name", String.class);
+
             Instant issuedAt = claims.getIssuedAt() != null ? claims.getIssuedAt().toInstant() : null;
             Instant expiry = claims.getExpiration() != null ? claims.getExpiration().toInstant() : null;
 
@@ -77,6 +92,11 @@ public class JwtValidator {
                     username,
                     jti,
                     pendingReg != null && pendingReg,
+                    authProvider,
+                    slackUserId,
+                    workspaceId,
+                    email,
+                    displayName,
                     issuedAt,
                     expiry));
         } catch (JwtException | IllegalArgumentException e) {
@@ -84,3 +104,4 @@ public class JwtValidator {
         }
     }
 }
+

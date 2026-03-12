@@ -43,7 +43,6 @@ public class UserController {
         Optional<User> userOpt = userPersistencePort.findById(new UserId(authUser.userId()));
         if (userOpt.isEmpty()) {
             return ResponseEntity.ok(Map.of(
-                    "userId", authUser.userId().toString(),
                     "username", authUser.username() != null ? authUser.username() : "",
                     "pendingRegistration", authUser.pendingRegistration()));
         }
@@ -52,7 +51,6 @@ public class UserController {
         boolean googleConnected = user.activeConnectionFor("GOOGLE_CALENDAR").isPresent();
 
         return ResponseEntity.ok(Map.of(
-                "userId", user.getUserId().value().toString(),
                 "username", user.getUsername(),
                 "email", user.getEmail() != null ? user.getEmail().value() : "",
                 "googleCalendarConnected", googleConnected,

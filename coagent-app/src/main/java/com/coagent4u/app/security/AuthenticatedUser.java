@@ -9,11 +9,18 @@ import java.util.UUID;
  * Stored in request attribute {@code AUTHENTICATED_USER} by {@link JwtAuthenticationFilter}.
  *
  * <p>Frontend uses {@code username}; backend internally uses {@code userId}.</p>
+ * <p>Pending registration tokens include Slack identity fields; full session
+ * tokens have these fields as null.</p>
  */
 public record AuthenticatedUser(
         UUID userId,
         String username,
-        boolean pendingRegistration) {
+        boolean pendingRegistration,
+        String authProvider,
+        String slackUserId,
+        String workspaceId,
+        String email,
+        String displayName) {
 
     public static final String REQUEST_ATTRIBUTE = "AUTHENTICATED_USER";
 
@@ -25,3 +32,4 @@ public record AuthenticatedUser(
         return (AuthenticatedUser) request.getAttribute(REQUEST_ATTRIBUTE);
     }
 }
+

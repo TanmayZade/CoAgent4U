@@ -151,24 +151,21 @@ public class AuthController {
                         .header(HttpHeaders.SET_COOKIE, createSessionCookie(token).toString())
                         .build();
             } else {
-                // New user — issue pending registration JWT
+                // New user — issue pending registration JWT with Slack identity embedded
                 UUID tempUserId = UUID.randomUUID();
-                String token = jwtIssuer.issue(tempUserId, null, true);
+                String token = jwtIssuer.issuePending(tempUserId,
+                        slackResult.slackUserId(),
+                        slackResult.workspaceId(),
+                        slackResult.email(),
+                        slackResult.displayName());
 
-                // Store Slack identity info in a temporary way via the JWT itself
-                // The frontend will call POST /auth/username with their chosen username
                 log.info("New Slack user detected: slackUserId={}, workspaceId={}",
                         slackResult.slackUserId(), slackResult.workspaceId());
 
-                // Store slack info in a short-lived server-side mapping
-                // For MVP, we embed it in the redirect URL as query params
+                // Redirect to onboarding — no Slack identity in URL (it's in the signed JWT)
                 return ResponseEntity.status(HttpStatus.FOUND)
                         .header(HttpHeaders.LOCATION,
-                                properties.getFrontendUrl() + "/onboarding"
-                                        + "?slackUserId=" + slackResult.slackUserId()
-                                        + "&workspaceId=" + slackResult.workspaceId()
-                                        + "&email=" + (slackResult.email() != null ? slackResult.email() : "")
-                                        + "&displayName=" + (slackResult.displayName() != null ? slackResult.displayName() : ""))
+                                properties.getFrontendUrl() + "/onboarding")
                         .header(HttpHeaders.SET_COOKIE, createSessionCookie(token).toString())
                         .build();
             }
@@ -185,6 +182,8 @@ public class AuthController {
     /**
      * POST /auth/username — Completes onboarding for new users.
      * <ol>
+     *   <li>Validates pending registration state from JWT</li>
+     *   <li>Extracts Slack identity from JWT (server-side trusted)</li>
      *   <li>Validates username format: {@code ^[a-zA-Z0-9_-]{3,32}$}</li>
      *   <li>Creates User via RegisterUserUseCase</li>
      *   <li>Provisions Agent (idempotent) in service layer</li>
@@ -201,9 +200,17 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Authentication required"));
         }
+
+        // Guard: must be pending registration
         if (!authUser.pendingRegistration()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "User already registered"));
+        }
+
+        // Guard: must have Slack identity from JWT (server-side trusted)
+        if (authUser.slackUserId() == null || authUser.workspaceId() == null) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("error", "Missing Slack identity in session. Please restart login."));
         }
 
         // Validate username
@@ -214,17 +221,17 @@ public class AuthController {
         }
 
         try {
-            // Create user via use case
+            // Create user via use case — Slack identity from JWT (trusted)
             UserId userId = new UserId(UUID.randomUUID());
-            Email email = (request.email() != null && !request.email().isBlank())
-                    ? new Email(request.email()) : new Email(username + "@coagent4u.local");
+            Email email = (authUser.email() != null && !authUser.email().isBlank())
+                    ? new Email(authUser.email()) : new Email(username + "@coagent4u.local");
 
             registerUserUseCase.register(
                     userId,
                     username.toLowerCase(),
                     email,
-                    new SlackUserId(request.slackUserId()),
-                    new WorkspaceId(request.workspaceId()));
+                    new SlackUserId(authUser.slackUserId()),
+                    new WorkspaceId(authUser.workspaceId()));
 
             // Provision agent (idempotent)
             provisionAgent(userId);
@@ -248,8 +255,7 @@ public class AuthController {
                     .header(HttpHeaders.SET_COOKIE, createSessionCookie(newToken).toString())
                     .body(Map.of(
                             "success", true,
-                            "username", username.toLowerCase(),
-                            "userId", userId.value().toString()));
+                            "username", username.toLowerCase()));
 
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest()
@@ -274,8 +280,9 @@ public class AuthController {
 
         ResponseCookie clearCookie = ResponseCookie.from(COOKIE_NAME, "")
                 .httpOnly(true)
-                .secure(true) // Required for SameSite=None
-                .sameSite("None") // Required for cross-origin from ngrok to localhost
+                .secure(true)
+                .sameSite("None")
+                .domain(".coagent4u.com")
                 .path("/")
                 .maxAge(0) // expire immediately
                 .build();
@@ -296,7 +303,6 @@ public class AuthController {
         }
         return ResponseEntity.ok(Map.of(
                 "authenticated", true,
-                "userId", user.userId().toString(),
                 "username", user.username() != null ? user.username() : "",
                 "pendingRegistration", user.pendingRegistration()));
     }
@@ -319,10 +325,11 @@ public class AuthController {
     private ResponseCookie createSessionCookie(String token) {
         return ResponseCookie.from(COOKIE_NAME, token)
                 .httpOnly(true)
-                .secure(true) // Required for SameSite=None
-                .sameSite("None") // Required for cross-origin from ngrok to localhost
+                .secure(true)           // HTTPS only
+                .sameSite("None")       // Required: frontend=coagent4u.com, API=api.coagent4u.com
+                .domain(".coagent4u.com") // Share cookie across subdomains
                 .path("/")
-                .maxAge(24 * 60 * 60) // 24 hours
+                .maxAge(24 * 60 * 60)   // 24 hours
                 .build();
     }
 
@@ -339,10 +346,11 @@ public class AuthController {
 
     // ── DTOs ──────────────────────────────────────────────────
 
-    public record UsernameRequest(
-            String username,
-            String email,
-            String slackUserId,
-            String workspaceId) {
+    /**
+     * Username request DTO — only accepts username.
+     * Slack identity (slackUserId, workspaceId, email) is read from the
+     * trusted pending JWT, NOT from the request body.
+     */
+    public record UsernameRequest(String username) {
     }
 }

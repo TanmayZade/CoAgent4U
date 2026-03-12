@@ -36,9 +36,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/auth/slack/callback",
             "/integrations/google/callback",
             "/api/health",
+            "/api/users",
             "/actuator",
-            "/api/slack/events",
-            "/api/slack/interactivity"
+            "/slack/events",
+            "/slack/interactions"
     );
 
     private final JwtValidator jwtValidator;
@@ -93,7 +94,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         AuthenticatedUser user = new AuthenticatedUser(
                 claims.userId(),
                 claims.username(),
-                claims.pendingRegistration());
+                claims.pendingRegistration(),
+                claims.authProvider(),
+                claims.slackUserId(),
+                claims.workspaceId(),
+                claims.email(),
+                claims.displayName());
         request.setAttribute(AuthenticatedUser.REQUEST_ATTRIBUTE, user);
 
         filterChain.doFilter(request, response);
