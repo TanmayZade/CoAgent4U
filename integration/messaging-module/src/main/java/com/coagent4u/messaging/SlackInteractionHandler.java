@@ -228,35 +228,15 @@ public class SlackInteractionHandler {
     private void handleApproval(String slackUserId, String teamId, String actionValue,
             boolean approved, String channel, String messageTs, JsonNode payload) {
         try {
-            // Parse approvalId and coordinationId from value: {approvalId}:{coordinationId}
+            // Parse approvalId from value: {approvalId}[:{coordinationId}]
             String approvalIdStr = actionValue;
-            String explicitCoordIdStr = null;
             if (actionValue.contains(":")) {
-                String[] parts = actionValue.split(":");
-                approvalIdStr = parts[0];
-                explicitCoordIdStr = parts[1];
+                approvalIdStr = actionValue.split(":")[0];
             }
-
-            // 1. Build professional status card (R2: strip "Approve or reject")
-            String statusEmoji = approved ? "✅" : "🚫";
-            String statusLabel = approved ? "Approved" : "Rejected";
-            String color = approved ? "#2EB67D" : "#E01E5A";
-
-            String meetingDetails = extractMeetingDetails(payload);
-            ZonedDateTime now = ZonedDateTime.now(IST);
-
-            String statusText = statusEmoji + " *Meeting " + statusLabel + "*"
-                    + (meetingDetails.isEmpty() ? "" : "\n\n" + meetingDetails)
-                    + "\n\n_" + statusLabel + " at " + now.format(TIMESTAMP_FMT) + "_";
 
             // 2. Streamlined Flow: Immediate deletion of interactive card, skip status reposts
             slackAdapter.deleteMessage(slackUserId, messageTs);
             log.info("[InteractionHandler] Decision processed (approved={}). Deleting card and skipping intermediate status updates.", approved);
-
-            // Resolve coordination ID
-            CoordinationId coordId = explicitCoordIdStr != null 
-                ? new CoordinationId(UUID.fromString(explicitCoordIdStr)) 
-                : resolveCoordinationId(payload);
 
             // Skip "final_status_ts" metadata as we no longer repost mid-status cards
             // Skip "I2" repost logic as we want to go directly to "Meeting Confirmed"
@@ -281,35 +261,6 @@ public class SlackInteractionHandler {
         } catch (Exception e) {
             log.warn("[InteractionHandler] Approval processing failed: {}", e.getMessage());
         }
-    }
-
-    /**
-     * Reconstructs the clean "Selected Time Slot" text from stored metadata,
-     * stripping the "Waiting for approval" line.
-     */
-    private String extractCleanSlotText(String selectedSlotTs, CoordinationId coordId) {
-        try {
-            // Reconstruct from stored slot info metadata
-            String slotInfo = coordinationProtocol.getMetadata(coordId, "selected_slot_info");
-            if (slotInfo != null) {
-                // slotInfo format: "startMs_endMs_selectedAtTimestamp"
-                String[] parts = slotInfo.split("_", 3);
-                Instant start = Instant.ofEpochMilli(Long.parseLong(parts[0]));
-                Instant end = Instant.ofEpochMilli(Long.parseLong(parts[1]));
-                String selectedAt = parts[2];
-
-                ZonedDateTime startZdt = start.atZone(IST);
-                ZonedDateTime endZdt = end.atZone(IST);
-
-                return "🕐 *Selected Time Slot*\n\n"
-                        + "📅 " + startZdt.format(DATE_FMT) + "\n"
-                        + "🕐 " + startZdt.format(TIME_FMT) + " – " + endZdt.format(TIME_FMT) + "\n\n"
-                        + "_Selected at " + selectedAt + "_";
-            }
-        } catch (Exception e) {
-            log.debug("[InteractionHandler] Could not reconstruct clean slot text: {}", e.getMessage());
-        }
-        return null;
     }
 
     // ── Delete and Repost ───────────────────────────────────────
