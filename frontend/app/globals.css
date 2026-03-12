@@ -115,10 +115,6 @@
   }
 }
 
-/* Smooth scroll */
-html {
-  scroll-behavior: smooth;
-}
 
 /* Text selection */
 ::selection {
