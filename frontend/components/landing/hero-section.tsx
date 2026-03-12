@@ -3,50 +3,14 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
+import { ParticlesBg } from "@/components/ui/particles-bg"
 import { ArrowRight } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
 
 if (typeof window !== "undefined") {
   gsap.registerPlugin(ScrollTrigger)
-}
-
-// Particle type
-interface Particle {
-  id: number
-  x: number
-  y: number
-  size: number
-  delay: number
-  duration: number
-}
-
-// Generate random particles for the scattered effect
-function generateParticles(count: number): Particle[] {
-  const particles: Particle[] = []
-  for (let i = 0; i < count; i++) {
-    particles.push({
-      id: i,
-      x: Math.random() * 35,
-      y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      delay: Math.random() * 2,
-      duration: Math.random() * 3 + 2,
-    })
-  }
-  // Add particles on the right side too
-  for (let i = count; i < count * 2; i++) {
-    particles.push({
-      id: i,
-      x: 65 + Math.random() * 35,
-      y: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      delay: Math.random() * 2,
-      duration: Math.random() * 3 + 2,
-    })
-  }
-  return particles
 }
 
 export function HeroSection() {
@@ -55,35 +19,9 @@ export function HeroSection() {
   const subheadlineRef = useRef<HTMLParagraphElement>(null)
   const ctaRef = useRef<HTMLDivElement>(null)
   const logoRef = useRef<HTMLDivElement>(null)
-  const particlesRef = useRef<HTMLDivElement>(null)
-  
-  // Generate particles only on client side to avoid hydration mismatch
-  const [particles, setParticles] = useState<Particle[]>([])
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setParticles(generateParticles(30))
-    setMounted(true)
-  }, [])
 
   useEffect(() => {
     const ctx = gsap.context(() => {
-      // Particles floating animation
-      const particleElements = particlesRef.current?.querySelectorAll(".particle")
-      if (particleElements) {
-        particleElements.forEach((particle, i) => {
-          gsap.to(particle, {
-            y: "random(-30, 30)",
-            x: "random(-15, 15)",
-            duration: particles[i % particles.length]?.duration || 3,
-            delay: particles[i % particles.length]?.delay || 0,
-            repeat: -1,
-            yoyo: true,
-            ease: "sine.inOut",
-          })
-        })
-      }
-
       // Logo animation - scale and fade in elegantly
       gsap.fromTo(
         logoRef.current,
@@ -116,25 +54,20 @@ export function HeroSection() {
     }, sectionRef)
 
     return () => ctx.revert()
-  }, [particles])
+  }, [])
 
   return (
     <section ref={sectionRef} className="relative min-h-screen flex flex-col justify-center overflow-hidden pt-24 pb-16">
-      {/* Scattered particles - both sides (only render after mount to avoid hydration mismatch) */}
-      <div ref={particlesRef} className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
-        {mounted && particles.map((particle) => (
-          <div
-            key={particle.id}
-            className="particle absolute rounded-full bg-foreground/15"
-            style={{
-              left: `${particle.x}%`,
-              top: `${particle.y}%`,
-              width: `${particle.size}px`,
-              height: `${particle.size}px`,
-            }}
-          />
-        ))}
-      </div>
+      {/* Interactive Particle Background */}
+      <ParticlesBg
+        className="absolute inset-0 -z-10"
+        quantity={120}
+        staticity={30}
+        ease={80}
+        color="#1a1a1a"
+        size={0.6}
+        refresh
+      />
 
       {/* Subtle gradient background */}
       <div className="absolute inset-0 -z-20">
