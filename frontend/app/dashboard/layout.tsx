@@ -3,7 +3,6 @@
 import { Sidebar } from "@/components/layout/sidebar"
 import { Bell } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { GSAPProvider } from "@/components/providers/gsap-provider"
 
 export default function DashboardLayout({
   children,
@@ -19,8 +18,7 @@ export default function DashboardLayout({
       : "Good evening"
 
   return (
-    <GSAPProvider>
-      <div className="min-h-screen bg-charcoal">
+    <div className="min-h-screen bg-charcoal">
         <Sidebar />
         
         {/* Main content */}
@@ -66,6 +64,5 @@ export default function DashboardLayout({
           <main className="p-6">{children}</main>
         </div>
       </div>
-    </GSAPProvider>
   )
 }
