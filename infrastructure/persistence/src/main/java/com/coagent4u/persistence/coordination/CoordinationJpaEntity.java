@@ -55,6 +55,10 @@ public class CoordinationJpaEntity {
     @Column(name = "selected_slot_json", columnDefinition = "JSONB")
     private String selectedSlotJson;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metadata_json", columnDefinition = "JSONB")
+    private String metadataJson;
+
     @OneToMany(mappedBy = "coordination", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @OrderBy("transitionedAt ASC")
     private List<StateLogJpaEntity> stateLog = new ArrayList<>();
@@ -162,5 +166,13 @@ public class CoordinationJpaEntity {
 
     public void setSelectedSlotJson(String json) {
         this.selectedSlotJson = json;
+    }
+
+    public String getMetadataJson() {
+        return metadataJson;
+    }
+
+    public void setMetadataJson(String json) {
+        this.metadataJson = json;
     }
 }

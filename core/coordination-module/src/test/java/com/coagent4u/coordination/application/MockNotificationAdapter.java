@@ -36,28 +36,36 @@ public class MockNotificationAdapter implements NotificationPort {
     }
 
     @Override
-    public void sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String text) {
+    public String sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String text) {
         if (shouldFail)
             throw new RuntimeException("Mock Slack failure");
         messages.add(new SentMessage(slackUserId.value(), workspaceId.value(), text));
+        return "mock_ts_" + System.currentTimeMillis();
     }
 
     @Override
-    public void sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
-            String proposalText, String approvalId) {
+    public String sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String proposalText, String approvalId, String coordinationId) {
         if (shouldFail)
             throw new RuntimeException("Mock Slack failure");
         approvals.add(new SentApproval(slackUserId.value(), workspaceId.value(), proposalText, approvalId));
+        return "mock_ts_" + System.currentTimeMillis();
     }
 
-    @Override
-    public void sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
-            String coordinationId, List<TimeSlot> slots, String requesterMention) {
-        if (shouldFail)
-            throw new RuntimeException("Mock Slack failure");
-        slotCards.add(new SentSlotCard(slackUserId.value(), workspaceId.value(),
-                coordinationId, slots, requesterMention));
-    }
+        @Override
+        public String sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
+                        String coordinationId, List<TimeSlot> slots, String requesterMention) {
+                if (shouldFail)
+                        throw new RuntimeException("Mock Slack failure");
+                slotCards.add(new SentSlotCard(slackUserId.value(), workspaceId.value(),
+                                coordinationId, slots, requesterMention));
+                return "mock_ts_" + System.currentTimeMillis();
+        }
+
+        @Override
+        public boolean deleteMessage(SlackUserId slackUserId, String ts) {
+                return true;
+        }
 
     // ── Getters for assertions ──
 

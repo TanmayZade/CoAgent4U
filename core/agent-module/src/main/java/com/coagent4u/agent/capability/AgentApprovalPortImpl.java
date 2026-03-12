@@ -102,15 +102,17 @@ public class AgentApprovalPortImpl implements AgentApprovalPort {
                         String startTime = start.atZone(IST).format(TIME_FMT);
                         String endTime = end.atZone(IST).format(TIME_FMT);
 
-                        String proposalText = "📅 *Meeting with " + otherPartyMention + "*"
-                                        + "\n🗓 " + dateStr
-                                        + "\n🕐 " + startTime + " – " + endTime;
+                        String proposalText = otherPartyMention + " selected a meeting slot.\n\n"
+                                        + "📅 " + dateStr + "\n"
+                                        + "🕐 " + startTime + " – " + endTime + "\n\n"
+                                        + "Approve or reject this meeting time.";
 
                         notificationPort.sendApprovalRequest(
                                         user.getSlackIdentity().slackUserId(),
                                         user.getSlackIdentity().workspaceId(),
                                         proposalText,
-                                        approvalId.value().toString());
+                                        approvalId.value().toString(),
+                                        proposal.coordinationIdStr());
 
                         log.info("[AgentApprovalPort] Approval card sent to user={} for coordination={}",
                                         userId, proposal.proposalId());

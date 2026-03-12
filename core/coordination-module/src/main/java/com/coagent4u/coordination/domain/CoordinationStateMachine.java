@@ -41,7 +41,7 @@ public class CoordinationStateMachine {
             Map.entry(CoordinationState.MATCHING,
                     EnumSet.of(CoordinationState.PROPOSAL_GENERATED, CoordinationState.FAILED)),
             Map.entry(CoordinationState.PROPOSAL_GENERATED,
-                    EnumSet.of(CoordinationState.AWAITING_APPROVAL_B, CoordinationState.FAILED)),
+                    EnumSet.of(CoordinationState.AWAITING_APPROVAL_B, CoordinationState.AWAITING_APPROVAL_A, CoordinationState.FAILED)),
             Map.entry(CoordinationState.AWAITING_APPROVAL_B,
                     EnumSet.of(CoordinationState.AWAITING_APPROVAL_A,
                             CoordinationState.REJECTED, CoordinationState.FAILED)),

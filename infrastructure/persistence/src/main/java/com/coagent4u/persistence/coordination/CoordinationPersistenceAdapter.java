@@ -80,8 +80,11 @@ public class CoordinationPersistenceAdapter implements CoordinationPersistencePo
             if (c.getSelectedSlot() != null) {
                 entity.setSelectedSlotJson(MAPPER.writeValueAsString(c.getSelectedSlot()));
             }
+            if (c.getAllMetadata() != null && !c.getAllMetadata().isEmpty()) {
+                entity.setMetadataJson(MAPPER.writeValueAsString(c.getAllMetadata()));
+            }
         } catch (Exception e) {
-            log.warn("[Persistence] Failed to serialize slot data: {}", e.getMessage());
+            log.warn("[Persistence] Failed to serialize JSON data: {}", e.getMessage());
         }
 
         // State log entries
@@ -137,6 +140,14 @@ public class CoordinationPersistenceAdapter implements CoordinationPersistencePo
             if (e.getSelectedSlotJson() != null && !e.getSelectedSlotJson().isBlank()) {
                 TimeSlot selectedSlot = MAPPER.readValue(e.getSelectedSlotJson(), TimeSlot.class);
                 setField(coord, "selectedSlot", selectedSlot);
+            }
+
+            // Restore metadata from JSONB
+            if (e.getMetadataJson() != null && !e.getMetadataJson().isBlank()) {
+                java.util.Map<String, String> meta = MAPPER.readValue(e.getMetadataJson(),
+                        new TypeReference<java.util.Map<String, String>>() {
+                        });
+                setField(coord, "metadata", meta);
             }
 
             // Clear constructor-created stateLog and restore from DB

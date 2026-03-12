@@ -1,5 +1,13 @@
 package com.coagent4u.messaging;
 
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -11,6 +19,7 @@ import com.coagent4u.common.exception.ExternalServiceUnavailableException;
 import com.coagent4u.common.exception.NotificationFailureException;
 import com.coagent4u.config.CoagentProperties;
 import com.coagent4u.shared.SlackUserId;
+import com.coagent4u.shared.TimeSlot;
 import com.coagent4u.shared.WorkspaceId;
 import com.coagent4u.user.port.out.NotificationPort;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -26,6 +35,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class SlackNotificationAdapter implements NotificationPort {
 
     private static final Logger log = LoggerFactory.getLogger(SlackNotificationAdapter.class);
+    private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("hh:mm a");
 
     private final WebClient webClient;
     private final CoagentProperties properties;
@@ -42,23 +54,37 @@ public class SlackNotificationAdapter implements NotificationPort {
         this.objectMapper = objectMapper;
     }
 
+    // ── Public API ──────────────────────────────────────────────
+
     @Override
-    public void sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String message) {
+    public String sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String message) {
         String payload = buildBlockKitPayload(slackUserId.value(), message);
-        postToSlack(payload, slackUserId.value());
+        return postToSlack(payload, slackUserId.value());
     }
 
     @Override
-    public void sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
-            String proposalText, String approvalId) {
-        String payload = buildApprovalPayload(slackUserId.value(), proposalText, approvalId);
-        postToSlack(payload, slackUserId.value());
+    public String sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String proposalText, String approvalId, String coordinationId) {
+        String payload = buildApprovalPayload(slackUserId.value(), proposalText, approvalId, coordinationId);
+        return postToSlack(payload, slackUserId.value());
+    }
+
+    @Override
+    public String sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String coordinationId, List<TimeSlot> slots, String requesterMention) {
+        log.info("[SlackAdapter] Sending slot selection card to user={} for coordination={}",
+                slackUserId.value(), coordinationId);
+        String payload = buildSlotSelectionPayload(slackUserId.value(), coordinationId, slots, requesterMention);
+        return postToSlack(payload, slackUserId.value());
     }
 
     /**
-     * Posts a JSON payload to Slack's chat.postMessage API.
+     * Posts a pre-built JSON payload to Slack's chat.postMessage.
+     * Made public so the interaction handler can repost status cards.
+     *
+     * @return the message timestamp (ts) if successful
      */
-    private void postToSlack(String payload, String userId) {
+    public String postToSlack(String payload, String userId) {
         try {
             String response = webClient.post()
                     .uri("/chat.postMessage")
@@ -72,7 +98,7 @@ public class SlackNotificationAdapter implements NotificationPort {
             JsonNode responseJson = objectMapper.readTree(response);
             if (!responseJson.path("ok").asBoolean(false)) {
                 String error = responseJson.path("error").asText("unknown_error");
-                log.error("Slack API error: {} for user={}", error, userId);
+                log.error("[SlackAdapter] chat.postMessage error: {} for user={}", error, userId);
 
                 if ("not_authed".equals(error) || "invalid_auth".equals(error)
                         || "account_inactive".equals(error)) {
@@ -84,7 +110,8 @@ public class SlackNotificationAdapter implements NotificationPort {
                 throw new NotificationFailureException("Slack API error: " + error);
             }
 
-            log.info("Slack message sent to user={}", userId);
+            log.info("[SlackAdapter] Message posted to user={}", userId);
+            return responseJson.path("ts").asText();
 
         } catch (WebClientResponseException.Forbidden e) {
             throw new NotificationFailureException("Slack forbidden: " + e.getMessage(), e);
@@ -104,25 +131,108 @@ public class SlackNotificationAdapter implements NotificationPort {
         }
     }
 
+    @Override
+    public boolean deleteMessage(SlackUserId slackUserId, String ts) {
+        return deleteMessage(slackUserId.value(), ts);
+    }
+
     /**
-     * Builds a plain text Block Kit message.
+     * Deletes a Slack message using chat.delete.
+     *
+     * @param channel the channel ID
+     * @param ts      the message timestamp
+     * @return true if deleted successfully, false otherwise
+     */
+    public boolean deleteMessage(String channel, String ts) {
+        try {
+            ObjectNode body = objectMapper.createObjectNode();
+            body.put("channel", channel);
+            body.put("ts", ts);
+
+            String response = webClient.post()
+                    .uri("/chat.delete")
+                    .header("Authorization", "Bearer " + properties.getSlack().getBotToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(objectMapper.writeValueAsString(body))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            JsonNode responseJson = objectMapper.readTree(response);
+            if (!responseJson.path("ok").asBoolean(false)) {
+                String error = responseJson.path("error").asText("unknown_error");
+                log.warn("[SlackAdapter] chat.delete failed: {} for channel={} ts={}", error, channel, ts);
+                return false;
+            }
+
+            log.info("[SlackAdapter] Message deleted in channel={} ts={}", channel, ts);
+            return true;
+
+        } catch (Exception e) {
+            log.warn("[SlackAdapter] chat.delete exception: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Updates an existing Slack message using chat.update API.
+     * Used as a fallback when chat.delete fails.
+     *
+     * @return the message timestamp (ts) if successful
+     */
+    public String updateMessage(String channel, String ts, String payload) {
+        try {
+            String response = webClient.post()
+                    .uri("/chat.update")
+                    .header("Authorization", "Bearer " + properties.getSlack().getBotToken())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(payload)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            JsonNode responseJson = objectMapper.readTree(response);
+            if (!responseJson.path("ok").asBoolean(false)) {
+                String error = responseJson.path("error").asText("unknown_error");
+                log.error("[SlackAdapter] chat.update error: {} for channel={} ts={}", error, channel, ts);
+                return ts; // Return original if update failed
+            } else {
+                log.info("[SlackAdapter] Message updated in channel={} ts={}", channel, ts);
+                return responseJson.path("ts").asText();
+            }
+        } catch (Exception e) {
+            log.warn("[SlackAdapter] chat.update exception: {}", e.getMessage());
+            return ts;
+        }
+    }
+
+    // ── Payload Builders ────────────────────────────────────────
+
+    /**
+     * Builds a plain text Block Kit message with colored sidebar.
      */
     private String buildBlockKitPayload(String channel, String text) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("channel", channel);
-            root.put("text", text);
+
+            ArrayNode attachments = objectMapper.createArrayNode();
+            ObjectNode attachment = objectMapper.createObjectNode();
+            attachment.put("color", "#745EAF");
 
             ArrayNode blocks = objectMapper.createArrayNode();
+
             ObjectNode section = objectMapper.createObjectNode();
             section.put("type", "section");
             ObjectNode textObj = objectMapper.createObjectNode();
-            textObj.put("type", "mrkdwn");
             textObj.put("text", text);
+            textObj.put("type", "mrkdwn");
             section.set("text", textObj);
             blocks.add(section);
 
-            root.set("blocks", blocks);
+            attachment.set("blocks", blocks);
+            attachments.add(attachment);
+            root.set("attachments", attachments);
             return objectMapper.writeValueAsString(root);
 
         } catch (Exception e) {
@@ -131,74 +241,44 @@ public class SlackNotificationAdapter implements NotificationPort {
     }
 
     /**
-     * Builds an interactive Block Kit payload with [Approve] and [Reject] buttons.
+     * Builds an interactive Block Kit payload with Approve / Reject buttons.
      */
-    private String buildApprovalPayload(String channel, String proposalText, String approvalId) {
+    private String buildApprovalPayload(String channel, String proposalText, String approvalId, String coordinationId) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("channel", channel);
-            root.put("text", "📋 Approval Request: " + proposalText);
+
+            ArrayNode attachments = objectMapper.createArrayNode();
+            ObjectNode attachment = objectMapper.createObjectNode();
+            attachment.put("color", "#4A154B");
 
             ArrayNode blocks = objectMapper.createArrayNode();
 
-            // Header section
-            ObjectNode header = objectMapper.createObjectNode();
-            header.put("type", "header");
-            ObjectNode headerText = objectMapper.createObjectNode();
-            headerText.put("type", "plain_text");
-            headerText.put("text", "📋 Approval Request");
-            header.set("text", headerText);
-            blocks.add(header);
+            // Header
+            blocks.add(headerBlock("📋 Meeting Approval Request"));
 
-            // Proposal details section
-            ObjectNode section = objectMapper.createObjectNode();
-            section.put("type", "section");
-            ObjectNode sectionText = objectMapper.createObjectNode();
-            sectionText.put("type", "mrkdwn");
-            sectionText.put("text", proposalText);
-            section.set("text", sectionText);
-            blocks.add(section);
+            // Proposal details
+            blocks.add(markdownSection(proposalText));
 
             // Divider
-            ObjectNode divider = objectMapper.createObjectNode();
-            divider.put("type", "divider");
-            blocks.add(divider);
+            blocks.add(dividerBlock());
 
-            // Actions block with Approve and Reject buttons
+            // Action buttons
             ObjectNode actions = objectMapper.createObjectNode();
             actions.put("type", "actions");
             actions.put("block_id", "approval_" + approvalId);
 
             ArrayNode elements = objectMapper.createArrayNode();
-
-            // Approve button
-            ObjectNode approveBtn = objectMapper.createObjectNode();
-            approveBtn.put("type", "button");
-            ObjectNode approveText = objectMapper.createObjectNode();
-            approveText.put("type", "plain_text");
-            approveText.put("text", "✅ Approve");
-            approveBtn.set("text", approveText);
-            approveBtn.put("style", "primary");
-            approveBtn.put("action_id", "approve_action");
-            approveBtn.put("value", approvalId);
-            elements.add(approveBtn);
-
-            // Reject button
-            ObjectNode rejectBtn = objectMapper.createObjectNode();
-            rejectBtn.put("type", "button");
-            ObjectNode rejectText = objectMapper.createObjectNode();
-            rejectText.put("type", "plain_text");
-            rejectText.put("text", "❌ Reject");
-            rejectBtn.set("text", rejectText);
-            rejectBtn.put("style", "danger");
-            rejectBtn.put("action_id", "reject_action");
-            rejectBtn.put("value", approvalId);
-            elements.add(rejectBtn);
-
+            // Value is {approvalId}:{coordinationId}
+            String btnValue = approvalId + ":" + coordinationId;
+            elements.add(buttonElement("✅ Approve", "approve_action", btnValue, "primary"));
+            elements.add(buttonElement("❌ Reject", "reject_action", btnValue, "danger"));
             actions.set("elements", elements);
             blocks.add(actions);
 
-            root.set("blocks", blocks);
+            attachment.set("blocks", blocks);
+            attachments.add(attachment);
+            root.set("attachments", attachments);
             return objectMapper.writeValueAsString(root);
 
         } catch (Exception e) {
@@ -206,94 +286,123 @@ public class SlackNotificationAdapter implements NotificationPort {
         }
     }
 
-    // ── Slot Selection Card ──
-
-    @Override
-    public void sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
-            String coordinationId, java.util.List<com.coagent4u.shared.TimeSlot> slots,
-            String requesterMention) {
-        log.info("[NotificationService] Sending slot selection card to user={} for coordination={}",
-                slackUserId.value(), coordinationId);
-        String payload = buildSlotSelectionPayload(slackUserId.value(), coordinationId, slots, requesterMention);
-        postToSlack(payload, slackUserId.value());
-    }
-
     /**
-     * Builds a Slack Block Kit payload with buttons for each available time slot.
+     * Builds a slot selection card — individual 1-hour slots grouped by date.
+     * NO merging of consecutive slots (domain validates against original slots).
+     * Buttons are rendered in a horizontal grid (one actions block per date).
      */
     private String buildSlotSelectionPayload(String channel, String coordinationId,
-            java.util.List<com.coagent4u.shared.TimeSlot> slots, String requesterMention) {
+            List<TimeSlot> slots, String requesterMention) {
         try {
-            java.time.ZoneId ist = java.time.ZoneId.of("Asia/Kolkata");
-            java.time.format.DateTimeFormatter dateFmt = java.time.format.DateTimeFormatter
-                    .ofPattern("EEE, dd MMM yyyy");
-            java.time.format.DateTimeFormatter timeFmt = java.time.format.DateTimeFormatter.ofPattern("hh:mm a");
-
             ObjectNode root = objectMapper.createObjectNode();
             root.put("channel", channel);
-            root.put("text", requesterMention + " wants to schedule a meeting with you");
+
+            ArrayNode attachments = objectMapper.createArrayNode();
+            ObjectNode attachment = objectMapper.createObjectNode();
+            attachment.put("color", "#00A896");
 
             ArrayNode blocks = objectMapper.createArrayNode();
 
-            // Header section with requester name
-            ObjectNode headerSection = objectMapper.createObjectNode();
-            headerSection.put("type", "section");
-            ObjectNode headerText = objectMapper.createObjectNode();
-            headerText.put("type", "mrkdwn");
-            headerText.put("text",
-                    "*" + requesterMention
-                            + " wants to schedule a meeting with you.*\n\nPlease select one of the available slots below.");
-            headerSection.set("text", headerText);
-            blocks.add(headerSection);
+            // Header
+            blocks.add(headerBlock("📅 Available Time Slots"));
+
+            // Description
+            blocks.add(markdownSection(
+                    "Pick a time that works best for you:"));
 
             // Divider
-            ObjectNode divider = objectMapper.createObjectNode();
-            divider.put("type", "divider");
-            blocks.add(divider);
+            blocks.add(dividerBlock());
 
-            // Slot buttons (in groups of 5 — Slack limit per actions block)
-            int slotIndex = 0;
-            ArrayNode currentActions = null;
-            ObjectNode currentActionsBlock = null;
+            // Group slots by date (no merging — each slot is 1 hour)
+            List<TimeSlot> sorted = new ArrayList<>(slots);
+            sorted.sort((a, b) -> a.start().compareTo(b.start()));
 
-            for (com.coagent4u.shared.TimeSlot slot : slots) {
-                if (slotIndex % 5 == 0) {
-                    currentActionsBlock = objectMapper.createObjectNode();
-                    currentActionsBlock.put("type", "actions");
-                    currentActions = objectMapper.createArrayNode();
-                    currentActionsBlock.set("elements", currentActions);
-                    blocks.add(currentActionsBlock);
-                }
-
-                java.time.ZonedDateTime startZdt = slot.start().atZone(ist);
-                java.time.ZonedDateTime endZdt = slot.end().atZone(ist);
-
-                String label = startZdt.format(timeFmt) + " – " + endZdt.format(timeFmt);
-                if (slotIndex == 0) {
-                    // Show date on first slot
-                    label = startZdt.format(dateFmt) + "\n" + label;
-                }
-
-                ObjectNode button = objectMapper.createObjectNode();
-                button.put("type", "button");
-                ObjectNode btnText = objectMapper.createObjectNode();
-                btnText.put("type", "plain_text");
-                btnText.put("text", "🕐 " + startZdt.format(timeFmt) + "–" + endZdt.format(timeFmt));
-                button.set("text", btnText);
-                // action_id encodes: slot_select_{coordinationId}_{slotIndex}
-                button.put("action_id", "slot_select_" + coordinationId + "_" + slotIndex);
-                // value encodes: start_end as epoch millis
-                button.put("value", slot.start().toEpochMilli() + "_" + slot.end().toEpochMilli());
-                currentActions.add(button);
-
-                slotIndex++;
+            Map<String, List<TimeSlot>> byDate = new LinkedHashMap<>();
+            for (TimeSlot slot : sorted) {
+                ZonedDateTime startZdt = slot.start().atZone(IST);
+                String dateKey = startZdt.format(DATE_FMT);
+                byDate.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(slot);
             }
 
-            root.set("blocks", blocks);
+            int slotIndex = 0;
+            for (Map.Entry<String, List<TimeSlot>> entry : byDate.entrySet()) {
+                String dateLabel = entry.getKey();
+                List<TimeSlot> dateSlots = entry.getValue();
+
+                // Date header
+                blocks.add(markdownSection("*📅 " + dateLabel + "*"));
+
+                // All slots for this date in ONE actions block → horizontal grid
+                ObjectNode actionsBlock = objectMapper.createObjectNode();
+                actionsBlock.put("type", "actions");
+                ArrayNode elements = objectMapper.createArrayNode();
+
+                for (TimeSlot slot : dateSlots) {
+                    ZonedDateTime startZdt = slot.start().atZone(IST);
+                    ZonedDateTime endZdt = slot.end().atZone(IST);
+                    String timeLabel = startZdt.format(TIME_FMT) + " – " + endZdt.format(TIME_FMT);
+
+                    // Value = startMs_endMs (exact 1h slot — matches domain)
+                    String value = slot.start().toEpochMilli() + "_" + slot.end().toEpochMilli();
+                    elements.add(buttonElement(timeLabel,
+                            "slot_select_" + coordinationId + "_" + slotIndex, value, null));
+                    slotIndex++;
+                }
+
+                actionsBlock.set("elements", elements);
+                blocks.add(actionsBlock);
+            }
+
+            attachment.set("blocks", blocks);
+            attachments.add(attachment);
+            root.set("attachments", attachments);
             return objectMapper.writeValueAsString(root);
 
         } catch (Exception e) {
             throw new NotificationFailureException("Failed to build slot selection payload", e);
         }
+    }
+
+    // ── Block Kit Helpers ───────────────────────────────────────
+
+    private ObjectNode headerBlock(String text) {
+        ObjectNode header = objectMapper.createObjectNode();
+        header.put("type", "header");
+        ObjectNode headerText = objectMapper.createObjectNode();
+        headerText.put("type", "plain_text");
+        headerText.put("text", text);
+        header.set("text", headerText);
+        return header;
+    }
+
+    private ObjectNode markdownSection(String text) {
+        ObjectNode section = objectMapper.createObjectNode();
+        section.put("type", "section");
+        ObjectNode textObj = objectMapper.createObjectNode();
+        textObj.put("type", "mrkdwn");
+        textObj.put("text", text);
+        section.set("text", textObj);
+        return section;
+    }
+
+    private ObjectNode dividerBlock() {
+        ObjectNode divider = objectMapper.createObjectNode();
+        divider.put("type", "divider");
+        return divider;
+    }
+
+    private ObjectNode buttonElement(String label, String actionId, String value, String style) {
+        ObjectNode button = objectMapper.createObjectNode();
+        button.put("type", "button");
+        ObjectNode btnText = objectMapper.createObjectNode();
+        btnText.put("type", "plain_text");
+        btnText.put("text", label);
+        button.set("text", btnText);
+        button.put("action_id", actionId);
+        button.put("value", value);
+        if (style != null) {
+            button.put("style", style);
+        }
+        return button;
     }
 }

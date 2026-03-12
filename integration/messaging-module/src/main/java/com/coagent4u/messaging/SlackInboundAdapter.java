@@ -113,19 +113,33 @@ public class SlackInboundAdapter {
 
                 JsonNode event = payload.path("event");
                 String eventType = event.path("type").asText();
+                String subtype = event.path("subtype").asText(null);
 
-                if ("message".equals(eventType) || "app_mention".equals(eventType)) {
-                    // Skip bot messages (our own replies echo back through Slack)
-                    String subtype = event.path("subtype").asText(null);
-                    if ("bot_message".equals(subtype) || event.has("bot_id")) {
-                        return ResponseEntity.ok("");
-                    }
+                // Skip non-message events we don't care about
+                if (!"message".equals(eventType) && !"app_mention".equals(eventType)) {
+                    return ResponseEntity.ok("");
+                }
 
-                    String slackUserId = event.path("user").asText();
-                    String teamId = payload.path("team_id").asText();
-                    String text = event.path("text").asText();
+                // Skip bot messages, message updates (changed), and deleted messages
+                if ("bot_message".equals(subtype) || "message_changed".equals(subtype) 
+                        || "message_deleted".equals(subtype) || event.has("bot_id")) {
+                    return ResponseEntity.ok("");
+                }
 
-                    // Preserve user mentions as slack:USER_ID for intent parsing
+                String slackUserId = event.path("user").asText();
+                if (slackUserId == null || slackUserId.isBlank()) {
+                    log.debug("[SlackAdapter] Skipping event_id={} because user field is blank (often for system messages)", eventId);
+                    return ResponseEntity.ok("");
+                }
+
+                String teamId = payload.path("team_id").asText();
+                String text = event.path("text").asText();
+
+                if (text == null || text.isBlank()) {
+                    return ResponseEntity.ok("");
+                }
+
+                // Preserve user mentions as slack:USER_ID for intent parsing
                     // but strip the bot self-mention (for app_mention events)
                     java.util.regex.Matcher mentionMatcher = java.util.regex.Pattern
                             .compile("<@([A-Z0-9]+)>").matcher(text);
@@ -143,10 +157,11 @@ public class SlackInboundAdapter {
                     mentionMatcher.appendTail(sb);
                     text = sb.toString().trim();
 
+
                     // Fire-and-forget on thread pool (NOT @Async self-invocation)
                     final String finalText = text;
                     taskExecutor.execute(() -> processMessage(slackUserId, teamId, finalText, eventId));
-                }
+
 
                 // Return OK immediately — processing continues on background thread
                 return ResponseEntity.ok("");

@@ -9,11 +9,15 @@ import com.coagent4u.shared.TimeSlot;
 import com.coagent4u.shared.WorkspaceId;
 import com.coagent4u.user.port.out.NotificationPort;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * In-memory mock of {@link NotificationPort} that captures sent messages
  * for assertion in tests. Supports configurable failures.
  */
 public class MockNotificationAdapter implements NotificationPort {
+    private static final Logger log = LoggerFactory.getLogger(MockNotificationAdapter.class);
 
     public record SentMessage(String slackUserId, String workspaceId, String text) {
     }
@@ -35,28 +39,42 @@ public class MockNotificationAdapter implements NotificationPort {
     }
 
     @Override
-    public void sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String text) {
+    public String sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String message) {
         if (shouldFail)
             throw new RuntimeException("Mock Slack failure");
-        messages.add(new SentMessage(slackUserId.value(), workspaceId.value(), text));
+        log.info("[MockNotification] Message to {}: {}", slackUserId, message);
+        messages.add(new SentMessage(slackUserId.value(), workspaceId.value(), message));
+        return "dummy_ts_" + System.currentTimeMillis();
     }
 
     @Override
-    public void sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
-            String proposalText, String approvalId) {
+    public String sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String proposalText, String approvalId, String coordinationId) {
         if (shouldFail)
             throw new RuntimeException("Mock Slack failure");
+        log.info("[MockNotification] Approval request to {} for id={} (coord={})",
+                slackUserId, approvalId, coordinationId);
         approvals.add(new SentApproval(slackUserId.value(), workspaceId.value(), proposalText, approvalId));
+        return "dummy_ts_" + System.currentTimeMillis();
     }
 
-    @Override
-    public void sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
-            String coordinationId, List<TimeSlot> slots, String requesterMention) {
-        if (shouldFail)
-            throw new RuntimeException("Mock Slack failure");
-        slotCards.add(new SentSlotCard(slackUserId.value(), workspaceId.value(),
-                coordinationId, slots, requesterMention));
-    }
+        @Override
+        public String sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
+                        String coordinationId, List<TimeSlot> slots, String requesterMention) {
+                if (shouldFail)
+                        throw new RuntimeException("Mock Slack failure");
+                log.info("[MockNotification] Slot selection for coordination {} sent to {}",
+                                coordinationId, slackUserId);
+                slotCards.add(new SentSlotCard(slackUserId.value(), workspaceId.value(),
+                                coordinationId, slots, requesterMention));
+                return "dummy_ts_" + System.currentTimeMillis();
+        }
+
+        @Override
+        public boolean deleteMessage(SlackUserId slackUserId, String ts) {
+                log.info("[MockNotification] Message deleted for {} at ts={}", slackUserId, ts);
+                return true;
+        }
 
     public List<SentMessage> getMessages() {
         return Collections.unmodifiableList(messages);
