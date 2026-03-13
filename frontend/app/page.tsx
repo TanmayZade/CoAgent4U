@@ -10,10 +10,12 @@ import { PlatformBenefits } from "@/components/landing/platform-benefits"
 import { SecurityTrust } from "@/components/landing/security-trust"
 import { FinalCTA } from "@/components/landing/final-cta"
 import { Footer } from "@/components/landing/footer"
+import { ScrollProgressBar } from "@/components/ui/parallax-wrapper"
 
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-background">
+      <ScrollProgressBar />
       <Navbar />
       <HeroSection />
       <AgentPreview />

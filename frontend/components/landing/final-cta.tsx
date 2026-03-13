@@ -3,11 +3,24 @@
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowRight } from "lucide-react"
-import { motion } from "framer-motion"
+import { motion, useScroll, useTransform, useSpring } from "framer-motion"
+import { useRef } from "react"
 import { useScrollAnimation, fadeSlideUpVariants, staggerContainerVariants } from "@/hooks/use-framer-animations"
+import { FloatingIcons } from "@/components/landing/floating-icons"
 
 export function FinalCTA() {
   const { ref: sectionRef, isInView } = useScrollAnimation()
+  const parallaxRef = useRef<HTMLDivElement>(null)
+  
+  const { scrollYProgress } = useScroll({
+    target: parallaxRef,
+    offset: ["start end", "end start"],
+  })
+  
+  const y = useSpring(useTransform(scrollYProgress, [0, 1], [30, -30]), {
+    stiffness: 100,
+    damping: 30,
+  })
 
   const indicatorVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -22,8 +35,20 @@ export function FinalCTA() {
   }
 
   return (
-    <section className="py-32 lg:py-44" ref={sectionRef}>
-      <div className="mx-auto max-w-6xl px-6">
+    <section ref={parallaxRef} className="py-32 lg:py-44 relative overflow-hidden">
+      {/* Floating icons background for CTA */}
+      <FloatingIcons className="opacity-50" />
+      
+      {/* Parallax gradient orbs */}
+      <motion.div 
+        className="absolute inset-0 pointer-events-none"
+        style={{ y }}
+      >
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-foreground/[0.02] rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] bg-foreground/[0.03] rounded-full blur-3xl" />
+      </motion.div>
+      
+      <div ref={sectionRef} className="mx-auto max-w-6xl px-6 relative z-10">
         <motion.div 
           className="max-w-4xl mx-auto text-center"
           variants={fadeSlideUpVariants}

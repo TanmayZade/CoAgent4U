@@ -3,10 +3,10 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ParticlesBg } from "@/components/ui/particles-bg"
 import { ArrowRight } from "lucide-react"
 import { motion } from "framer-motion"
-import { useScrollAnimation, scaleUpVariants, fadeSlideUpVariants } from "@/hooks/use-framer-animations"
+import { useScrollAnimation } from "@/hooks/use-framer-animations"
+import { FloatingIcons } from "@/components/landing/floating-icons"
 
 export function HeroSection() {
   const { ref: sectionRef, isInView } = useScrollAnimation()
@@ -37,22 +37,17 @@ export function HeroSection() {
 
   return (
     <section ref={sectionRef} className="relative min-h-screen flex flex-col justify-center overflow-hidden pt-24 pb-16">
-      {/* Interactive Particle Background */}
-      <ParticlesBg
-        className="absolute inset-0 -z-10"
-        quantity={120}
-        staticity={30}
-        ease={80}
-        color="#1a1a1a"
-        size={0.6}
-        refresh
-      />
+      {/* Floating Icons Background - Antigravity style */}
+      <FloatingIcons className="-z-10" />
 
       {/* Subtle gradient background */}
       <div className="absolute inset-0 -z-20">
         <div className="absolute top-1/4 left-1/4 w-[800px] h-[800px] bg-gradient-to-br from-muted/40 to-transparent rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-muted/30 to-transparent rounded-full blur-3xl" />
       </div>
+      
+      {/* Radial gradient overlay for depth */}
+      <div className="absolute inset-0 -z-15 bg-[radial-gradient(ellipse_at_center,_transparent_0%,_var(--background)_70%)]" />
 
       <div className="mx-auto max-w-7xl px-6 w-full">
         <motion.div 

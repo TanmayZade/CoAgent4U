@@ -1,14 +1,34 @@
 "use client"
 
 import { Bot, Users, CheckCircle } from "lucide-react"
-import { motion } from "framer-motion"
+import { motion, useScroll, useTransform, useSpring } from "framer-motion"
+import { useRef } from "react"
 import { useScrollAnimation, fadeSlideUpVariants, staggerContainerVariants, itemVariants } from "@/hooks/use-framer-animations"
 
 export function ProductExplanation() {
   const { ref: sectionRef, isInView } = useScrollAnimation()
+  const parallaxRef = useRef<HTMLDivElement>(null)
+  
+  const { scrollYProgress } = useScroll({
+    target: parallaxRef,
+    offset: ["start end", "end start"],
+  })
+  
+  const y = useSpring(useTransform(scrollYProgress, [0, 1], [50, -50]), {
+    stiffness: 100,
+    damping: 30,
+  })
 
   return (
-    <section className="py-32 lg:py-40 bg-muted/20">
+    <section ref={parallaxRef} className="py-32 lg:py-40 bg-muted/20 relative overflow-hidden">
+      {/* Parallax background elements */}
+      <motion.div 
+        className="absolute inset-0 pointer-events-none"
+        style={{ y }}
+      >
+        <div className="absolute top-20 left-10 w-64 h-64 bg-foreground/[0.02] rounded-full blur-3xl" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-foreground/[0.02] rounded-full blur-3xl" />
+      </motion.div>
       <div className="mx-auto max-w-6xl px-6">
         <motion.div 
           ref={sectionRef}

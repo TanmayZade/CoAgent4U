@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useState, useEffect, useRef } from "react"
 import { Menu, X } from "lucide-react"
 import gsap from "gsap"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -119,6 +120,7 @@ export function Navbar() {
 
           {/* Desktop CTA */}
           <div ref={ctaRef} className="hidden md:flex items-center gap-4">
+            <ThemeToggle />
             <Button variant="ghost" size="lg" className="text-base transition-all duration-300 hover:scale-105" asChild>
               <Link href="/signin">Sign In</Link>
             </Button>
