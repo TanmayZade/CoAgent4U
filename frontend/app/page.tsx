@@ -1,5 +1,6 @@
 import { Navbar } from "@/components/landing/navbar"
 import { HeroSection } from "@/components/landing/hero-section"
+import { AgentPreview } from "@/components/landing/agent-preview"
 import { ProductExplanation } from "@/components/landing/product-explanation"
 import { AgentCapabilities } from "@/components/landing/agent-capabilities"
 import { CoordinationSection } from "@/components/landing/coordination-section"
@@ -15,6 +16,7 @@ export default function LandingPage() {
     <main className="min-h-screen bg-background">
       <Navbar />
       <HeroSection />
+      <AgentPreview />
       <ProductExplanation />
       <AgentCapabilities />
       <CoordinationSection />

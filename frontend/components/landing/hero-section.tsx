@@ -1,131 +1,135 @@
+"use client"
+
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Play, Calendar, Bot, CheckCircle2 } from "lucide-react"
+import { ParticlesBg } from "@/components/ui/particles-bg"
+import { ArrowRight } from "lucide-react"
+import { useEffect, useRef } from "react"
+import gsap from "gsap"
+import { ScrollTrigger } from "gsap/ScrollTrigger"
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollTrigger)
+}
 
 export function HeroSection() {
+  const sectionRef = useRef<HTMLElement>(null)
+  const headlineRef = useRef<HTMLHeadingElement>(null)
+  const subheadlineRef = useRef<HTMLParagraphElement>(null)
+  const ctaRef = useRef<HTMLDivElement>(null)
+  const logoRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      // Logo animation - scale and fade in elegantly
+      gsap.fromTo(
+        logoRef.current,
+        { opacity: 0, scale: 0.8, y: 20 },
+        { opacity: 1, scale: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.2 }
+      )
+
+      // Headline animation - fade in with stagger per word
+      if (headlineRef.current) {
+        gsap.fromTo(
+          headlineRef.current,
+          { opacity: 0, y: 60 },
+          { opacity: 1, y: 0, duration: 1.2, ease: "power4.out", delay: 0.5 }
+        )
+      }
+
+      // Subheadline fade in with blur effect
+      gsap.fromTo(
+        subheadlineRef.current,
+        { opacity: 0, y: 40, filter: "blur(10px)" },
+        { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.2, delay: 1.2, ease: "power3.out" }
+      )
+
+      // CTA buttons animation with stagger
+      gsap.fromTo(
+        ctaRef.current?.children || [],
+        { opacity: 0, y: 30, scale: 0.95 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.8, stagger: 0.2, delay: 1.6, ease: "back.out(1.4)" }
+      )
+    }, sectionRef)
+
+    return () => ctx.revert()
+  }, [])
+
   return (
-    <section className="relative pt-28 pb-20 lg:pt-36 lg:pb-28 overflow-hidden">
-      {/* Subtle background gradient */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-primary/[0.03] to-transparent rounded-full blur-3xl" />
+    <section ref={sectionRef} className="relative min-h-screen flex flex-col justify-center overflow-hidden pt-24 pb-16">
+      {/* Interactive Particle Background */}
+      <ParticlesBg
+        className="absolute inset-0 -z-10"
+        quantity={120}
+        staticity={30}
+        ease={80}
+        color="#1a1a1a"
+        size={0.6}
+        refresh
+      />
+
+      {/* Subtle gradient background */}
+      <div className="absolute inset-0 -z-20">
+        <div className="absolute top-1/4 left-1/4 w-[800px] h-[800px] bg-gradient-to-br from-muted/40 to-transparent rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-muted/30 to-transparent rounded-full blur-3xl" />
       </div>
 
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="mx-auto max-w-3xl text-center">
-          {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground leading-[1.1] text-balance">
+      <div className="mx-auto max-w-7xl px-6 w-full">
+        <div className="mx-auto max-w-5xl text-center">
+          {/* Logo + Brand */}
+          <div ref={logoRef} className="flex items-center justify-center gap-5 mb-12">
+            <Image 
+              src="/images/logo.png" 
+              alt="CoAgent4U Logo" 
+              width={72} 
+              height={72}
+              className="drop-shadow-md"
+              style={{ width: '72px', height: '72px' }}
+            />
+            <span className="text-3xl font-serif font-medium text-foreground tracking-tight italic">
+              CoAgent4U
+            </span>
+          </div>
+
+          {/* Headline - Large, bold, centered with proper word wrapping */}
+          <h1 
+            ref={headlineRef}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] max-w-4xl mx-auto"
+          >
             Your Personal Agent That Coordinates Your Time
           </h1>
 
           {/* Subheadline */}
-          <p className="mt-6 text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto text-pretty">
+          <p 
+            ref={subheadlineRef}
+            className="mt-8 text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
+          >
             A coordination platform where personal agents represent users and collaborate to manage commitments, schedules, and shared time.
           </p>
 
           {/* CTAs */}
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" className="h-12 px-6 text-base" asChild>
+          <div ref={ctaRef} className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button 
+              size="lg" 
+              className="h-13 px-8 text-base font-medium rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" 
+              asChild
+            >
               <Link href="/signin">
                 Get Started
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <Button variant="outline" size="lg" className="h-12 px-6 text-base" asChild>
+            <Button 
+              variant="outline" 
+              size="lg" 
+              className="h-13 px-8 text-base font-medium rounded-full border-2 border-foreground/20 hover:border-foreground/40 hover:bg-muted/50 transition-all duration-300 hover:scale-105" 
+              asChild
+            >
               <Link href="#use-cases">
-                <Play className="mr-2 h-4 w-4" />
-                View Demo
+                Explore Use Cases
               </Link>
             </Button>
-          </div>
-        </div>
-
-        {/* Hero Visual - Agent Interaction Preview */}
-        <div className="mt-20 lg:mt-24">
-          <div className="relative mx-auto max-w-4xl">
-            {/* Main card with agent interaction */}
-            <div className="rounded-2xl border border-border/60 bg-card shadow-xl shadow-black/[0.03] overflow-hidden">
-              {/* Header bar */}
-              <div className="flex items-center justify-between px-5 py-3 bg-muted/30 border-b border-border/40">
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-400/80" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-400/80" />
-                    <div className="w-3 h-3 rounded-full bg-green-400/80" />
-                  </div>
-                  <span className="text-sm text-muted-foreground">CoAgent4U</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                  Connected
-                </div>
-              </div>
-              
-              {/* Content */}
-              <div className="p-6 lg:p-8">
-                <div className="grid lg:grid-cols-2 gap-8">
-                  {/* Left: Chat/Command */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Bot className="w-4 h-4 text-primary" />
-                      Agent Interaction
-                    </div>
-                    
-                    {/* Command input */}
-                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                      <p className="text-sm text-muted-foreground mb-2">You said:</p>
-                      <p className="text-foreground font-medium">
-                        {"@CoAgent4U schedule meeting with @Sarah Friday evening"}
-                      </p>
-                    </div>
-                    
-                    {/* Agent response */}
-                    <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
-                      <p className="text-sm text-primary mb-2">Agent Response:</p>
-                      <p className="text-foreground text-sm leading-relaxed">
-                        {"Coordinating with Sarah's agent. Common availability found: 6:00 PM - 7:00 PM. Awaiting Sarah's approval before confirming."}
-                      </p>
-                      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                        Agent-to-agent coordination in progress
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Right: Schedule Preview */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Calendar className="w-4 h-4 text-primary" />
-                      Friday Schedule
-                    </div>
-                    
-                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
-                      {[
-                        { time: "9:00 AM", event: "Team Standup", duration: "30m" },
-                        { time: "11:00 AM", event: "Project Review", duration: "1h" },
-                        { time: "6:00 PM", event: "Meeting with Sarah", duration: "1h", pending: true },
-                      ].map((item, i) => (
-                        <div 
-                          key={i} 
-                          className={`flex items-center justify-between py-2.5 px-3 rounded-lg ${
-                            item.pending 
-                              ? "bg-primary/5 border border-primary/20" 
-                              : "bg-background/50"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-mono text-muted-foreground w-16">{item.time}</span>
-                            <span className={`text-sm ${item.pending ? "text-primary font-medium" : "text-foreground"}`}>
-                              {item.event}
-                            </span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">{item.duration}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
