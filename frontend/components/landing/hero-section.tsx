@@ -3,82 +3,64 @@
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ParticlesBg } from "@/components/ui/particles-bg"
 import { ArrowRight } from "lucide-react"
-import { useEffect, useRef } from "react"
-import gsap from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger)
-}
+import { motion } from "framer-motion"
+import { useScrollAnimation } from "@/hooks/use-framer-animations"
+import { FloatingIcons } from "@/components/landing/floating-icons"
 
 export function HeroSection() {
-  const sectionRef = useRef<HTMLElement>(null)
-  const headlineRef = useRef<HTMLHeadingElement>(null)
-  const subheadlineRef = useRef<HTMLParagraphElement>(null)
-  const ctaRef = useRef<HTMLDivElement>(null)
-  const logoRef = useRef<HTMLDivElement>(null)
+  const { ref: sectionRef, isInView } = useScrollAnimation()
 
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      // Logo animation - scale and fade in elegantly
-      gsap.fromTo(
-        logoRef.current,
-        { opacity: 0, scale: 0.8, y: 20 },
-        { opacity: 1, scale: 1, y: 0, duration: 1, ease: "power3.out", delay: 0.2 }
-      )
+  // Hero timeline: logo → headline → subtitle → CTA buttons
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.12,
+        delayChildren: 0.15,
+      },
+    },
+  }
 
-      // Headline animation - fade in with stagger per word
-      if (headlineRef.current) {
-        gsap.fromTo(
-          headlineRef.current,
-          { opacity: 0, y: 60 },
-          { opacity: 1, y: 0, duration: 1.2, ease: "power4.out", delay: 0.5 }
-        )
-      }
-
-      // Subheadline fade in with blur effect
-      gsap.fromTo(
-        subheadlineRef.current,
-        { opacity: 0, y: 40, filter: "blur(10px)" },
-        { opacity: 1, y: 0, filter: "blur(0px)", duration: 1.2, delay: 1.2, ease: "power3.out" }
-      )
-
-      // CTA buttons animation with stagger
-      gsap.fromTo(
-        ctaRef.current?.children || [],
-        { opacity: 0, y: 30, scale: 0.95 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.8, stagger: 0.2, delay: 1.6, ease: "back.out(1.4)" }
-      )
-    }, sectionRef)
-
-    return () => ctx.revert()
-  }, [])
+  const itemVariants = {
+    hidden: { opacity: 0, y: 25 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.7,
+        ease: "easeOut",
+      },
+    },
+  }
 
   return (
     <section ref={sectionRef} className="relative min-h-screen flex flex-col justify-center overflow-hidden pt-24 pb-16">
-      {/* Interactive Particle Background */}
-      <ParticlesBg
-        className="absolute inset-0 -z-10"
-        quantity={120}
-        staticity={30}
-        ease={80}
-        color="#1a1a1a"
-        size={0.6}
-        refresh
-      />
+      {/* Floating Icons Background - Antigravity style */}
+      <FloatingIcons className="-z-10" />
 
       {/* Subtle gradient background */}
       <div className="absolute inset-0 -z-20">
         <div className="absolute top-1/4 left-1/4 w-[800px] h-[800px] bg-gradient-to-br from-muted/40 to-transparent rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-gradient-to-tl from-muted/30 to-transparent rounded-full blur-3xl" />
       </div>
+      
+      {/* Radial gradient overlay for depth */}
+      <div className="absolute inset-0 -z-15 bg-[radial-gradient(ellipse_at_center,_transparent_0%,_var(--background)_70%)]" />
 
       <div className="mx-auto max-w-7xl px-6 w-full">
-        <div className="mx-auto max-w-5xl text-center">
+        <motion.div 
+          className="mx-auto max-w-5xl text-center"
+          variants={containerVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           {/* Logo + Brand */}
-          <div ref={logoRef} className="flex items-center justify-center gap-5 mb-12">
+          <motion.div 
+            className="flex items-center justify-center gap-5 mb-12"
+            variants={itemVariants}
+          >
             <Image 
               src="/images/logo.png" 
               alt="CoAgent4U Logo" 
@@ -90,48 +72,63 @@ export function HeroSection() {
             <span className="text-3xl font-serif font-medium text-foreground tracking-tight italic">
               CoAgent4U
             </span>
-          </div>
+          </motion.div>
 
           {/* Headline - Large, bold, centered with proper word wrapping */}
-          <h1 
-            ref={headlineRef}
+          <motion.h1 
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground leading-[1.1] max-w-4xl mx-auto"
+            variants={itemVariants}
           >
             Your Personal Agent That Coordinates Your Time
-          </h1>
+          </motion.h1>
 
           {/* Subheadline */}
-          <p 
-            ref={subheadlineRef}
+          <motion.p 
             className="mt-8 text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
+            variants={itemVariants}
           >
             A coordination platform where personal agents represent users and collaborate to manage commitments, schedules, and shared time.
-          </p>
+          </motion.p>
 
           {/* CTAs */}
-          <div ref={ctaRef} className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button 
-              size="lg" 
-              className="h-13 px-8 text-base font-medium rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" 
-              asChild
-            >
-              <Link href="/signin">
-                Get Started
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-            <Button 
-              variant="outline" 
-              size="lg" 
-              className="h-13 px-8 text-base font-medium rounded-full border-2 border-foreground/20 hover:border-foreground/40 hover:bg-muted/50 transition-all duration-300 hover:scale-105" 
-              asChild
-            >
-              <Link href="#use-cases">
-                Explore Use Cases
-              </Link>
-            </Button>
-          </div>
-        </div>
+          <motion.div 
+            className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.15,
+                },
+              },
+            }}
+          >
+            <motion.div variants={itemVariants}>
+              <Button 
+                size="lg" 
+                className="h-13 px-8 text-base font-medium rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" 
+                asChild
+              >
+                <Link href="/signin">
+                  Get Started
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+            </motion.div>
+            <motion.div variants={itemVariants}>
+              <Button 
+                variant="outline" 
+                size="lg" 
+                className="h-13 px-8 text-base font-medium rounded-full border-2 border-foreground/20 hover:border-foreground/40 hover:bg-muted/50 transition-all duration-300 hover:scale-105" 
+                asChild
+              >
+                <Link href="#use-cases">
+                  Explore Use Cases
+                </Link>
+              </Button>
+            </motion.div>
+          </motion.div>
+        </motion.div>
       </div>
     </section>
   )
