@@ -1,13 +1,9 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState } from "react"
 import { Bot, Calendar, CheckCircle2, Clock, AlertTriangle, Users, ArrowRight, ChevronRight } from "lucide-react"
-import gsap from "gsap"
-import { ScrollTrigger } from "gsap/ScrollTrigger"
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollTrigger)
-}
+import { motion } from "framer-motion"
+import { useScrollAnimation, fadeSlideUpVariants, staggerContainerVariants, itemVariants } from "@/hooks/use-framer-animations"
 
 const useCases = [
   {
@@ -178,82 +174,9 @@ const coordinateSteps = [
 export function UseCaseExamples() {
   const [activeCase, setActiveCase] = useState("view")
   const [currentStep, setCurrentStep] = useState(1)
-  const sectionRef = useRef<HTMLElement>(null)
-  const headerRef = useRef<HTMLDivElement>(null)
-  const tabsRef = useRef<HTMLDivElement>(null)
-  const cardRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
+  const { ref: sectionRef, isInView } = useScrollAnimation()
 
   const currentCase = useCases.find((uc) => uc.id === activeCase)
-
-  // Initial scroll animation
-  useEffect(() => {
-    const ctx = gsap.context(() => {
-      gsap.fromTo(
-        headerRef.current,
-        { opacity: 0, y: 40 },
-        { 
-          opacity: 1, 
-          y: 0, 
-          duration: 0.8, 
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: headerRef.current,
-            start: "top 85%",
-            toggleActions: "play none none reverse",
-          }
-        }
-      )
-
-      gsap.fromTo(
-        tabsRef.current,
-        { opacity: 0, y: 30 },
-        { 
-          opacity: 1, 
-          y: 0, 
-          duration: 0.6, 
-          delay: 0.2,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: tabsRef.current,
-            start: "top 85%",
-            toggleActions: "play none none reverse",
-          }
-        }
-      )
-
-      gsap.fromTo(
-        cardRef.current,
-        { opacity: 0, y: 50, scale: 0.98 },
-        { 
-          opacity: 1, 
-          y: 0, 
-          scale: 1,
-          duration: 0.8, 
-          delay: 0.3,
-          ease: "power3.out",
-          scrollTrigger: {
-            trigger: cardRef.current,
-            start: "top 85%",
-            toggleActions: "play none none reverse",
-          }
-        }
-      )
-    }, sectionRef)
-
-    return () => ctx.revert()
-  }, [])
-
-  // Content transition animation when activeCase or currentStep changes
-  useEffect(() => {
-    if (contentRef.current) {
-      gsap.fromTo(
-        contentRef.current,
-        { opacity: 0, x: 20 },
-        { opacity: 1, x: 0, duration: 0.4, ease: "power2.out" }
-      )
-    }
-  }, [activeCase, currentStep])
   
   const getSteps = () => {
     if (activeCase === "add") return addEventSteps
@@ -286,7 +209,12 @@ export function UseCaseExamples() {
     <section ref={sectionRef} id="use-cases" className="py-24 lg:py-32">
       <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
-        <div ref={headerRef} className="max-w-2xl mx-auto text-center mb-16">
+        <motion.div 
+          className="max-w-2xl mx-auto text-center mb-16"
+          variants={fadeSlideUpVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Real Use Case Examples
           </p>
@@ -296,10 +224,15 @@ export function UseCaseExamples() {
           <p className="text-muted-foreground text-lg">
             Simple commands, powerful coordination. Walk through complete flows to see how agents work.
           </p>
-        </div>
+        </motion.div>
 
         {/* Use case selector */}
-        <div ref={tabsRef} className="flex flex-wrap justify-center gap-2 mb-10">
+        <motion.div 
+          className="flex flex-wrap justify-center gap-2 mb-10"
+          variants={itemVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           {useCases.map((uc) => (
             <button
               key={uc.id}
@@ -313,11 +246,18 @@ export function UseCaseExamples() {
               {uc.label}
             </button>
           ))}
-        </div>
+        </motion.div>
 
         {/* Use case display */}
         <div className="max-w-3xl mx-auto">
-          <div ref={cardRef} className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-lg shadow-black/[0.02] card-hover">
+          <motion.div 
+            className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-lg shadow-black/[0.02]"
+            variants={itemVariants}
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+            transition={{ delay: 0.2 }}
+            whileHover={{ boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)" }}
+          >
             {/* Header */}
             <div className="px-5 py-3 bg-muted/30 border-b border-border/40 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -332,7 +272,13 @@ export function UseCaseExamples() {
             </div>
 
             {/* Content */}
-            <div ref={contentRef} className="p-6 space-y-5">
+            <motion.div 
+              className="p-6 space-y-5"
+              key={`${activeCase}-${currentStep}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+            >
               {/* Command */}
               <div className="rounded-xl bg-muted/50 p-4 transition-all duration-300 hover:bg-muted/70">
                 <p className="text-xs text-muted-foreground mb-1.5">Your command:</p>
@@ -743,8 +689,8 @@ export function UseCaseExamples() {
                   </div>
                 </>
               )}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
     </section>

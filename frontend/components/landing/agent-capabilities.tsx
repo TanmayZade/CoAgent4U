@@ -71,10 +71,16 @@ export function AgentCapabilities() {
           {capabilities.map((capability, index) => (
             <motion.div
               key={capability.title}
-              className="group p-8 rounded-3xl border border-border/40 bg-card hover:border-foreground/20 card-hover"
+              className="group p-8 rounded-3xl border border-border/40 bg-card transition-all duration-300"
               variants={itemVariants}
+              whileHover={{ 
+                scale: 1.03,
+                boxShadow: "0 20px 40px rgba(0, 0, 0, 0.08)",
+                borderColor: "hsl(var(--foreground) / 0.15)"
+              }}
+              transition={{ duration: 0.25 }}
             >
-              <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-6 group-hover:bg-foreground/10 group-hover:scale-110 transition-all duration-500">
+              <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-6 group-hover:bg-foreground/10 group-hover:scale-110 transition-all duration-300">
                 <capability.icon className="w-7 h-7 text-foreground/70 group-hover:text-foreground transition-colors duration-300" />
               </div>
               <h3 className="text-xl font-semibold text-foreground mb-4">

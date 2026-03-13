@@ -66,12 +66,18 @@ export function PlatformBenefits() {
           {benefits.map((benefit, index) => (
             <motion.div
               key={benefit.title}
-              className={`p-6 rounded-2xl transition-all duration-500 hover:bg-muted/30 cursor-pointer group ${
+              className={`p-6 rounded-2xl transition-all duration-300 cursor-pointer group ${
                 index === benefits.length - 1 && benefits.length % 3 !== 0
                   ? "sm:col-span-2 lg:col-span-1"
                   : ""
               }`}
               variants={itemVariants}
+              whileHover={{ 
+                scale: 1.03,
+                boxShadow: "0 16px 32px rgba(0, 0, 0, 0.06)",
+                backgroundColor: "hsl(var(--muted) / 0.4)"
+              }}
+              transition={{ duration: 0.25 }}
             >
               <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-5 transition-all duration-300 group-hover:scale-110 group-hover:bg-foreground/10">
                 <benefit.icon className="w-6 h-6 text-foreground transition-colors duration-300" />

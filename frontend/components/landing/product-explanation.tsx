@@ -35,8 +35,17 @@ export function ProductExplanation() {
           initial="hidden"
           animate={isInView ? "visible" : "hidden"}
         >
-          <motion.div className="text-center card-hover p-8 rounded-3xl bg-background border border-border/40" variants={itemVariants}>
-            <div className="w-16 h-16 rounded-2xl bg-muted border border-border/60 flex items-center justify-center mx-auto mb-7 transition-all duration-500 hover:scale-110 hover:rotate-3">
+          <motion.div 
+            className="text-center p-8 rounded-3xl bg-background border border-border/40 transition-all duration-300"
+            variants={itemVariants}
+            whileHover={{ 
+              scale: 1.03,
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
+              borderColor: "hsl(var(--foreground) / 0.2)"
+            }}
+            transition={{ duration: 0.25 }}
+          >
+            <div className="w-16 h-16 rounded-2xl bg-muted border border-border/60 flex items-center justify-center mx-auto mb-7 transition-all duration-300">
               <Bot className="w-8 h-8 text-foreground" />
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-4">
@@ -47,8 +56,17 @@ export function ProductExplanation() {
             </p>
           </motion.div>
 
-          <motion.div className="text-center card-hover p-8 rounded-3xl bg-background border border-border/40" variants={itemVariants}>
-            <div className="w-16 h-16 rounded-2xl bg-muted border border-border/60 flex items-center justify-center mx-auto mb-7 transition-all duration-500 hover:scale-110 hover:rotate-3">
+          <motion.div 
+            className="text-center p-8 rounded-3xl bg-background border border-border/40 transition-all duration-300"
+            variants={itemVariants}
+            whileHover={{ 
+              scale: 1.03,
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
+              borderColor: "hsl(var(--foreground) / 0.2)"
+            }}
+            transition={{ duration: 0.25 }}
+          >
+            <div className="w-16 h-16 rounded-2xl bg-muted border border-border/60 flex items-center justify-center mx-auto mb-7 transition-all duration-300">
               <Users className="w-8 h-8 text-foreground" />
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-4">
@@ -59,8 +77,17 @@ export function ProductExplanation() {
             </p>
           </motion.div>
 
-          <motion.div className="text-center card-hover p-8 rounded-3xl bg-background border border-border/40" variants={itemVariants}>
-            <div className="w-16 h-16 rounded-2xl bg-muted border border-border/60 flex items-center justify-center mx-auto mb-7 transition-all duration-500 hover:scale-110 hover:rotate-3">
+          <motion.div 
+            className="text-center p-8 rounded-3xl bg-background border border-border/40 transition-all duration-300"
+            variants={itemVariants}
+            whileHover={{ 
+              scale: 1.03,
+              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)",
+              borderColor: "hsl(var(--foreground) / 0.2)"
+            }}
+            transition={{ duration: 0.25 }}
+          >
+            <div className="w-16 h-16 rounded-2xl bg-muted border border-border/60 flex items-center justify-center mx-auto mb-7 transition-all duration-300">
               <CheckCircle className="w-8 h-8 text-foreground" />
             </div>
             <h3 className="text-xl font-semibold text-foreground mb-4">
