@@ -1,7 +1,8 @@
 "use client"
 
 import { Zap, GitBranch, UserCheck, ShieldAlert, Users } from "lucide-react"
-import { useScrollReveal, useStaggerReveal } from "@/hooks/use-gsap-animations"
+import { motion } from "framer-motion"
+import { useScrollAnimation, fadeSlideUpVariants, staggerContainerVariants, itemVariants } from "@/hooks/use-framer-animations"
 
 const benefits = [
   {
@@ -32,19 +33,18 @@ const benefits = [
 ]
 
 export function PlatformBenefits() {
-  const headerRef = useScrollReveal<HTMLDivElement>({ y: 40, duration: 0.8 })
-  const gridRef = useStaggerReveal<HTMLDivElement>({ 
-    stagger: 0.12, 
-    y: 40, 
-    duration: 0.7,
-    childSelector: ".benefit-card"
-  })
+  const { ref: sectionRef, isInView } = useScrollAnimation()
 
   return (
-    <section className="py-24 lg:py-32">
+    <section className="py-24 lg:py-32" ref={sectionRef}>
       <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
-        <div ref={headerRef} className="max-w-2xl mx-auto text-center mb-16">
+        <motion.div 
+          className="max-w-2xl mx-auto text-center mb-16"
+          variants={fadeSlideUpVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Platform Benefits
           </p>
@@ -54,19 +54,24 @@ export function PlatformBenefits() {
           <p className="text-muted-foreground text-lg">
             CoAgent4U removes coordination friction while keeping you in complete control of your commitments.
           </p>
-        </div>
+        </motion.div>
 
         {/* Benefits grid */}
-        <div ref={gridRef} className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+        <motion.div 
+          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8"
+          variants={staggerContainerVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           {benefits.map((benefit, index) => (
-            <div
+            <motion.div
               key={benefit.title}
-              className={`benefit-card p-6 rounded-2xl transition-all duration-500 hover:bg-muted/30 cursor-pointer group ${
+              className={`p-6 rounded-2xl transition-all duration-500 hover:bg-muted/30 cursor-pointer group ${
                 index === benefits.length - 1 && benefits.length % 3 !== 0
                   ? "sm:col-span-2 lg:col-span-1"
                   : ""
               }`}
-              style={{ transitionDelay: `${index * 50}ms` }}
+              variants={itemVariants}
             >
               <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-5 transition-all duration-300 group-hover:scale-110 group-hover:bg-foreground/10">
                 <benefit.icon className="w-6 h-6 text-foreground transition-colors duration-300" />
@@ -77,9 +82,9 @@ export function PlatformBenefits() {
               <p className="text-muted-foreground leading-relaxed">
                 {benefit.description}
               </p>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   )
