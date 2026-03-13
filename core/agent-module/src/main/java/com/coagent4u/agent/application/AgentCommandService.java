@@ -284,7 +284,8 @@ public class AgentCommandService
                 user.getSlackIdentity().slackUserId(),
                 user.getSlackIdentity().workspaceId(),
                 proposalText,
-                approvalId.value().toString());
+                approvalId.value().toString(),
+                null); // No coordinationId for personal events
         log.info("[NotificationService] Approval card sent to user for proposal {}", proposalId);
     }
 
@@ -475,32 +476,55 @@ public class AgentCommandService
             return;
         }
 
-        // Build requester mention for the slot card
+        // Build requester mention for workflow messages
         User requesterUser = userPersistence.findById(agent.getUserId()).orElse(null);
         String requesterMention = requesterUser != null
                 ? "<@" + requesterUser.getSlackIdentity().slackUserId().value() + ">"
                 : "Someone";
+        String inviteeMention = "<@" + targetUser.getSlackIdentity().slackUserId().value() + ">";
 
-        // Send slot selection card to invitee (User B picks the slot)
-        notificationPort.sendSlotSelection(
+        // Store Slack IDs in metadata for cross-user message operations
+        if (requesterUser != null) {
+            coordinationProtocol.updateMetadata(coordId, "requester_slack_id",
+                    requesterUser.getSlackIdentity().slackUserId().value());
+        }
+        coordinationProtocol.updateMetadata(coordId, "invitee_slack_id",
+                targetUser.getSlackIdentity().slackUserId().value());
+        coordinationProtocol.updateMetadata(coordId, "requester_mention", requesterMention);
+
+        // Store agent IDs for downstream event handling (e.g. rejection)
+        coordinationProtocol.updateMetadata(coordId, "requester_agent_id", agent.getAgentId().value().toString());
+        coordinationProtocol.updateMetadata(coordId, "invitee_agent_id", inviteeAgentId.value().toString());
+
+        // Step 1: Send invitation message to invitee (persistent — stays visible)
+        String inviteeInvitationTs = notificationPort.sendMessage(
+                targetUser.getSlackIdentity().slackUserId(),
+                targetUser.getSlackIdentity().workspaceId(),
+                requesterMention + " invited you to a meeting.");
+        coordinationProtocol.updateMetadata(coordId, "invitee_header_ts", inviteeInvitationTs);
+
+        // Step 2: Send slot selection card to invitee (User B picks the slot)
+        String slotSelectionTs = notificationPort.sendSlotSelection(
                 targetUser.getSlackIdentity().slackUserId(),
                 targetUser.getSlackIdentity().workspaceId(),
                 coordId.value().toString(),
                 availableSlots,
                 requesterMention);
+        coordinationProtocol.updateMetadata(coordId, "slot_selection_ts", slotSelectionTs);
         log.info("[NotificationService] Slot selection card sent to invitee @{} with {} slots",
                 targetUsername, availableSlots.size());
 
-        // Notify requester that coordination is in progress
+        // Step 3: Notify requester that slots were sent
         if (requesterUser != null) {
-            notificationPort.sendMessage(
+            String requesterNotifyTs = notificationPort.sendMessage(
                     requesterUser.getSlackIdentity().slackUserId(),
                     requesterUser.getSlackIdentity().workspaceId(),
-                    "🔄 Scheduling in progress! Sent " + availableSlots.size()
-                            + " time slot options to <@" + targetUser.getSlackIdentity().slackUserId().value()
-                            + "> for " + targetDate + ". Waiting for their selection.");
+                    "📤 Sent available time slots to " + inviteeMention
+                            + ".\nWaiting for them to select a suitable time.");
+            coordinationProtocol.updateMetadata(coordId, "requester_notification_ts", requesterNotifyTs);
         }
     }
+
 
     // ── Fallback ──
 

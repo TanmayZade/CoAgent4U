@@ -176,14 +176,14 @@ public class CoordinationService implements CoordinationProtocolPort {
                 IST.getId());
         coordination.setProposal(proposal);
 
-        // Step 7: Request approval from invitee (B first)
-        coordination.transition(CoordinationState.AWAITING_APPROVAL_B, "Awaiting invitee approval");
+        // Step 7: Request approval from requester (User A)
+        coordination.transition(CoordinationState.AWAITING_APPROVAL_A, "Awaiting requester approval");
         persistence.save(coordination);
-        log.info("[CoordinationService] {} → AWAITING_APPROVAL_B", coordinationId);
+        log.info("[CoordinationService] {} → AWAITING_APPROVAL_A", coordinationId);
 
-        var approvalId = agentApprovalPort.requestApproval(coordination.getInviteeAgentId(), proposal);
-        log.info("[ApprovalService] Approval created id={} for invitee agent {}", approvalId,
-                coordination.getInviteeAgentId());
+        var approvalId = agentApprovalPort.requestApproval(coordination.getRequesterAgentId(), proposal);
+        log.info("[ApprovalService] Approval created id={} for requester agent {}", approvalId,
+                coordination.getRequesterAgentId());
 
         persistence.save(coordination);
         publishStateChange(coordination);
@@ -198,7 +198,7 @@ public class CoordinationService implements CoordinationProtocolPort {
         Coordination coordination = load(coordinationId);
 
         if (!approved) {
-            coordination.transition(CoordinationState.REJECTED, "Rejected by agent " + agentId);
+            coordination.transition(CoordinationState.REJECTED, "REJECTED_BY_AGENT:" + agentId.value());
             persistence.save(coordination);
             publishStateChange(coordination);
             log.info("[CoordinationService] {} → REJECTED by agent {}", coordinationId, agentId);
@@ -257,6 +257,20 @@ public class CoordinationService implements CoordinationProtocolPort {
         }
 
         publishStateChange(coordination);
+    }
+
+    @Override
+    public void updateMetadata(CoordinationId coordinationId, String key, String value) {
+        log.info("[CoordinationService] Updating metadata for {}: {}={}", coordinationId, key, value);
+        Coordination coordination = load(coordinationId);
+        coordination.setMetadata(key, value);
+        persistence.save(coordination);
+    }
+
+    @Override
+    public String getMetadata(CoordinationId coordinationId, String key) {
+        Coordination coordination = load(coordinationId);
+        return coordination.getMetadata(key);
     }
 
     @Override

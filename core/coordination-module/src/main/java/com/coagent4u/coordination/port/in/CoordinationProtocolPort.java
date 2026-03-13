@@ -65,6 +65,16 @@ public interface CoordinationProtocolPort {
     void advance(CoordinationId coordinationId, CoordinationState toState, String reason);
 
     /**
+     * Stores arbitrary metadata for this coordination.
+     */
+    void updateMetadata(CoordinationId coordinationId, String key, String value);
+
+    /**
+     * Retrieves metadata from this coordination.
+     */
+    String getMetadata(CoordinationId coordinationId, String key);
+
+    /**
      * Terminates a coordination in FAILED or REJECTED state.
      *
      * @param coordinationId the coordination to terminate

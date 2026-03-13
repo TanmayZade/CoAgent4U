@@ -33,6 +33,7 @@ public class Coordination {
     private Instant completedAt;
     private List<TimeSlot> availableSlots = new ArrayList<>();
     private TimeSlot selectedSlot;
+    private final java.util.Map<String, String> metadata = new java.util.HashMap<>();
 
     public Coordination(CoordinationId coordinationId, AgentId requesterAgentId, AgentId inviteeAgentId) {
         this.coordinationId = Objects.requireNonNull(coordinationId);
@@ -44,6 +45,22 @@ public class Coordination {
         // Log the initial state
         stateLog.add(CoordinationStateLogEntry.of(coordinationId, null, CoordinationState.INITIATED,
                 "Coordination initiated"));
+    }
+
+    /**
+     * Stores arbitrary metadata (e.g., Slack message timestamps) for this coordination.
+     */
+    public void setMetadata(String key, String value) {
+        this.metadata.put(key, value);
+        this.updatedAt = Instant.now();
+    }
+
+    public String getMetadata(String key) {
+        return this.metadata.get(key);
+    }
+
+    public java.util.Map<String, String> getAllMetadata() {
+        return java.util.Collections.unmodifiableMap(this.metadata);
     }
 
     /**

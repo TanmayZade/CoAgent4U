@@ -93,29 +93,40 @@ public class IntegrationController {
     /**
      * GET /integrations/google/callback — Handles Google OAuth callback.
      * Validates signed state token before exchanging code.
+     * Redirects to frontend dashboard on success or error.
      */
     @GetMapping("/callback")
-    public ResponseEntity<String> callback(
+    public ResponseEntity<Void> callback(
             @RequestParam(required = false) String code,
             @RequestParam(required = false) String error,
             @RequestParam(required = false) String state) {
 
+        String frontendUrl = properties.getFrontendUrl();
+
         if (error != null) {
             log.warn("Google OAuth callback error: {}", error);
-            return ResponseEntity.badRequest().body("OAuth error: " + error);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=" + error)
+                    .build();
         }
         if (code == null || code.isBlank()) {
-            return ResponseEntity.badRequest().body("Missing authorization code");
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=missing_code")
+                    .build();
         }
         if (state == null || state.isBlank()) {
-            return ResponseEntity.badRequest().body("Missing state parameter");
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=missing_state")
+                    .build();
         }
 
         // Validate signed state token
         UUID userId = stateService.validateStateToken(state);
         if (userId == null) {
             log.warn("Invalid or expired Google OAuth state token");
-            return ResponseEntity.badRequest().body("Invalid or expired state token");
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=invalid_state")
+                    .build();
         }
 
         try {
@@ -131,12 +142,15 @@ public class IntegrationController {
                     tokens.expiresAt());
 
             log.info("Google Calendar connected for userId={}", userId);
-            return ResponseEntity.ok("Google Calendar connected successfully! You can close this window.");
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=success")
+                    .build();
 
         } catch (Exception e) {
             log.error("Google OAuth callback failed", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Failed to connect Google Calendar: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=exchange_failed")
+                    .build();
         }
     }
 

@@ -3,14 +3,17 @@ package com.coagent4u.messaging;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -21,6 +24,7 @@ import com.coagent4u.approval.domain.ApprovalStatus;
 import com.coagent4u.approval.port.in.DecideApprovalUseCase;
 import com.coagent4u.coordination.port.in.CoordinationProtocolPort;
 import com.coagent4u.security.SlackSignatureVerifier;
+import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.ApprovalId;
 import com.coagent4u.shared.CoordinationId;
 import com.coagent4u.shared.SlackUserId;
@@ -28,25 +32,34 @@ import com.coagent4u.shared.TimeSlot;
 import com.coagent4u.shared.WorkspaceId;
 import com.coagent4u.user.domain.User;
 import com.coagent4u.user.port.out.UserPersistencePort;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import jakarta.servlet.http.HttpServletRequest;
 
 /**
  * Handles Slack interactive component payloads (button clicks).
  *
- * <p>
- * Critical contract: Slack requires HTTP 200 within 3 seconds.
- * This handler responds IMMEDIATELY with an acknowledgment message,
- * then processes the action asynchronously on a thread pool.
- * </p>
+ * <p>Critical contract: Slack requires HTTP 200 within 3 seconds.
+ * This handler responds IMMEDIATELY, then processes the action
+ * and performs delete-and-repost asynchronously.</p>
  */
 @RestController
 @RequestMapping("/slack")
 public class SlackInteractionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(SlackInteractionHandler.class);
+    private static final ZoneId IST = ZoneId.of("Asia/Kolkata");
+    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy");
+    private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("hh:mm a");
+    private static final DateTimeFormatter TIMESTAMP_FMT = DateTimeFormatter.ofPattern("EEE, dd MMM yyyy 'at' h:mm a");
+
+    // Idempotency guard — prevents double-processing of rapid clicks
+    private final ConcurrentHashMap<String, Boolean> processedInteractions = new ConcurrentHashMap<>();
+    private static final int MAX_PROCESSED_CACHE = 500;
 
     private final SlackSignatureVerifier signatureVerifier;
     private final DecideApprovalUseCase decideApprovalUseCase;
@@ -54,6 +67,7 @@ public class SlackInteractionHandler {
     private final UserPersistencePort userPersistencePort;
     private final ObjectMapper objectMapper;
     private final Executor taskExecutor;
+    private final SlackNotificationAdapter slackAdapter;
 
     public SlackInteractionHandler(
             SlackSignatureVerifier signatureVerifier,
@@ -61,40 +75,33 @@ public class SlackInteractionHandler {
             CoordinationProtocolPort coordinationProtocol,
             UserPersistencePort userPersistencePort,
             ObjectMapper objectMapper,
-            @Qualifier("taskExecutor") Executor taskExecutor) {
+            @Qualifier("taskExecutor") Executor taskExecutor,
+            SlackNotificationAdapter slackAdapter) {
         this.signatureVerifier = signatureVerifier;
         this.decideApprovalUseCase = decideApprovalUseCase;
         this.coordinationProtocol = coordinationProtocol;
         this.userPersistencePort = userPersistencePort;
         this.objectMapper = objectMapper;
         this.taskExecutor = taskExecutor;
+        this.slackAdapter = slackAdapter;
     }
 
-    /**
-     * Handles interactive payloads from Slack (button clicks).
-     * Responds IMMEDIATELY with acknowledgment — all processing happens on
-     * background thread.
-     */
+    // ── Endpoint ────────────────────────────────────────────────
+
     @PostMapping(value = "/interactions", consumes = "application/x-www-form-urlencoded")
     public ResponseEntity<String> handleInteraction(
             @RequestHeader("X-Slack-Request-Timestamp") String timestamp,
             @RequestHeader("X-Slack-Signature") String signature,
             HttpServletRequest request) throws IOException {
 
-        // 1. Read raw body for signature verification
         String rawBody = new String(request.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-
-        log.info("[InteractionHandler] Received Slack interaction, verifying signature...");
 
         if (!signatureVerifier.verify(timestamp, rawBody, signature)) {
             log.warn("[InteractionHandler] Signature verification failed");
             return ResponseEntity.status(401).body("Invalid signature");
         }
 
-        log.info("[InteractionHandler] Signature verified");
-
         try {
-            // 2. Parse payload — Slack sends form-encoded: payload={json}
             String payloadJson = rawBody;
             if (rawBody.startsWith("payload=")) {
                 payloadJson = java.net.URLDecoder.decode(
@@ -102,13 +109,10 @@ public class SlackInteractionHandler {
             }
 
             JsonNode payload = objectMapper.readTree(payloadJson);
-            String type = payload.path("type").asText();
-
-            if (!"block_actions".equals(type)) {
+            if (!"block_actions".equals(payload.path("type").asText())) {
                 return ResponseEntity.ok("");
             }
 
-            // 3. Extract action details
             JsonNode actions = payload.path("actions");
             if (actions.isEmpty()) {
                 return ResponseEntity.ok("");
@@ -118,84 +122,127 @@ public class SlackInteractionHandler {
             String actionId = action.path("action_id").asText();
             String actionValue = action.path("value").asText();
 
-            // 4. Resolve Slack user
+            // Idempotency guard
+            String channel = payload.path("channel").path("id").asText();
+            String messageTs = payload.path("message").path("ts").asText();
+            String idempotencyKey = channel + ":" + messageTs + ":" + actionId;
+
+            if (processedInteractions.putIfAbsent(idempotencyKey, Boolean.TRUE) != null) {
+                log.info("[InteractionHandler] Duplicate interaction ignored: {}", idempotencyKey);
+                return ResponseEntity.ok("");
+            }
+
+            if (processedInteractions.size() > MAX_PROCESSED_CACHE) {
+                processedInteractions.clear();
+            }
+
             String slackUserId = payload.path("user").path("id").asText();
             String teamId = payload.path("team").path("id").asText();
 
             log.info("[InteractionHandler] action_id={} value={} user={}", actionId, actionValue, slackUserId);
 
-            // 5. Route action — respond IMMEDIATELY, process on background thread
-            String responseText;
-
+            // Route action — all processing on background thread
             if (actionId.startsWith("slot_select_")) {
-                responseText = "🕐 Slot selected! Processing...";
-                // Fire-and-forget on thread pool
-                taskExecutor.execute(() -> processSlotSelection(actionId, actionValue, slackUserId, teamId));
+                taskExecutor.execute(() -> handleSlotSelection(
+                        actionId, actionValue, slackUserId, teamId, channel, messageTs));
+
+            } else if (actionId.startsWith("reject_coords_")) {
+                taskExecutor.execute(() -> handleEarlyRejection(
+                        actionId, slackUserId, teamId, channel, messageTs));
 
             } else if ("approve_action".equals(actionId)) {
-                responseText = "✅ Approved! Processing your request...";
-                taskExecutor.execute(() -> processDecision(slackUserId, teamId, actionId, actionValue));
+                taskExecutor.execute(() -> handleApproval(
+                        slackUserId, teamId, actionValue, true, channel, messageTs, payload));
 
             } else if ("reject_action".equals(actionId)) {
-                responseText = "❌ Rejected.";
-                taskExecutor.execute(() -> processDecision(slackUserId, teamId, actionId, actionValue));
+                taskExecutor.execute(() -> handleApproval(
+                        slackUserId, teamId, actionValue, false, channel, messageTs, payload));
 
             } else {
                 log.warn("[InteractionHandler] Unknown action_id={}", actionId);
-                return ResponseEntity.ok("");
             }
 
-            // 6. Return immediately — Slack gets response within milliseconds
-            return ResponseEntity.ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(buildResponseMessage(responseText));
+            return ResponseEntity.ok("");
 
         } catch (Exception e) {
-            log.warn("[InteractionHandler] Error handling Slack interaction: {}", e.getMessage());
-            return ResponseEntity.ok(buildResponseMessage("⚠️ An error occurred processing your response."));
+            log.warn("[InteractionHandler] Error: {}", e.getMessage());
+            return ResponseEntity.ok("");
         }
     }
 
-    // ── Background Slot Selection ──
+    // ── Background: Slot Selection ──────────────────────────────
 
-    /**
-     * Processes slot selection on a background thread.
-     * action_id format: slot_select_{coordinationId}_{slotIndex}
-     * value format: {startEpochMs}_{endEpochMs}
-     */
-    private void processSlotSelection(String actionId, String value, String slackUserId, String teamId) {
+    private void handleSlotSelection(String actionId, String value, String slackUserId,
+            String teamId, String channel, String messageTs) {
         try {
-            // Parse coordination ID from action_id
+            // 1. Parse coordination ID from action_id: slot_select_{coordId}_{index}
             String withoutPrefix = actionId.substring("slot_select_".length());
             int lastUnderscore = withoutPrefix.lastIndexOf('_');
             String coordIdStr = withoutPrefix.substring(0, lastUnderscore);
 
-            // Parse slot from value: startMs_endMs
+            // 2. Parse slot from value: startMs_endMs
             String[] parts = value.split("_");
             Instant start = Instant.ofEpochMilli(Long.parseLong(parts[0]));
             Instant end = Instant.ofEpochMilli(Long.parseLong(parts[1]));
             TimeSlot selectedSlot = new TimeSlot(start, end);
-
             CoordinationId coordId = new CoordinationId(UUID.fromString(coordIdStr));
 
-            log.info("[InteractionHandler] Slot selected: coordination={} slot={}-{}", coordId, start, end);
+            // 3. Format slot details
+            ZonedDateTime startZdt = start.atZone(IST);
+            ZonedDateTime endZdt = end.atZone(IST);
+            ZonedDateTime now = ZonedDateTime.now(IST);
 
+            // ── R1: Delete requester's "Sent available slots" message ──
+            String requesterSlackId = coordinationProtocol.getMetadata(coordId, "requester_slack_id");
+            String requesterNotifTs = coordinationProtocol.getMetadata(coordId, "requester_notification_ts");
+            if (requesterSlackId != null && requesterNotifTs != null) {
+                slackAdapter.deleteMessage(requesterSlackId, requesterNotifTs);
+            }
+
+            // 4. Delete old slot selection card and repost "Selected Time Slot" with waiting
+            String statusText = "🕐 *Selected Time Slot*\n\n"
+                    + "📅 " + startZdt.format(DATE_FMT) + "\n"
+                    + "🕐 " + startZdt.format(TIME_FMT) + " – " + endZdt.format(TIME_FMT) + "\n\n"
+                    + "_Selected at " + now.format(TIMESTAMP_FMT) + "_\n"
+                    + "⏳ Waiting for approval...";
+
+            String newTs = deleteAndRepost(channel, messageTs, channel, statusText, "#3AA3E3");
+            if (newTs != null) {
+                coordinationProtocol.updateMetadata(coordId, "selected_slot_ts", newTs);
+            }
+            // Store slot info for clean reconstruction during approval (I2)
+            String slotInfo = parts[0] + "_" + parts[1] + "_" + now.format(TIMESTAMP_FMT);
+            coordinationProtocol.updateMetadata(coordId, "selected_slot_info", slotInfo);
+
+            // 5. Process the slot selection (domain logic — triggers approval flow)
             coordinationProtocol.selectSlot(coordId, selectedSlot);
-
             log.info("[InteractionHandler] Slot selection processed for coordination={}", coordId);
 
         } catch (Exception e) {
-            log.warn("[InteractionHandler] Failed to process slot selection: {}", e.getMessage());
+            log.warn("[InteractionHandler] Slot selection failed: {}", e.getMessage());
         }
     }
 
-    // ── Background Approval Decision ──
+    // ── Background: Approval Decision ───────────────────────────
 
-    /**
-     * Processes approval decision on a background thread.
-     */
-    private void processDecision(String slackUserId, String teamId, String actionId, String approvalIdStr) {
+    private void handleApproval(String slackUserId, String teamId, String actionValue,
+            boolean approved, String channel, String messageTs, JsonNode payload) {
         try {
+            // Parse approvalId from value: {approvalId}[:{coordinationId}]
+            String approvalIdStr = actionValue;
+            if (actionValue.contains(":")) {
+                approvalIdStr = actionValue.split(":")[0];
+            }
+
+            // 2. Streamlined Flow: Immediate deletion of interactive card, skip status reposts
+            slackAdapter.deleteMessage(slackUserId, messageTs);
+            log.info("[InteractionHandler] Decision processed (approved={}). Deleting card and skipping intermediate status updates.", approved);
+
+            // Skip "final_status_ts" metadata as we no longer repost mid-status cards
+            // Skip "I2" repost logic as we want to go directly to "Meeting Confirmed"
+            // The CoordinationCompletedListener will handle final notifications and cleanup.
+
+            // 3. Process the approval (domain logic)
             Optional<User> userOpt = userPersistencePort.findBySlackUserId(
                     new SlackUserId(slackUserId), new WorkspaceId(teamId));
 
@@ -206,32 +253,186 @@ public class SlackInteractionHandler {
 
             com.coagent4u.shared.UserId userId = userOpt.get().getUserId();
             ApprovalId approvalId = new ApprovalId(UUID.fromString(approvalIdStr));
-
-            ApprovalStatus decision = "approve_action".equals(actionId)
-                    ? ApprovalStatus.APPROVED
-                    : ApprovalStatus.REJECTED;
+            ApprovalStatus decision = approved ? ApprovalStatus.APPROVED : ApprovalStatus.REJECTED;
 
             decideApprovalUseCase.decide(approvalId, userId, decision);
             log.info("[InteractionHandler] Approval {} {} by user={}", approvalIdStr, decision, slackUserId);
 
         } catch (Exception e) {
-            log.warn("[InteractionHandler] Failed to process approval decision: {}", e.getMessage());
+            log.warn("[InteractionHandler] Approval processing failed: {}", e.getMessage());
+        }
+    }
+
+    // ── Delete and Repost ───────────────────────────────────────
+
+    /**
+     * @return the timestamp of the newly posted/updated message
+     */
+    private String deleteAndRepost(String channel, String messageTs,
+            String repostChannel, String statusText, String color) {
+        try {
+            String newPayload = buildStatusCard(repostChannel, statusText, color);
+            boolean deleted = slackAdapter.deleteMessage(channel, messageTs);
+
+            if (deleted) {
+                return slackAdapter.postToSlack(newPayload, repostChannel);
+            } else {
+                log.info("[InteractionHandler] Fallback to chat.update for channel={} ts={}", channel, messageTs);
+                String updatePayload = buildFallbackUpdatePayload(channel, messageTs, statusText, color);
+                return slackAdapter.updateMessage(channel, messageTs, updatePayload);
+            }
+        } catch (Exception e) {
+            log.warn("[InteractionHandler] Delete-and-repost failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    // ── Payload Builders ────────────────────────────────────────
+
+    private String buildStatusCard(String channel, String statusText, String color) {
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("channel", channel);
+
+            ArrayNode attachments = objectMapper.createArrayNode();
+            ObjectNode attachment = objectMapper.createObjectNode();
+            attachment.put("color", color);
+
+            ArrayNode blocks = objectMapper.createArrayNode();
+
+            ObjectNode section = objectMapper.createObjectNode();
+            section.put("type", "section");
+            ObjectNode textObj = objectMapper.createObjectNode();
+            textObj.put("type", "mrkdwn");
+            textObj.put("text", statusText);
+            section.set("text", textObj);
+            blocks.add(section);
+
+            attachment.set("blocks", blocks);
+            attachments.add(attachment);
+            root.set("attachments", attachments);
+
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception e) {
+            log.warn("[InteractionHandler] Error building status card: {}", e.getMessage());
+            return "{\"channel\":\"" + channel + "\", \"text\":\"" + statusText + "\"}";
+        }
+    }
+
+    private String buildFallbackUpdatePayload(String channel, String ts,
+            String statusText, String color) {
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("channel", channel);
+            root.put("ts", ts);
+
+            ArrayNode attachments = objectMapper.createArrayNode();
+            ObjectNode attachment = objectMapper.createObjectNode();
+            attachment.put("color", color);
+
+            ArrayNode blocks = objectMapper.createArrayNode();
+
+            ObjectNode section = objectMapper.createObjectNode();
+            section.put("type", "section");
+            ObjectNode textObj = objectMapper.createObjectNode();
+            textObj.put("type", "mrkdwn");
+            textObj.put("text", statusText);
+            section.set("text", textObj);
+            blocks.add(section);
+
+            attachment.set("blocks", blocks);
+            attachments.add(attachment);
+            root.set("attachments", attachments);
+
+            return objectMapper.writeValueAsString(root);
+        } catch (Exception e) {
+            return "{\"channel\":\"" + channel + "\", \"ts\":\"" + ts + "\", \"text\":\"" + statusText + "\"}";
         }
     }
 
     /**
-     * Builds a JSON response that replaces the original message with a status
-     * update.
+     * Extracts meeting details (date, time, participant) from the interaction
+     * payload's original message blocks.
      */
-    private String buildResponseMessage(String text) {
+    private void handleEarlyRejection(String actionId, String slackUserId, String teamId, String channel, String messageTs) {
         try {
-            var root = objectMapper.createObjectNode();
-            root.put("response_type", "in_channel");
-            root.put("replace_original", true);
-            root.put("text", text);
-            return objectMapper.writeValueAsString(root);
+            // Action ID = reject_coords_{UUID}
+            String uuidStr = actionId.substring("reject_coords_".length());
+            CoordinationId coordId = new CoordinationId(UUID.fromString(uuidStr));
+
+            // Resolve Invitee Agent from Metadata
+            String inviteeAgentIdStr = coordinationProtocol.getMetadata(coordId, "invitee_agent_id");
+            if (inviteeAgentIdStr == null) {
+                log.warn("[InteractionHandler] No invitee_agent_id in metadata for {}", coordId);
+                return;
+            }
+            AgentId inviteeAgentId = new AgentId(UUID.fromString(inviteeAgentIdStr));
+
+            log.info("[InteractionHandler] Processing early rejection for coordination={} by invitee={}", coordId, inviteeAgentId);
+
+            // Trigger rejection in domain
+            coordinationProtocol.handleApproval(coordId, inviteeAgentId, false);
+
         } catch (Exception e) {
-            return "{\"text\":\"" + text + "\"}";
+            log.warn("[InteractionHandler] Early rejection failed: {}", e.getMessage());
         }
+    }
+
+    private String extractMeetingDetails(JsonNode payload) {
+        try {
+            JsonNode attachments = payload.path("message").path("attachments");
+            if (!attachments.isArray() || attachments.isEmpty()) {
+                return "";
+            }
+
+            JsonNode blocks = attachments.get(0).path("blocks");
+            if (!blocks.isArray()) {
+                return "";
+            }
+
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < blocks.size(); i++) {
+                JsonNode block = blocks.get(i);
+                if ("section".equals(block.path("type").asText())) {
+                    String cleanText = block.path("text").path("text").asText("");
+                    // Strip "Waiting for approval" line
+                    cleanText = cleanText.replaceAll("(?i)⏳\\s*Waiting for approval\\s*\\.*", "");
+                    // Strip "Approve or reject this meeting time." line (R2)
+                    cleanText = cleanText.replaceAll("(?i)Approve or reject this meeting time\\.?", "");
+                    cleanText = cleanText.trim();
+                    if (!cleanText.isEmpty()) {
+                        sb.append(cleanText).append("\n\n");
+                    }
+                }
+            }
+            return sb.toString().trim();
+        } catch (Exception e) {
+            log.debug("[InteractionHandler] Could not extract meeting details: {}", e.getMessage());
+        }
+        return "";
+    }
+
+    private CoordinationId resolveCoordinationId(JsonNode payload) {
+        try {
+            JsonNode actions = payload.path("actions");
+            if (actions.isArray() && !actions.isEmpty()) {
+                String actionId = actions.get(0).path("action_id").asText("");
+                if (actionId.startsWith("slot_select_")) {
+                    String withoutPrefix = actionId.substring("slot_select_".length());
+                    int lastUnderscore = withoutPrefix.lastIndexOf('_');
+                    return new CoordinationId(UUID.fromString(withoutPrefix.substring(0, lastUnderscore)));
+                }
+            }
+            
+            // Try parsing from button value if action_id didn't help
+            if (actions.isArray() && !actions.isEmpty()) {
+                String value = actions.get(0).path("value").asText("");
+                if (value.contains(":")) {
+                    String coordIdPart = value.substring(value.indexOf(":") + 1);
+                    return new CoordinationId(UUID.fromString(coordIdPart));
+                }
+            }
+        } catch (Exception ignored) { }
+        return null;
     }
 }

@@ -302,10 +302,10 @@ public class GoogleCalendarAdapter implements CalendarPort, OAuthTokenExchangePo
     // ── Internal helpers ──────────────────────────────────────
 
     /**
-     * /**
      * Resolves the decrypted access token for the agent's user.
-     * Returns empty if the user has no active Google Calendar connection (graceful
-     * fallback for local testing).
+     * If the token is expired or within 5 minutes of expiry, automatically
+     * refreshes it using the stored refresh token.
+     * Returns empty if the user has no active Google Calendar connection.
      */
     private Optional<String> resolveAccessTokenOptional(AgentId agentId) {
         var agent = agentPersistencePort.findById(agentId)
@@ -313,11 +313,107 @@ public class GoogleCalendarAdapter implements CalendarPort, OAuthTokenExchangePo
         UserId userId = agent.getUserId();
         User user = userPersistencePort.findById(userId)
                 .orElseThrow(() -> new IllegalStateException("User not found for agent: " + agentId));
-        Optional<ServiceConnection> connection = user.activeConnectionFor("GOOGLE_CALENDAR");
-        if (connection.isEmpty()) {
+        Optional<ServiceConnection> connectionOpt = user.activeConnectionFor("GOOGLE_CALENDAR");
+        if (connectionOpt.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(encryptionService.decrypt(connection.get().getEncryptedToken()));
+
+        ServiceConnection connection = connectionOpt.get();
+
+        // Check if token is expired or about to expire (5-minute buffer)
+        Instant now = Instant.now();
+        Instant expiresAt = connection.getTokenExpiresAt();
+        boolean needsRefresh = (expiresAt != null && now.plusSeconds(300).isAfter(expiresAt));
+
+        if (needsRefresh) {
+            log.info("Access token expired or near-expiry for agentId={}, refreshing...", agentId);
+            String freshToken = refreshAccessToken(connection, user);
+            return Optional.of(freshToken);
+        }
+
+        return Optional.of(encryptionService.decrypt(connection.getEncryptedToken()));
+    }
+
+    /**
+     * Uses the stored refresh token to obtain a new access token from Google.
+     * Updates the ServiceConnection and persists the user.
+     *
+     * @return the decrypted new access token
+     */
+    private String refreshAccessToken(ServiceConnection connection, User user) {
+        String decryptedRefreshToken = encryptionService.decrypt(connection.getEncryptedRefreshToken());
+
+        // Guard: if we never received a real refresh token
+        if ("no_refresh_token".equals(decryptedRefreshToken)) {
+            log.warn("No refresh token available for user={}, marking connection expired", user.getUserId());
+            connection.markExpired();
+            userPersistencePort.save(user);
+            throw new TokenExpiredException("GoogleCalendar",
+                    "No refresh token — user must re-authorize Google Calendar");
+        }
+
+        try {
+            MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+            formData.add("client_id", properties.getGoogle().getClientId());
+            formData.add("client_secret", properties.getGoogle().getClientSecret());
+            formData.add("refresh_token", decryptedRefreshToken);
+            formData.add("grant_type", "refresh_token");
+
+            String response = tokenClient.post()
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                    .body(BodyInserters.fromFormData(formData))
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
+
+            JsonNode json = objectMapper.readTree(response);
+
+            String newAccessToken = json.path("access_token").asText();
+            int expiresInSeconds = json.path("expires_in").asInt(3600);
+            // Google may return a new refresh token (rare, but handle it)
+            String newRefreshToken = json.path("refresh_token").asText(null);
+
+            if (newAccessToken == null || newAccessToken.isBlank()) {
+                throw new ExternalServiceUnavailableException("GoogleOAuth",
+                        "Token refresh returned empty access_token");
+            }
+
+            // Encrypt and update the connection
+            String encryptedAccess = encryptionService.encrypt(newAccessToken);
+            String encryptedRefresh = (newRefreshToken != null && !newRefreshToken.isBlank())
+                    ? encryptionService.encrypt(newRefreshToken)
+                    : connection.getEncryptedRefreshToken(); // keep existing refresh token
+            Instant newExpiresAt = Instant.now().plusSeconds(expiresInSeconds);
+
+            // Update domain object and persist
+            connection.refreshToken(encryptedAccess, encryptedRefresh, newExpiresAt);
+            userPersistencePort.save(user);
+
+            log.info("Access token refreshed for userId={}, new expiry in {}s",
+                    user.getUserId(), expiresInSeconds);
+            return newAccessToken;
+
+        } catch (WebClientResponseException e) {
+            int status = e.getStatusCode().value();
+            log.warn("Token refresh failed: HTTP {} — {}", status, e.getResponseBodyAsString());
+
+            // 400/401 from Google means the refresh token is revoked
+            if (status == 400 || status == 401) {
+                connection.markExpired();
+                userPersistencePort.save(user);
+                throw new TokenExpiredException("GoogleCalendar",
+                        "Refresh token revoked — user must re-authorize Google Calendar", e);
+            }
+
+            throw new ExternalServiceUnavailableException("GoogleCalendar",
+                    "Token refresh failed: HTTP " + status, e);
+        } catch (TokenExpiredException | ExternalServiceUnavailableException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Token refresh failed unexpectedly: {}", e.getMessage());
+            throw new ExternalServiceUnavailableException("GoogleCalendar",
+                    "Token refresh failed: " + e.getMessage(), e);
+        }
     }
 
     /**

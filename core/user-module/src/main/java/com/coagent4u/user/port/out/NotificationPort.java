@@ -14,8 +14,9 @@ public interface NotificationPort {
          * @param slackUserId recipient's Slack user ID
          * @param workspaceId the Slack workspace
          * @param message     the message text to send
+         * @return the Slack message timestamp (ts)
          */
-        void sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String message);
+        String sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String message);
 
         /**
          * Sends an interactive approval request with [Approve] and [Reject] buttons.
@@ -24,9 +25,10 @@ public interface NotificationPort {
          * @param workspaceId  the Slack workspace
          * @param proposalText human-readable proposal details
          * @param approvalId   the approval ID to embed in button actions
+         * @return the Slack message timestamp (ts)
          */
-        void sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
-                        String proposalText, String approvalId);
+        String sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
+                        String proposalText, String approvalId, String coordinationId);
 
         /**
          * Sends a slot selection card with multiple time-slot buttons.
@@ -37,8 +39,18 @@ public interface NotificationPort {
          * @param slots            available time slots to choose from
          * @param requesterMention the requester's display mention (e.g.
          *                         {@code <@U12345>})
+         * @return the Slack message timestamp (ts)
          */
-        void sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
+        String sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
                         String coordinationId, java.util.List<com.coagent4u.shared.TimeSlot> slots,
                         String requesterMention);
+
+        /**
+         * Deletes an existing message.
+         *
+         * @param slackUserId the user ID (channel)
+         * @param ts          the message timestamp
+         * @return true if deleted
+         */
+        boolean deleteMessage(SlackUserId slackUserId, String ts);
 }
