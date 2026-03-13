@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, JetBrains_Mono } from 'next/font/google'
+import { Poppins, JetBrains_Mono, Playfair_Display } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const inter = Inter({ 
+const poppins = Poppins({ 
   subsets: ["latin"],
+  weight: ['300', '400', '500', '600', '700'],
   variable: '--font-sans',
   display: 'swap',
 })
@@ -15,9 +16,17 @@ const jetbrainsMono = JetBrains_Mono({
   display: 'swap',
 })
 
+// The Seasons-style elegant serif font for brand name
+const playfairDisplay = Playfair_Display({ 
+  subsets: ["latin"],
+  weight: ['400', '500', '600'],
+  variable: '--font-serif',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
   title: 'CoAgent4U | Your Personal Agent That Coordinates Your Time',
-  description: 'A deterministic platform where personal agents manage schedules, coordinate meetings, and eliminate calendar friction. Human-in-the-loop control.',
+  description: 'A coordination platform where personal agents represent users and collaborate to manage commitments, schedules, and shared time. Human-in-the-loop control.',
   keywords: ['personal agent', 'coordination', 'scheduling', 'calendar', 'AI assistant', 'productivity'],
   icons: {
     icon: [
@@ -51,7 +60,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" data-scroll-behavior="smooth">
-      <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased bg-background text-foreground`}>
+      <body className={`${poppins.variable} ${jetbrainsMono.variable} ${playfairDisplay.variable} font-sans antialiased bg-background text-foreground`}>
         {children}
         <Analytics />
       </body>
