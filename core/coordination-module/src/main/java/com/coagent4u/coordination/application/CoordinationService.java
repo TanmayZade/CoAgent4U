@@ -176,14 +176,14 @@ public class CoordinationService implements CoordinationProtocolPort {
                 IST.getId());
         coordination.setProposal(proposal);
 
-        // Step 7: Request approval from requester (User A)
-        coordination.transition(CoordinationState.AWAITING_APPROVAL_A, "Awaiting requester approval");
+        // Step 7: Request approval from invitee (User B)
+        coordination.transition(CoordinationState.AWAITING_APPROVAL_B, "Awaiting invitee approval");
         persistence.save(coordination);
-        log.info("[CoordinationService] {} → AWAITING_APPROVAL_A", coordinationId);
+        log.info("[CoordinationService] {} → AWAITING_APPROVAL_B", coordinationId);
 
-        var approvalId = agentApprovalPort.requestApproval(coordination.getRequesterAgentId(), proposal);
-        log.info("[ApprovalService] Approval created id={} for requester agent {}", approvalId,
-                coordination.getRequesterAgentId());
+        var approvalId = agentApprovalPort.requestApproval(coordination.getInviteeAgentId(), proposal);
+        log.info("[ApprovalService] Approval created id={} for invitee agent {}", approvalId,
+                coordination.getInviteeAgentId());
 
         persistence.save(coordination);
         publishStateChange(coordination);

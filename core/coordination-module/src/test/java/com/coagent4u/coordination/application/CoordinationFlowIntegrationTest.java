@@ -110,8 +110,6 @@ class CoordinationFlowIntegrationTest {
         void initiate_producesSlots() {
             when(availabilityPort.getAvailability(eq(requester), any())).thenReturn(fullDayFreeA);
             when(availabilityPort.getAvailability(eq(invitee), any())).thenReturn(fullDayFreeB);
-            when(approvalPort.requestApproval(any(), any()))
-                    .thenReturn(new ApprovalId(UUID.randomUUID()));
 
             CoordinationId coordId = service.initiate(requester, invitee, lookAhead, 60, "Meeting", "Asia/Kolkata");
             assertNotNull(coordId);
