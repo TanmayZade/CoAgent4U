@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { Bot, Calendar, CheckCircle2, Clock, AlertTriangle, Users, ArrowRight, ChevronRight } from "lucide-react"
+import { motion } from "framer-motion"
+import { useScrollAnimation, fadeSlideUpVariants, staggerContainerVariants, itemVariants } from "@/hooks/use-framer-animations"
 
 const useCases = [
   {
@@ -172,6 +174,7 @@ const coordinateSteps = [
 export function UseCaseExamples() {
   const [activeCase, setActiveCase] = useState("view")
   const [currentStep, setCurrentStep] = useState(1)
+  const { ref: sectionRef, isInView } = useScrollAnimation()
 
   const currentCase = useCases.find((uc) => uc.id === activeCase)
   
@@ -203,11 +206,16 @@ export function UseCaseExamples() {
   }
 
   return (
-    <section id="use-cases" className="py-24 lg:py-32">
+    <section ref={sectionRef} id="use-cases" className="py-24 lg:py-32">
       <div className="mx-auto max-w-6xl px-6">
         {/* Section header */}
-        <div className="max-w-2xl mx-auto text-center mb-16">
-          <p className="text-sm font-medium text-primary mb-3">
+        <motion.div 
+          className="max-w-2xl mx-auto text-center mb-16"
+          variants={fadeSlideUpVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
+          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Real Use Case Examples
           </p>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
@@ -216,32 +224,44 @@ export function UseCaseExamples() {
           <p className="text-muted-foreground text-lg">
             Simple commands, powerful coordination. Walk through complete flows to see how agents work.
           </p>
-        </div>
+        </motion.div>
 
         {/* Use case selector */}
-        <div className="flex flex-wrap justify-center gap-2 mb-10">
+        <motion.div 
+          className="flex flex-wrap justify-center gap-2 mb-10"
+          variants={itemVariants}
+          initial="hidden"
+          animate={isInView ? "visible" : "hidden"}
+        >
           {useCases.map((uc) => (
             <button
               key={uc.id}
               onClick={() => handleCaseChange(uc.id)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              className={`px-5 py-2.5 rounded-full text-sm font-medium transition-all duration-300 transform hover:scale-105 ${
                 activeCase === uc.id
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
+                  ? "bg-foreground text-background shadow-lg"
+                  : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
               }`}
             >
               {uc.label}
             </button>
           ))}
-        </div>
+        </motion.div>
 
         {/* Use case display */}
         <div className="max-w-3xl mx-auto">
-          <div className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-lg shadow-black/[0.02]">
+          <motion.div 
+            className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-lg shadow-black/[0.02]"
+            variants={itemVariants}
+            initial="hidden"
+            animate={isInView ? "visible" : "hidden"}
+            transition={{ delay: 0.2 }}
+            whileHover={{ boxShadow: "0 20px 40px rgba(0, 0, 0, 0.1)" }}
+          >
             {/* Header */}
             <div className="px-5 py-3 bg-muted/30 border-b border-border/40 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bot className="w-4 h-4 text-primary" />
+                <Bot className="w-4 h-4 text-foreground" />
                 <span className="text-sm font-medium text-foreground">CoAgent4U</span>
               </div>
               {currentCase?.type === "flow" && (
@@ -252,9 +272,15 @@ export function UseCaseExamples() {
             </div>
 
             {/* Content */}
-            <div className="p-6 space-y-5">
+            <motion.div 
+              className="p-6 space-y-5"
+              key={`${activeCase}-${currentStep}`}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+            >
               {/* Command */}
-              <div className="rounded-xl bg-muted/50 p-4">
+              <div className="rounded-xl bg-muted/50 p-4 transition-all duration-300 hover:bg-muted/70">
                 <p className="text-xs text-muted-foreground mb-1.5">Your command:</p>
                 <p className="font-mono text-sm text-foreground">{currentCase?.command}</p>
               </div>
@@ -263,7 +289,7 @@ export function UseCaseExamples() {
               {activeCase === "view" && (
                 <>
                   <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
-                    <p className="text-xs text-primary mb-1.5">Agent response:</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-1.5">Agent response:</p>
                     <p className="text-sm text-foreground">{viewScheduleData.response}</p>
                   </div>
                   <div className="rounded-xl border border-border/60 p-4">
@@ -318,7 +344,7 @@ export function UseCaseExamples() {
 
                   {/* Agent Response */}
                   <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
-                    <p className="text-xs text-primary mb-1.5">Agent response:</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-1.5">Agent response:</p>
                     <p className="text-sm text-foreground">{currentStepData.agentResponse}</p>
                   </div>
 
@@ -454,7 +480,7 @@ export function UseCaseExamples() {
 
                   {/* Agent Response */}
                   <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
-                    <p className="text-xs text-primary mb-1.5">Agent response:</p>
+                    <p className="text-xs text-muted-foreground font-medium mb-1.5">Agent response:</p>
                     <p className="text-sm text-foreground">{currentStepData.agentResponse}</p>
                   </div>
 
@@ -464,7 +490,7 @@ export function UseCaseExamples() {
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                            <Bot className="w-5 h-5 text-primary" />
+                            <Bot className="w-5 h-5 text-foreground" />
                           </div>
                           <span className="text-xs text-muted-foreground">Your Agent</span>
                         </div>
@@ -489,7 +515,7 @@ export function UseCaseExamples() {
                         <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                              <span className="text-xs font-medium text-primary">Y</span>
+                              <span className="text-xs font-medium text-foreground">Y</span>
                             </div>
                             <span className="text-sm font-medium text-foreground">{currentStepData.content.userA?.name}</span>
                           </div>
@@ -663,8 +689,8 @@ export function UseCaseExamples() {
                   </div>
                 </>
               )}
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         </div>
       </div>
     </section>

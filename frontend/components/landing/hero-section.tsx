@@ -1,132 +1,184 @@
+"use client"
+
+import { useEffect, useRef } from "react"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { ArrowRight, Play, Calendar, Bot, CheckCircle2 } from "lucide-react"
+import Image from "next/image"
+import { ArrowRight } from "lucide-react"
+import gsap from "gsap"
+import { GridScan } from "@/components/ui/grid-scan"
+
+const HEADLINE =
+  "Your Personal Agent That Assists You and Collaborates with Other User's Agent"
 
 export function HeroSection() {
-  return (
-    <section className="relative pt-28 pb-20 lg:pt-36 lg:pb-28 overflow-hidden">
-      {/* Subtle background gradient */}
-      <div className="absolute inset-0 -z-10">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-gradient-to-b from-primary/[0.03] to-transparent rounded-full blur-3xl" />
-      </div>
+  const containerRef = useRef<HTMLDivElement>(null)
+  const cursorRef = useRef<HTMLSpanElement>(null)
+  const headlineRef = useRef<HTMLHeadingElement>(null)
+  const logoRef = useRef<HTMLDivElement>(null)
+  const subheadlineRef = useRef<HTMLParagraphElement>(null)
+  const cta1Ref = useRef<HTMLAnchorElement>(null)
+  const cta2Ref = useRef<HTMLAnchorElement>(null)
 
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="mx-auto max-w-3xl text-center">
-          {/* Headline */}
-          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground leading-[1.1] text-balance">
-            Your Personal Agent That Coordinates Your Time
+  useEffect(() => {
+    // Dynamically import TextPlugin to avoid SSR issues
+    const run = async () => {
+      const { TextPlugin } = await import("gsap/TextPlugin")
+      gsap.registerPlugin(TextPlugin)
+
+      // Always play the animation — remove any stale flag
+      localStorage.removeItem("introSeen")
+
+      const h1 = headlineRef.current
+      const cursor = cursorRef.current
+      if (!h1 || !cursor) return
+
+      // Make h1 visible but empty; cursor sits inline after text
+      gsap.set(h1, { opacity: 1 })
+      gsap.set(cursor, { opacity: 1 })
+
+      const CHAR_SPEED = 0.10 // seconds per character
+      const DURATION = HEADLINE.length * CHAR_SPEED
+
+      const tl = gsap.timeline()
+
+      // Blinking cursor during typing
+      const blinkTween = gsap.fromTo(
+        cursor,
+        { opacity: 1 },
+        { opacity: 0, duration: 0.7, repeat: -1, yoyo: true, ease: "none" }
+      )
+
+      // Type text into the h1 span (cursor is a sibling <span> — it auto-follows inline flow)
+      tl.to(h1, {
+        duration: DURATION,
+        text: { value: HEADLINE, delimiter: "" },
+        ease: "none",
+      }, 0)
+
+      // After typing: stop blink, hide cursor
+      tl.add(() => {
+        blinkTween.kill()
+        gsap.to(cursor, { opacity: 0, duration: 0.3 })
+      }, DURATION + 0.1)
+
+      // Logo pop-in
+      tl.fromTo(
+        logoRef.current,
+        { opacity: 0, scale: 0.85, y: 10 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.5, ease: "back.out(1.7)" },
+        DURATION + 0.3
+      )
+
+      // Subheadline slide-up
+      tl.fromTo(
+        subheadlineRef.current,
+        { opacity: 0, y: 18 },
+        { opacity: 1, y: 0, duration: 0.55, ease: "power2.out" },
+        DURATION + 0.55
+      )
+
+      // CTA buttons with stagger
+      tl.fromTo(
+        [cta1Ref.current, cta2Ref.current].filter(Boolean),
+        { opacity: 0, scale: 0.9, y: 8 },
+        { opacity: 1, scale: 1, y: 0, duration: 0.55, ease: "back.out(1.7)", stagger: 0.12 },
+        DURATION + 0.75
+      )
+
+      return () => {
+        tl.kill()
+        blinkTween.kill()
+      }
+    }
+
+    const cleanup = run()
+    return () => {
+      cleanup.then((fn) => fn?.())
+    }
+  }, [])
+
+  return (
+    <section data-section="hero" className="relative min-h-screen flex flex-col justify-start overflow-hidden pt-32 pb-16">
+      {/* GridScan background */}
+      <GridScan
+        lineThickness={1}
+        linesColor="#392e4e"
+        scanColor="#ffffff"
+        scanOpacity={0.4}
+        gridScale={0.1}
+        lineStyle="solid"
+        scanDirection="pingpong"
+        scanGlow={0.5}
+        scanSoftness={2}
+        scanDuration={2}
+        scanDelay={2}
+        scanOnClick={false}
+        className="absolute inset-0 w-full h-full -z-20"
+      />
+      <div className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_center,_transparent_0%,_var(--background)_70%)]" />
+
+      <div ref={containerRef} className="mx-auto max-w-7xl px-6 w-full">
+        <div className="mx-auto max-w-5xl text-center">
+
+          {/* Logo + Brand — hidden until animation reveals */}
+          <div
+            ref={logoRef}
+            className="flex items-center justify-center gap-5 mb-12"
+            style={{ opacity: 0 }}
+          >
+            <Image
+              src="/images/logo.png"
+              alt="CoAgent4U Logo"
+              width={72}
+              height={72}
+              className="drop-shadow-md"
+              style={{ width: "72px", height: "72px" }}
+            />
+            <span className="text-3xl font-serif font-medium text-foreground tracking-tight italic">
+              CoAgent4U
+            </span>
+          </div>
+
+          {/* Headline — inline cursor follows typed characters naturally */}
+          <h1
+            ref={headlineRef}
+            className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight text-foreground leading-[1.15] max-w-4xl mx-auto min-h-[4rem]"
+            style={{ opacity: 0, whiteSpace: "pre-wrap", wordWrap: "break-word", wordBreak: "break-word", overflowWrap: "break-word" }}
+          >
+            {/* cursor is an inline sibling so it sits right after last typed char */}
+            <span ref={cursorRef} aria-hidden="true" className="inline-block w-[3px] h-[0.85em] bg-foreground align-middle ml-0.5 translate-y-[-0.05em]" />
           </h1>
 
           {/* Subheadline */}
-          <p className="mt-6 text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto text-pretty">
-            A coordination platform where personal agents represent users and collaborate to manage commitments, schedules, and shared time.
+          <p
+            ref={subheadlineRef}
+            className="mt-8 text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
+            style={{ opacity: 0 }}
+          >
+            The Coordination Platform for Personal Agents
           </p>
 
           {/* CTAs */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button size="lg" className="h-12 px-6 text-base" asChild>
-              <Link href="/signin">
-                Get Started
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg" className="h-12 px-6 text-base" asChild>
-              <Link href="#use-cases">
-                <Play className="mr-2 h-4 w-4" />
-                View Demo
-              </Link>
-            </Button>
+            <Link
+              ref={cta1Ref}
+              href="/signin"
+              className="inline-flex items-center justify-center h-13 px-8 text-base font-medium rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              style={{ opacity: 0 }}
+            >
+              Get Started
+              <ArrowRight className="ml-2 h-5 w-5" />
+            </Link>
+            <Link
+              ref={cta2Ref}
+              href="#use-cases"
+              className="inline-flex items-center justify-center h-13 px-8 text-base font-medium rounded-full border-2 border-foreground/20 hover:border-foreground/40 hover:bg-muted/50 transition-all duration-300 hover:scale-105"
+              style={{ opacity: 0 }}
+            >
+              View Demo
+            </Link>
           </div>
-        </div>
 
-        {/* Hero Visual - Agent Interaction Preview */}
-        <div className="mt-20 lg:mt-24">
-          <div className="relative mx-auto max-w-4xl">
-            {/* Main card with agent interaction */}
-            <div className="rounded-2xl border border-border/60 bg-card shadow-xl shadow-black/[0.03] overflow-hidden">
-              {/* Header bar */}
-              <div className="flex items-center justify-between px-5 py-3 bg-muted/30 border-b border-border/40">
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-red-400/80" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-400/80" />
-                    <div className="w-3 h-3 rounded-full bg-green-400/80" />
-                  </div>
-                  <span className="text-sm text-muted-foreground">CoAgent4U</span>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                  Connected
-                </div>
-              </div>
-              
-              {/* Content */}
-              <div className="p-6 lg:p-8">
-                <div className="grid lg:grid-cols-2 gap-8">
-                  {/* Left: Chat/Command */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Bot className="w-4 h-4 text-primary" />
-                      Agent Interaction
-                    </div>
-                    
-                    {/* Command input */}
-                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4">
-                      <p className="text-sm text-muted-foreground mb-2">You said:</p>
-                      <p className="text-foreground font-medium">
-                        {"@CoAgent4U schedule meeting with @Sarah Friday evening"}
-                      </p>
-                    </div>
-                    
-                    {/* Agent response */}
-                    <div className="rounded-xl border border-primary/20 bg-primary/[0.02] p-4">
-                      <p className="text-sm text-primary mb-2">Agent Response:</p>
-                      <p className="text-foreground text-sm leading-relaxed">
-                        {"Coordinating with Sarah's agent. Common availability found: 6:00 PM - 7:00 PM. Awaiting Sarah's approval before confirming."}
-                      </p>
-                      <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-                        Agent-to-agent coordination in progress
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Right: Schedule Preview */}
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                      <Calendar className="w-4 h-4 text-primary" />
-                      Friday Schedule
-                    </div>
-                    
-                    <div className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-3">
-                      {[
-                        { time: "9:00 AM", event: "Team Standup", duration: "30m" },
-                        { time: "11:00 AM", event: "Project Review", duration: "1h" },
-                        { time: "6:00 PM", event: "Meeting with Sarah", duration: "1h", pending: true },
-                      ].map((item, i) => (
-                        <div 
-                          key={i} 
-                          className={`flex items-center justify-between py-2.5 px-3 rounded-lg ${
-                            item.pending 
-                              ? "bg-primary/5 border border-primary/20" 
-                              : "bg-background/50"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs font-mono text-muted-foreground w-16">{item.time}</span>
-                            <span className={`text-sm ${item.pending ? "text-primary font-medium" : "text-foreground"}`}>
-                              {item.event}
-                            </span>
-                          </div>
-                          <span className="text-xs text-muted-foreground">{item.duration}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>
