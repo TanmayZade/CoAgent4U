@@ -16,7 +16,6 @@ import com.coagent4u.common.exception.NotificationFailureException;
 import com.coagent4u.config.CoagentProperties;
 import com.coagent4u.shared.SlackUserId;
 import com.coagent4u.shared.WorkspaceId;
-import com.coagent4u.user.port.out.WorkspaceInstallationPersistencePort;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import reactor.core.publisher.Mono;
@@ -38,7 +37,7 @@ class SlackNotificationAdapterTest {
     @Mock
     private WebClient.ResponseSpec responseSpec;
     @Mock
-    private WorkspaceInstallationPersistencePort workspaceInstallationPort;
+    private com.coagent4u.user.port.out.WorkspaceInstallationPersistencePort workspaceInstallationPersistencePort;
 
     private SlackNotificationAdapter adapter;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -51,7 +50,7 @@ class SlackNotificationAdapterTest {
         CoagentProperties props = new CoagentProperties();
         props.getSlack().setBotToken("xoxb-test-token");
 
-        adapter = new SlackNotificationAdapter(webClientBuilder, props, objectMapper, workspaceInstallationPort);
+        adapter = new SlackNotificationAdapter(webClientBuilder, props, workspaceInstallationPersistencePort, objectMapper);
     }
 
     @Test

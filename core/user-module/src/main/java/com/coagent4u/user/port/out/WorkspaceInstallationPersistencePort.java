@@ -1,22 +1,14 @@
 package com.coagent4u.user.port.out;
 
+import com.coagent4u.user.domain.WorkspaceInstallation;
+import com.coagent4u.shared.WorkspaceId;
+
 import java.util.Optional;
 
-import com.coagent4u.shared.WorkspaceId;
-import com.coagent4u.user.domain.WorkspaceInstallation;
-
 /**
- * Outbound port — saves and retrieves Slack workspace bot tokens.
+ * Outbound port for persisting and retrieving Slack workspace installations.
  */
 public interface WorkspaceInstallationPersistencePort {
-
-    /**
-     * Finds a workspace installation by its ID.
-     */
+    void save(WorkspaceInstallation installation);
     Optional<WorkspaceInstallation> findByWorkspaceId(WorkspaceId workspaceId);
-
-    /**
-     * Saves a new or updated workspace installation.
-     */
-    WorkspaceInstallation save(WorkspaceInstallation installation);
 }

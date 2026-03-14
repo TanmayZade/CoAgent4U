@@ -194,12 +194,11 @@ class GoogleCalendarAdapterTest {
         when(agentPersistencePort.findById(agentId)).thenReturn(Optional.of(mockAgent));
 
         User mockUser = mock(User.class);
-        when(mockUser.activeConnectionFor("google_calendar")).thenReturn(Optional.empty());
+        when(mockUser.activeConnectionFor("GOOGLE_CALENDAR")).thenReturn(Optional.empty());
         when(userPersistencePort.findById(userId)).thenReturn(Optional.of(mockUser));
 
-        TimeRange range = new TimeRange(LocalDate.of(2024, 1, 15), LocalDate.of(2024, 1, 15));
-
-        assertThrows(TokenExpiredException.class, () -> adapter.getFreeBusy(agentId, range));
+        TimeSlot slot = new TimeSlot(Instant.parse("2024-01-15T10:00:00Z"), Instant.parse("2024-01-15T11:00:00Z"));
+        assertThrows(TokenExpiredException.class, () -> adapter.createEvent(agentId, slot, "Test"));
     }
 
     private void setupAgentAndUser() {
@@ -211,7 +210,7 @@ class GoogleCalendarAdapterTest {
         when(mockConnection.getEncryptedToken()).thenReturn("encrypted_token");
 
         User mockUser = mock(User.class);
-        when(mockUser.activeConnectionFor("google_calendar")).thenReturn(Optional.of(mockConnection));
+        when(mockUser.activeConnectionFor("GOOGLE_CALENDAR")).thenReturn(Optional.of(mockConnection));
         when(userPersistencePort.findById(userId)).thenReturn(Optional.of(mockUser));
 
         when(encryptionService.decrypt("encrypted_token")).thenReturn("ya29.test-access-token");

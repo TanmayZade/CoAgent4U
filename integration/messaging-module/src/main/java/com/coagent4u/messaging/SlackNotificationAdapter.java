@@ -21,8 +21,8 @@ import com.coagent4u.config.CoagentProperties;
 import com.coagent4u.shared.SlackUserId;
 import com.coagent4u.shared.TimeSlot;
 import com.coagent4u.shared.WorkspaceId;
-import com.coagent4u.user.domain.WorkspaceInstallation;
 import com.coagent4u.user.port.out.NotificationPort;
+import com.coagent4u.user.domain.WorkspaceInstallation;
 import com.coagent4u.user.port.out.WorkspaceInstallationPersistencePort;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,20 +43,20 @@ public class SlackNotificationAdapter implements NotificationPort {
 
     private final WebClient webClient;
     private final CoagentProperties properties;
+    private final WorkspaceInstallationPersistencePort workspaceInstallationPersistencePort;
     private final ObjectMapper objectMapper;
-    private final WorkspaceInstallationPersistencePort workspaceInstallationPort;
 
     public SlackNotificationAdapter(
             WebClient.Builder webClientBuilder,
             CoagentProperties properties,
-            ObjectMapper objectMapper,
-            WorkspaceInstallationPersistencePort workspaceInstallationPort) {
+            WorkspaceInstallationPersistencePort workspaceInstallationPersistencePort,
+            ObjectMapper objectMapper) {
         this.webClient = webClientBuilder
                 .baseUrl("https://slack.com/api")
                 .build();
         this.properties = properties;
+        this.workspaceInstallationPersistencePort = workspaceInstallationPersistencePort;
         this.objectMapper = objectMapper;
-        this.workspaceInstallationPort = workspaceInstallationPort;
     }
 
     // ── Public API ──────────────────────────────────────────────
@@ -90,11 +90,11 @@ public class SlackNotificationAdapter implements NotificationPort {
      * @return the message timestamp (ts) if successful
      */
     public String postToSlack(String payload, String userId, WorkspaceId workspaceId) {
+        String token = getBotToken(workspaceId);
         try {
-            String botToken = getBotToken(workspaceId);
             String response = webClient.post()
                     .uri("/chat.postMessage")
-                    .header("Authorization", "Bearer " + botToken)
+                    .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(payload)
                     .retrieve()
@@ -151,6 +151,7 @@ public class SlackNotificationAdapter implements NotificationPort {
      * @return true if deleted successfully, false otherwise
      */
     public boolean deleteMessage(String channel, WorkspaceId workspaceId, String ts) {
+        String token = getBotToken(workspaceId);
         try {
             ObjectNode body = objectMapper.createObjectNode();
             body.put("channel", channel);
@@ -158,7 +159,7 @@ public class SlackNotificationAdapter implements NotificationPort {
 
             String response = webClient.post()
                     .uri("/chat.delete")
-                    .header("Authorization", "Bearer " + properties.getSlack().getBotToken())
+                    .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(objectMapper.writeValueAsString(body))
                     .retrieve()
@@ -188,11 +189,11 @@ public class SlackNotificationAdapter implements NotificationPort {
      * @return the message timestamp (ts) if successful
      */
     public String updateMessage(String channel, WorkspaceId workspaceId, String ts, String payload) {
+        String token = getBotToken(workspaceId);
         try {
-            String botToken = getBotToken(workspaceId);
             String response = webClient.post()
                     .uri("/chat.update")
-                    .header("Authorization", "Bearer " + botToken)
+                    .header("Authorization", "Bearer " + token)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(payload)
                     .retrieve()
@@ -214,20 +215,20 @@ public class SlackNotificationAdapter implements NotificationPort {
         }
     }
 
-    // ── Block Kit Helpers ───────────────────────────────────────
-
-    /**
-     * Helper to get the correct bot token for a workspace. Check DB first, fallback to properties.
-     */
     private String getBotToken(WorkspaceId workspaceId) {
-        if (workspaceId == null || workspaceId.value() == null || workspaceId.value().isBlank()) {
+        if (workspaceId == null) {
+            log.warn("Null workspaceId provided for bot token lookup, falling back to global token");
             return properties.getSlack().getBotToken();
         }
-        
-        return workspaceInstallationPort.findByWorkspaceId(workspaceId)
+        return workspaceInstallationPersistencePort.findByWorkspaceId(workspaceId)
                 .map(WorkspaceInstallation::botToken)
-                .orElse(properties.getSlack().getBotToken());
+                .orElseGet(() -> {
+                    log.debug("No workspace installation found for {}, falling back to global bot token", workspaceId);
+                    return properties.getSlack().getBotToken();
+                });
     }
+
+    // ── Payload Builders ────────────────────────────────────────
 
     /**
      * Builds a plain text Block Kit message with colored sidebar.
@@ -373,7 +374,7 @@ public class SlackNotificationAdapter implements NotificationPort {
                 actionsBlock.set("elements", elements);
                 blocks.add(actionsBlock);
             }
-            
+
             // ── Footer: Reject Option ──
             blocks.add(dividerBlock());
             ObjectNode footerActions = objectMapper.createObjectNode();

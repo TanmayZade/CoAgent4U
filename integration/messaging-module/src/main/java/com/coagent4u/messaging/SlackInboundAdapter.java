@@ -24,7 +24,9 @@ import com.coagent4u.shared.SlackUserId;
 import com.coagent4u.shared.UserId;
 import com.coagent4u.shared.WorkspaceId;
 import com.coagent4u.user.domain.User;
+import com.coagent4u.user.domain.WorkspaceInstallation;
 import com.coagent4u.user.port.out.UserPersistencePort;
+import com.coagent4u.user.port.out.WorkspaceInstallationPersistencePort;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -51,6 +53,7 @@ public class SlackInboundAdapter {
     private final SlackSignatureVerifier signatureVerifier;
     private final UserPersistencePort userPersistencePort;
     private final AgentPersistencePort agentPersistencePort;
+    private final WorkspaceInstallationPersistencePort workspaceInstallationPersistencePort;
     private final HandleMessageUseCase handleMessageUseCase;
     private final ObjectMapper objectMapper;
     private final Executor taskExecutor;
@@ -62,12 +65,14 @@ public class SlackInboundAdapter {
             SlackSignatureVerifier signatureVerifier,
             UserPersistencePort userPersistencePort,
             AgentPersistencePort agentPersistencePort,
+            WorkspaceInstallationPersistencePort workspaceInstallationPersistencePort,
             HandleMessageUseCase handleMessageUseCase,
             ObjectMapper objectMapper,
             @Qualifier("taskExecutor") Executor taskExecutor) {
         this.signatureVerifier = signatureVerifier;
         this.userPersistencePort = userPersistencePort;
         this.agentPersistencePort = agentPersistencePort;
+        this.workspaceInstallationPersistencePort = workspaceInstallationPersistencePort;
         this.handleMessageUseCase = handleMessageUseCase;
         this.objectMapper = objectMapper;
         this.taskExecutor = taskExecutor;
@@ -114,6 +119,13 @@ public class SlackInboundAdapter {
                 JsonNode event = payload.path("event");
                 String eventType = event.path("type").asText();
                 String subtype = event.path("subtype").asText(null);
+
+                // Handle app_uninstalled event
+                if ("app_uninstalled".equals(eventType)) {
+                    String teamId = payload.path("team_id").asText();
+                    handleAppUninstalled(teamId);
+                    return ResponseEntity.ok("");
+                }
 
                 // Skip non-message events we don't care about
                 if (!"message".equals(eventType) && !"app_mention".equals(eventType)) {
@@ -210,6 +222,17 @@ public class SlackInboundAdapter {
             // Catch ALL exceptions — no stack traces in terminal
             log.warn("[SlackAdapter] Failed to process event_id={}: {}", eventId, e.getMessage());
         }
+    }
+
+    private void handleAppUninstalled(String teamId) {
+        log.info("[SlackAdapter] Handling app_uninstalled for teamId={}", teamId);
+        WorkspaceId workspaceId = new WorkspaceId(teamId);
+        workspaceInstallationPersistencePort.findByWorkspaceId(workspaceId)
+                .ifPresent(installation -> {
+                    WorkspaceInstallation updated = installation.withActive(false);
+                    workspaceInstallationPersistencePort.save(updated);
+                    log.info("[SlackAdapter] Workspace status set to INACTIVE for teamId={}", teamId);
+                });
     }
 
     /**

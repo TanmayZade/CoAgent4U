@@ -34,6 +34,7 @@ import com.coagent4u.user.port.out.SlackOAuthPort;
 import com.coagent4u.user.port.out.SlackOAuthPort.SlackOAuthResult;
 import com.coagent4u.user.port.out.UserPersistencePort;
 import com.coagent4u.user.domain.WorkspaceInstallation;
+import com.coagent4u.user.port.out.NotificationPort;
 import com.coagent4u.user.port.out.WorkspaceInstallationPersistencePort;
 
 import jakarta.servlet.http.Cookie;
@@ -60,32 +61,35 @@ public class AuthController {
     private final CoagentProperties properties;
     private final SlackOAuthPort slackOAuthPort;
     private final UserPersistencePort userPersistencePort;
+    private final WorkspaceInstallationPersistencePort workspaceInstallationPersistencePort;
     private final RegisterUserUseCase registerUserUseCase;
     private final AgentPersistencePort agentPersistencePort;
+    private final NotificationPort notificationPort;
     private final JwtIssuer jwtIssuer;
     private final JwtValidator jwtValidator;
     private final JwtTokenBlacklist tokenBlacklist;
-    private final WorkspaceInstallationPersistencePort workspaceInstallationPort;
 
     public AuthController(
             CoagentProperties properties,
             SlackOAuthPort slackOAuthPort,
             UserPersistencePort userPersistencePort,
+            WorkspaceInstallationPersistencePort workspaceInstallationPersistencePort,
             RegisterUserUseCase registerUserUseCase,
             AgentPersistencePort agentPersistencePort,
+            NotificationPort notificationPort,
             JwtIssuer jwtIssuer,
             JwtValidator jwtValidator,
-            JwtTokenBlacklist tokenBlacklist,
-            WorkspaceInstallationPersistencePort workspaceInstallationPort) {
+            JwtTokenBlacklist tokenBlacklist) {
         this.properties = properties;
         this.slackOAuthPort = slackOAuthPort;
         this.userPersistencePort = userPersistencePort;
+        this.workspaceInstallationPersistencePort = workspaceInstallationPersistencePort;
         this.registerUserUseCase = registerUserUseCase;
         this.agentPersistencePort = agentPersistencePort;
+        this.notificationPort = notificationPort;
         this.jwtIssuer = jwtIssuer;
         this.jwtValidator = jwtValidator;
         this.tokenBlacklist = tokenBlacklist;
-        this.workspaceInstallationPort = workspaceInstallationPort;
     }
 
     /**
@@ -101,6 +105,23 @@ public class AuthController {
                 + "&response_type=code"
                 + "&scope=openid+profile+email"
                 + "&nonce=" + UUID.randomUUID();
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, authUrl)
+                .build();
+    }
+
+    /**
+     * GET /auth/slack/install/start — Redirects to Slack App installation screen.
+     * Requests bot scopes for messaging and interaction.
+     */
+    @GetMapping("/slack/install/start")
+    public ResponseEntity<Void> slackInstallStart() {
+        String authUrl = "https://slack.com/oauth/v2/authorize"
+                + "?client_id=" + properties.getSlack().getClientId()
+                + "&scope=chat:write,chat:write.public,commands"
+                + "&user_scope=identity.basic,identity.email,identity.avatar"
+                + "&redirect_uri=" + properties.getSlack().getRedirectUri().replace("/callback", "/install/callback");
 
         return ResponseEntity.status(HttpStatus.FOUND)
                 .header(HttpHeaders.LOCATION, authUrl)
@@ -202,60 +223,6 @@ public class AuthController {
     }
 
     /**
-     * GET /auth/slack/install/callback — Handles Slack OAuth callback for workspace installation.
-     */
-    @GetMapping("/slack/install/callback")
-    public ResponseEntity<Void> slackInstallCallback(
-            @RequestParam(required = false) String code,
-            @RequestParam(required = false) String error,
-            HttpServletRequest request) {
-
-        log.info("Slack install callback received: code={}, error={}", code != null ? "[PRESENT]" : "[NULL]", error);
-
-        if (error != null) {
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?install_error=" + error)
-                    .build();
-        }
-        if (code == null || code.isBlank()) {
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?install_error=missing_code")
-                    .build();
-        }
-
-        AuthenticatedUser authUser = AuthenticatedUser.from(request);
-        if (authUser == null) {
-            // Must be authenticated to install bot attached to their user
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/signin?error=auth_required_for_install")
-                    .build();
-        }
-
-        try {
-            SlackOAuthPort.SlackInstallationResult result = slackOAuthPort.exchangeForBotToken(code);
-
-            WorkspaceInstallation installation = WorkspaceInstallation.of(
-                    new WorkspaceId(result.workspaceId()),
-                    result.botToken(),
-                    new UserId(authUser.userId())
-            );
-            workspaceInstallationPort.save(installation);
-
-            log.info("Workspace bot token installed successfully for workspace={}", result.workspaceId());
-
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?install_success=true")
-                    .build();
-
-        } catch (Exception e) {
-            log.error("Slack bot install failed", e);
-            return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?install_error=oauth_failed")
-                    .build();
-        }
-    }
-
-    /**
      * POST /auth/username — Completes onboarding for new users.
      * <ol>
      * <li>Validates pending registration state from JWT</li>
@@ -335,6 +302,12 @@ public class AuthController {
 
             log.info("User registered: username={}, userId={}", username, userId);
 
+            // Send welcome message if workspace has app installed
+            WorkspaceId workspaceId = new WorkspaceId(authUser.workspaceId());
+            if (workspaceInstallationPersistencePort.findByWorkspaceId(workspaceId).isPresent()) {
+                sendWelcomeMessage(new SlackUserId(authUser.slackUserId()), workspaceId);
+            }
+
             return ResponseEntity.ok()
                     .header(HttpHeaders.SET_COOKIE, createSessionCookie(newToken).toString())
                     .body(Map.of(
@@ -387,31 +360,75 @@ public class AuthController {
                 "pendingRegistration", user.pendingRegistration()));
     }
 
-    /**
-     * GET /auth/me — Returns full profile for the authenticated user.
-     */
     @GetMapping("/me")
     public ResponseEntity<?> me(HttpServletRequest request) {
         AuthenticatedUser user = AuthenticatedUser.from(request);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        
+
         boolean isSlackAppInstalled = false;
         if (user.workspaceId() != null) {
-            isSlackAppInstalled = workspaceInstallationPort.findByWorkspaceId(new WorkspaceId(user.workspaceId())).isPresent();
+            isSlackAppInstalled = workspaceInstallationPersistencePort
+                    .findByWorkspaceId(new WorkspaceId(user.workspaceId()))
+                    .map(WorkspaceInstallation::active)
+                    .orElse(false);
         }
 
         return ResponseEntity.ok(Map.of(
-                "userId", user.userId() != null ? user.userId() : "",
                 "username", user.username() != null ? user.username() : "",
                 "pendingRegistration", user.pendingRegistration(),
-                "isSlackAppInstalled", isSlackAppInstalled,
                 "slack_name", user.displayName() != null ? user.displayName() : "",
                 "slack_workspace", user.workspaceName() != null ? user.workspaceName() : "",
                 "slack_workspace_domain", user.workspaceDomain() != null ? user.workspaceDomain() : "",
                 "slack_email", user.email() != null ? user.email() : "",
-                "slack_avatar_url", user.avatarUrl() != null ? user.avatarUrl() : ""));
+                "slack_avatar_url", user.avatarUrl() != null ? user.avatarUrl() : "",
+                "isSlackAppInstalled", isSlackAppInstalled));
+    }
+
+    /**
+     * GET /auth/slack/install/callback — Handles bot installation callback.
+     * Exchanges code for bot token and stores it in workspace_installations.
+     */
+    @GetMapping("/slack/install/callback")
+    public ResponseEntity<Void> slackInstallCallback(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String error) {
+
+        log.info("Slack App Install callback: code={}, error={}",
+                code != null ? "[PRESENT]" : "[NULL]", error);
+
+        if (error != null) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?error=" + error)
+                    .build();
+        }
+
+        try {
+            SlackOAuthPort.SlackInstallationResult result = slackOAuthPort.exchangeForBotToken(code);
+
+            workspaceInstallationPersistencePort.save(new WorkspaceInstallation(
+                    new WorkspaceId(result.workspaceId()),
+                    result.botToken(),
+                    result.installerUserId(),
+                    java.time.Instant.now(),
+                    true));
+
+            log.info("CoAgent4U App successfully installed in workspace={}", result.workspaceId());
+
+            // Send installation welcome message to installer
+            sendWelcomeMessage(new SlackUserId(result.installerUserId()), new WorkspaceId(result.workspaceId()));
+
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?installed=true")
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Slack App Installation exchange failed", e);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?error=install_failed")
+                    .build();
+        }
     }
 
     // ── Helpers ──────────────────────────────────────────────
@@ -427,6 +444,22 @@ public class AuthController {
         Agent agent = new Agent(new AgentId(UUID.randomUUID()), userId);
         agentPersistencePort.save(agent);
         log.info("Agent provisioned: agentId={} for userId={}", agent.getAgentId(), userId);
+    }
+
+    private void sendWelcomeMessage(SlackUserId slackUserId, WorkspaceId workspaceId) {
+        String welcomeMessage = "Thank you for choosing CoAgent4U! I am your personal agent who can perform personalized tasks as well as collaborative tasks with other users' agents too. \n\n"
+                + "You can interact with me directly in this DM using natural human language. Here are some things I can help you with:\n"
+                + "1) View your schedule\n"
+                + "2) Add an event\n"
+                + "3) Coordinate a meeting with another user (e.g., 'coordinate meeting with @user_id')\n\n"
+                + "How can I help you today?";
+
+        try {
+            notificationPort.sendMessage(slackUserId, workspaceId, welcomeMessage);
+            log.info("Welcome message sent to slackUserId={} in workspaceId={}", slackUserId, workspaceId);
+        } catch (Exception e) {
+            log.error("Failed to send welcome message to slackUserId={} in workspaceId={}", slackUserId, workspaceId, e);
+        }
     }
 
     private ResponseCookie createSessionCookie(String token) {

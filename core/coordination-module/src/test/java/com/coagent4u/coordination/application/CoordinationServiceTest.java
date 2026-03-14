@@ -26,11 +26,9 @@ import com.coagent4u.coordination.port.out.AgentEventExecutionPort;
 import com.coagent4u.coordination.port.out.AgentProfilePort;
 import com.coagent4u.coordination.port.out.CoordinationPersistencePort;
 import com.coagent4u.shared.AgentId;
-import com.coagent4u.shared.ApprovalId;
 import com.coagent4u.shared.CoordinationId;
 import com.coagent4u.shared.EventId;
 import com.coagent4u.shared.TimeRange;
-import com.coagent4u.shared.UserId;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("CoordinationService Tests")
@@ -73,17 +71,10 @@ class CoordinationServiceTest {
 
                 when(agentAvailabilityPort.getAvailability(eq(requester), any())).thenReturn(blocksA);
                 when(agentAvailabilityPort.getAvailability(eq(invitee), any())).thenReturn(blocksB);
-                when(agentProfilePort.getProfile(requester))
-                                .thenReturn(new AgentProfilePort.AgentProfile(
-                                                requester, new UserId(java.util.UUID.randomUUID()), "Alice", "UTC"));
-                when(agentApprovalPort.requestApproval(any(), any()))
-                                .thenReturn(new ApprovalId(java.util.UUID.randomUUID()));
-
                 CoordinationId result = service.initiate(requester, invitee, range, 30, "Sync", "UTC");
 
                 assertNotNull(result);
                 verify(persistence, atLeast(5)).save(any(Coordination.class));
-                verify(agentApprovalPort).requestApproval(eq(invitee), any());
                 verify(eventPublisher, atLeastOnce()).publish(any());
         }
 

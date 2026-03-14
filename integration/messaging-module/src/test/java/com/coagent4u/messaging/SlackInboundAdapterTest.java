@@ -25,7 +25,9 @@ import com.coagent4u.shared.SlackUserId;
 import com.coagent4u.shared.UserId;
 import com.coagent4u.shared.WorkspaceId;
 import com.coagent4u.user.domain.User;
+import com.coagent4u.user.domain.WorkspaceInstallation;
 import com.coagent4u.user.port.out.UserPersistencePort;
+import com.coagent4u.user.port.out.WorkspaceInstallationPersistencePort;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 @ExtendWith(MockitoExtension.class)
@@ -38,6 +40,8 @@ class SlackInboundAdapterTest {
     private UserPersistencePort userPersistencePort;
     @Mock
     private AgentPersistencePort agentPersistencePort;
+    @Mock
+    private WorkspaceInstallationPersistencePort workspaceInstallationPersistencePort;
     @Mock
     private HandleMessageUseCase handleMessageUseCase;
 
@@ -53,7 +57,7 @@ class SlackInboundAdapterTest {
     void setUp() {
         adapter = new SlackInboundAdapter(
                 signatureVerifier, userPersistencePort, agentPersistencePort,
-                handleMessageUseCase, objectMapper, directExecutor);
+                workspaceInstallationPersistencePort, handleMessageUseCase, objectMapper, directExecutor);
     }
 
     @Test
@@ -175,5 +179,29 @@ class SlackInboundAdapterTest {
         assertDoesNotThrow(() -> adapter.handleEvent("123456", "v0=valid", body));
 
         verify(handleMessageUseCase, never()).handleMessage(any(), any());
+    }
+
+    @Test
+    @DisplayName("processes app_uninstalled event and deactivates workspace")
+    void processesAppUninstalled() {
+        when(signatureVerifier.verify(anyString(), anyString(), anyString())).thenReturn(true);
+
+        WorkspaceInstallation mockInstallation = mock(WorkspaceInstallation.class);
+        when(mockInstallation.withActive(false)).thenReturn(mockInstallation);
+        when(workspaceInstallationPersistencePort.findByWorkspaceId(any(WorkspaceId.class)))
+                .thenReturn(Optional.of(mockInstallation));
+
+        String body = """
+                {
+                  "type":"event_callback",
+                  "event_id":"Ev_uninstall_test",
+                  "team_id":"T_uninstall",
+                  "event":{"type":"app_uninstalled"}
+                }
+                """;
+
+        adapter.handleEvent("123456", "v0=valid", body);
+
+        verify(workspaceInstallationPersistencePort).save(mockInstallation);
     }
 }

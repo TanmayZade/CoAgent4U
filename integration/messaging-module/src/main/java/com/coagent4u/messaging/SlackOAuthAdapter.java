@@ -19,11 +19,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /**
  * Slack OAuth adapter using OpenID Connect flow.
  * <ol>
- *   <li>Exchanges authorization code via {@code oauth.v2.access}</li>
- *   <li>Retrieves user identity via {@code openid.connect.userInfo}</li>
+ * <li>Exchanges authorization code via {@code oauth.v2.access}</li>
+ * <li>Retrieves user identity via {@code openid.connect.userInfo}</li>
  * </ol>
  *
- * <p>Uses slackUserId + workspaceId (teamId) for unique identification.</p>
+ * <p>
+ * Uses slackUserId + workspaceId (teamId) for unique identification.
+ * </p>
  */
 @Component
 public class SlackOAuthAdapter implements SlackOAuthPort {
@@ -37,8 +39,8 @@ public class SlackOAuthAdapter implements SlackOAuthPort {
     private final ObjectMapper objectMapper;
 
     public SlackOAuthAdapter(CoagentProperties properties,
-                             WebClient.Builder webClientBuilder,
-                             ObjectMapper objectMapper) {
+            WebClient.Builder webClientBuilder,
+            ObjectMapper objectMapper) {
         this.properties = properties;
         this.webClient = webClientBuilder.build();
         this.objectMapper = objectMapper;
@@ -110,10 +112,12 @@ public class SlackOAuthAdapter implements SlackOAuthPort {
             String workspaceName = userInfoJson.path("https://slack.com/team_name").asText("Slack Workspace");
             String workspaceDomain = userInfoJson.path("https://slack.com/team_domain").asText(null);
 
-            log.info("Slack OAuth successful: slackUserId={}, workspaceId={}, workspaceName={}, workspaceDomain={}, avatarUrl={}", 
+            log.info(
+                    "Slack OAuth successful: slackUserId={}, workspaceId={}, workspaceName={}, workspaceDomain={}, avatarUrl={}",
                     slackUserId, workspaceId, workspaceName, workspaceDomain, avatarUrl);
 
-            return new SlackOAuthResult(slackUserId, workspaceId, workspaceName, workspaceDomain, email, displayName, avatarUrl, accessToken);
+            return new SlackOAuthResult(slackUserId, workspaceId, workspaceName, workspaceDomain, email, displayName,
+                    avatarUrl, accessToken);
 
         } catch (WebClientResponseException e) {
             log.warn("Slack OAuth HTTP error: {} — {}", e.getStatusCode(), e.getResponseBodyAsString());
@@ -127,19 +131,19 @@ public class SlackOAuthAdapter implements SlackOAuthPort {
                     "Exchange failed: " + e.getMessage(), e);
         }
     }
-
     @Override
     public SlackInstallationResult exchangeForBotToken(String code) {
-        log.info("Exchanging Slack OAuth authorization code for Bot Token installation");
+        log.info("Exchanging Slack OAuth code for bot token (app installation)");
 
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("code", code);
         formData.add("client_id", properties.getSlack().getClientId());
         formData.add("client_secret", properties.getSlack().getClientSecret());
-        formData.add("redirect_uri", properties.getSlack().getRedirectUri());
+        // For app installation, we must use the correct install callback URI
+        formData.add("redirect_uri", properties.getSlack().getRedirectUri().replace("/callback", "/install/callback"));
 
         try {
-            String tokenResponse = webClient.post()
+            String response = webClient.post()
                     .uri(SLACK_OAUTH_ACCESS_URL)
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
                     .body(BodyInserters.fromFormData(formData))
@@ -147,38 +151,38 @@ public class SlackOAuthAdapter implements SlackOAuthPort {
                     .bodyToMono(String.class)
                     .block();
 
-            JsonNode tokenJson = objectMapper.readTree(tokenResponse);
+            JsonNode json = objectMapper.readTree(response);
 
-            if (!tokenJson.path("ok").asBoolean(false)) {
-                String error = tokenJson.path("error").asText("unknown_error");
-                log.warn("Slack Bot Token exchange failed: {}", error);
+            if (!json.path("ok").asBoolean(false)) {
+                String error = json.path("error").asText("unknown_error");
+                log.warn("Slack bot token exchange failed: {}", error);
                 throw new ExternalServiceUnavailableException("SlackOAuth",
-                        "Token exchange failed: " + error);
+                        "Bot token exchange failed: " + error);
             }
 
-            JsonNode authedUser = tokenJson.path("authed_user");
-            String installerUserId = authedUser.path("id").asText();
-            String botToken = tokenJson.path("access_token").asText();
-            String workspaceId = tokenJson.path("team").path("id").asText();
+            String botToken = json.path("access_token").asText();
+            String workspaceId = json.path("team").path("id").asText();
 
             if (botToken.isBlank() || workspaceId.isBlank()) {
                 throw new ExternalServiceUnavailableException("SlackOAuth",
-                        "Missing bot_token or workspaceId in token response");
+                        "Missing access_token or workspaceId in bot token response");
             }
 
-            log.info("Slack Bot Token installation successful: workspaceId={}, installerUserId={}", 
+            String installerUserId = json.path("authed_user").path("id").asText();
+
+            log.info("Slack bot token exchange successful for workspaceId={}, installer={}", 
                     workspaceId, installerUserId);
 
             return new SlackInstallationResult(workspaceId, botToken, installerUserId);
 
         } catch (WebClientResponseException e) {
-            log.warn("Slack OAuth HTTP error: {} — {}", e.getStatusCode(), e.getResponseBodyAsString());
+            log.warn("Slack bot OAuth HTTP error: {} — {}", e.getStatusCode(), e.getResponseBodyAsString());
             throw new ExternalServiceUnavailableException("SlackOAuth",
                     "HTTP " + e.getStatusCode(), e);
         } catch (ExternalServiceUnavailableException e) {
             throw e;
         } catch (Exception e) {
-            log.warn("Slack OAuth Bot Token exchange failed: {}", e.getMessage());
+            log.warn("Slack bot token exchange failed: {}", e.getMessage());
             throw new ExternalServiceUnavailableException("SlackOAuth",
                     "Exchange failed: " + e.getMessage(), e);
         }

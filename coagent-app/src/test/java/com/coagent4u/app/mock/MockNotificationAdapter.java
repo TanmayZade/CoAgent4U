@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.coagent4u.shared.SlackUserId;
 import com.coagent4u.shared.TimeSlot;
 import com.coagent4u.shared.WorkspaceId;
 import com.coagent4u.user.port.out.NotificationPort;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * In-memory mock of {@link NotificationPort} that captures sent messages
@@ -58,28 +58,21 @@ public class MockNotificationAdapter implements NotificationPort {
         return "dummy_ts_" + System.currentTimeMillis();
     }
 
-        @Override
-        public String sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
-                        String coordinationId, List<TimeSlot> slots, String requesterMention) {
-                if (shouldFail)
-                        throw new RuntimeException("Mock Slack failure");
-                log.info("[MockNotification] Slot selection for coordination {} sent to {}",
-                                coordinationId, slackUserId);
-                slotCards.add(new SentSlotCard(slackUserId.value(), workspaceId.value(),
-                                coordinationId, slots, requesterMention));
-                return "dummy_ts_" + System.currentTimeMillis();
-        }
+    @Override
+    public String sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String coordinationId, List<TimeSlot> slots, String requesterMention) {
+        if (shouldFail)
+            throw new RuntimeException("Mock Slack failure");
+        log.info("[MockNotification] Slot selection for coordination {} sent to {}",
+                coordinationId, slackUserId);
+        slotCards.add(new SentSlotCard(slackUserId.value(), workspaceId.value(),
+                coordinationId, slots, requesterMention));
+        return "dummy_ts_" + System.currentTimeMillis();
+    }
 
-        @Override
+    @Override
     public boolean deleteMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String ts) {
-        log.info("Mock delete message for channel={} ts={}", slackUserId.value(), ts);
-        // The original mock implementation for deleteMessage simply returned true.
-        // The provided snippet introduced 'messagesSent' which is not defined in this class.
-        // To maintain syntactic correctness and avoid introducing new state not explicitly requested,
-        // we will keep the original mock behavior of returning true, but update the log message
-        // and signature as per the instruction.
-        // If the intent was to actually remove a message from the 'messages' list,
-        // the 'SentMessage' record would need to store the 'ts' (timestamp) returned by sendMessage.
+        log.info("[MockNotification] Message deleted for {} in workspace {} at ts={}", slackUserId, workspaceId, ts);
         return true;
     }
 

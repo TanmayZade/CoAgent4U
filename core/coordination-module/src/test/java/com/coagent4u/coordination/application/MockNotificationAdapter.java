@@ -52,20 +52,20 @@ public class MockNotificationAdapter implements NotificationPort {
         return "mock_ts_" + System.currentTimeMillis();
     }
 
-        @Override
-        public String sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
-                        String coordinationId, List<TimeSlot> slots, String requesterMention) {
-                if (shouldFail)
-                        throw new RuntimeException("Mock Slack failure");
-                slotCards.add(new SentSlotCard(slackUserId.value(), workspaceId.value(),
-                                coordinationId, slots, requesterMention));
-                return "mock_ts_" + System.currentTimeMillis();
-        }
+    @Override
+    public String sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String coordinationId, List<TimeSlot> slots, String requesterMention) {
+        if (shouldFail)
+            throw new RuntimeException("Mock Slack failure");
+        slotCards.add(new SentSlotCard(slackUserId.value(), workspaceId.value(),
+                coordinationId, slots, requesterMention));
+        return "mock_ts_" + System.currentTimeMillis();
+    }
 
-        @Override
+    @Override
     public boolean deleteMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String ts) {
         return true;
-        }
+    }
 
     // ── Getters for assertions ──
 
