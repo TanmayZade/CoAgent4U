@@ -56,14 +56,15 @@ public class User {
      * Accumulates a {@link UserRegistered} event.
      */
     public static User register(UserId userId, String username, Email email,
-            SlackUserId slackUserId, WorkspaceId workspaceId) {
+            SlackUserId slackUserId, WorkspaceId workspaceId,
+            String workspaceName, String workspaceDomain, String slackEmail, String displayName, String avatarUrl) {
         if (username == null || username.isBlank()) {
             throw new IllegalArgumentException("Username must not be blank");
         }
         if (!username.matches("^[a-z0-9_]+$")) {
             throw new IllegalArgumentException("Username must match ^[a-z0-9_]+$");
         }
-        SlackIdentity identity = SlackIdentity.of(slackUserId, workspaceId);
+        SlackIdentity identity = SlackIdentity.of(slackUserId, workspaceId, workspaceName, workspaceDomain, slackEmail, displayName, avatarUrl);
         User user = new User(userId, username, email, identity);
         user.domainEvents.add(UserRegistered.of(userId, username, email, slackUserId, workspaceId));
         return user;

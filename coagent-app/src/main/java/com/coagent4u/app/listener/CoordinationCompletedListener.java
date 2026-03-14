@@ -128,7 +128,7 @@ public class CoordinationCompletedListener {
             if (user == null || user.getSlackIdentity() == null)
                 return;
 
-            notificationPort.deleteMessage(user.getSlackIdentity().slackUserId(), ts);
+            notificationPort.deleteMessage(user.getSlackIdentity().slackUserId(), user.getSlackIdentity().workspaceId(), ts);
             log.info("[CoordinationListener] Deleted message ts={} for agent={}", ts, agentId);
         } catch (Exception e) {
             log.debug("[CoordinationListener] Could not delete message for agent={}: {}", agentId, e.getMessage());

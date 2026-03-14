@@ -33,6 +33,8 @@ import com.coagent4u.user.port.in.RegisterUserUseCase;
 import com.coagent4u.user.port.out.SlackOAuthPort;
 import com.coagent4u.user.port.out.SlackOAuthPort.SlackOAuthResult;
 import com.coagent4u.user.port.out.UserPersistencePort;
+import com.coagent4u.user.domain.WorkspaceInstallation;
+import com.coagent4u.user.port.out.WorkspaceInstallationPersistencePort;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -41,8 +43,10 @@ import jakarta.servlet.http.HttpServletRequest;
  * Authentication controller for Slack OAuth login, username registration,
  * logout, and session verification.
  *
- * <p>Frontend uses {@code username}; backend uses {@code userId} internally.
- * Slack identity always uses slackUserId + workspaceId (teamId).</p>
+ * <p>
+ * Frontend uses {@code username}; backend uses {@code userId} internally.
+ * Slack identity always uses slackUserId + workspaceId (teamId).
+ * </p>
  */
 @RestController
 @RequestMapping("/auth")
@@ -50,8 +54,8 @@ public class AuthController {
 
     private static final Logger log = LoggerFactory.getLogger(AuthController.class);
     private static final String COOKIE_NAME = "coagent_session";
-    private static final java.util.regex.Pattern USERNAME_PATTERN =
-            java.util.regex.Pattern.compile("^[a-zA-Z0-9_-]{3,32}$");
+    private static final java.util.regex.Pattern USERNAME_PATTERN = java.util.regex.Pattern
+            .compile("^[a-zA-Z0-9_-]{3,32}$");
 
     private final CoagentProperties properties;
     private final SlackOAuthPort slackOAuthPort;
@@ -61,6 +65,7 @@ public class AuthController {
     private final JwtIssuer jwtIssuer;
     private final JwtValidator jwtValidator;
     private final JwtTokenBlacklist tokenBlacklist;
+    private final WorkspaceInstallationPersistencePort workspaceInstallationPort;
 
     public AuthController(
             CoagentProperties properties,
@@ -70,7 +75,8 @@ public class AuthController {
             AgentPersistencePort agentPersistencePort,
             JwtIssuer jwtIssuer,
             JwtValidator jwtValidator,
-            JwtTokenBlacklist tokenBlacklist) {
+            JwtTokenBlacklist tokenBlacklist,
+            WorkspaceInstallationPersistencePort workspaceInstallationPort) {
         this.properties = properties;
         this.slackOAuthPort = slackOAuthPort;
         this.userPersistencePort = userPersistencePort;
@@ -79,11 +85,13 @@ public class AuthController {
         this.jwtIssuer = jwtIssuer;
         this.jwtValidator = jwtValidator;
         this.tokenBlacklist = tokenBlacklist;
+        this.workspaceInstallationPort = workspaceInstallationPort;
     }
 
     /**
      * GET /auth/slack/start — Redirects to Slack OAuth consent screen.
-     * Uses OpenID Connect scopes: openid, profile, email, users:read, users:read.email.
+     * Uses OpenID Connect scopes: openid, profile, email, users:read,
+     * users:read.email.
      */
     @GetMapping("/slack/start")
     public ResponseEntity<Void> slackStart() {
@@ -102,28 +110,33 @@ public class AuthController {
     /**
      * GET /auth/slack/callback — Handles Slack OAuth callback.
      * <ol>
-     *   <li>Exchanges code for Slack tokens + user identity</li>
-     *   <li>Looks up user by slackUserId + workspaceId</li>
-     *   <li>Existing user → Issue JWT, redirect to frontend</li>
-     *   <li>New user → Issue pending JWT, redirect to onboarding page</li>
+     * <li>Exchanges code for Slack tokens + user identity</li>
+     * <li>Looks up user by slackUserId + workspaceId</li>
+     * <li>Existing user → Issue JWT, redirect to frontend</li>
+     * <li>New user → Issue pending JWT, redirect to onboarding page</li>
      * </ol>
      */
     @GetMapping("/slack/callback")
     public ResponseEntity<Void> slackCallback(
             @RequestParam(required = false) String code,
-            @RequestParam(required = false) String error) {
+            @RequestParam(required = false) String error,
+            @RequestParam(required = false) String state,
+            @RequestParam Map<String, String> allParams) {
+
+        log.info("Slack OAuth callback received: code={}, error={}, state={}, allParams={}",
+                code != null ? "[PRESENT]" : "[NULL]", error, state, allParams);
 
         if (error != null) {
             log.warn("Slack OAuth error: {}", error);
+            String redirectUrl = properties.getFrontendUrl() + "/signin?error=" + error;
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION,
-                            properties.getFrontendUrl() + "/login?error=" + error)
+                    .header(HttpHeaders.LOCATION, redirectUrl)
                     .build();
         }
         if (code == null || code.isBlank()) {
             return ResponseEntity.status(HttpStatus.FOUND)
                     .header(HttpHeaders.LOCATION,
-                            properties.getFrontendUrl() + "/login?error=missing_code")
+                            properties.getFrontendUrl() + "/signin?error=missing_code")
                     .build();
         }
 
@@ -142,7 +155,13 @@ public class AuthController {
                 String token = jwtIssuer.issue(
                         user.getUserId().value(),
                         user.getUsername(),
-                        false);
+                        false,
+                        slackResult.slackUserId(),
+                        slackResult.workspaceId(),
+                        slackResult.workspaceName(),
+                        slackResult.workspaceDomain(),
+                        slackResult.displayName(),
+                        slackResult.avatarUrl());
 
                 log.info("Slack login successful for existing user={}", user.getUsername());
 
@@ -156,8 +175,11 @@ public class AuthController {
                 String token = jwtIssuer.issuePending(tempUserId,
                         slackResult.slackUserId(),
                         slackResult.workspaceId(),
+                        slackResult.workspaceName(),
+                        slackResult.workspaceDomain(),
                         slackResult.email(),
-                        slackResult.displayName());
+                        slackResult.displayName(),
+                        slackResult.avatarUrl());
 
                 log.info("New Slack user detected: slackUserId={}, workspaceId={}",
                         slackResult.slackUserId(), slackResult.workspaceId());
@@ -174,7 +196,61 @@ public class AuthController {
             log.error("Slack OAuth callback failed", e);
             return ResponseEntity.status(HttpStatus.FOUND)
                     .header(HttpHeaders.LOCATION,
-                            properties.getFrontendUrl() + "/login?error=oauth_failed")
+                            properties.getFrontendUrl() + "/signin?error=oauth_failed")
+                    .build();
+        }
+    }
+
+    /**
+     * GET /auth/slack/install/callback — Handles Slack OAuth callback for workspace installation.
+     */
+    @GetMapping("/slack/install/callback")
+    public ResponseEntity<Void> slackInstallCallback(
+            @RequestParam(required = false) String code,
+            @RequestParam(required = false) String error,
+            HttpServletRequest request) {
+
+        log.info("Slack install callback received: code={}, error={}", code != null ? "[PRESENT]" : "[NULL]", error);
+
+        if (error != null) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?install_error=" + error)
+                    .build();
+        }
+        if (code == null || code.isBlank()) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?install_error=missing_code")
+                    .build();
+        }
+
+        AuthenticatedUser authUser = AuthenticatedUser.from(request);
+        if (authUser == null) {
+            // Must be authenticated to install bot attached to their user
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/signin?error=auth_required_for_install")
+                    .build();
+        }
+
+        try {
+            SlackOAuthPort.SlackInstallationResult result = slackOAuthPort.exchangeForBotToken(code);
+
+            WorkspaceInstallation installation = WorkspaceInstallation.of(
+                    new WorkspaceId(result.workspaceId()),
+                    result.botToken(),
+                    new UserId(authUser.userId())
+            );
+            workspaceInstallationPort.save(installation);
+
+            log.info("Workspace bot token installed successfully for workspace={}", result.workspaceId());
+
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?install_success=true")
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Slack bot install failed", e);
+            return ResponseEntity.status(HttpStatus.FOUND)
+                    .header(HttpHeaders.LOCATION, properties.getFrontendUrl() + "/dashboard?install_error=oauth_failed")
                     .build();
         }
     }
@@ -182,12 +258,12 @@ public class AuthController {
     /**
      * POST /auth/username — Completes onboarding for new users.
      * <ol>
-     *   <li>Validates pending registration state from JWT</li>
-     *   <li>Extracts Slack identity from JWT (server-side trusted)</li>
-     *   <li>Validates username format: {@code ^[a-zA-Z0-9_-]{3,32}$}</li>
-     *   <li>Creates User via RegisterUserUseCase</li>
-     *   <li>Provisions Agent (idempotent) in service layer</li>
-     *   <li>Reissues JWT with full claims</li>
+     * <li>Validates pending registration state from JWT</li>
+     * <li>Extracts Slack identity from JWT (server-side trusted)</li>
+     * <li>Validates username format: {@code ^[a-zA-Z0-9_-]{3,32}$}</li>
+     * <li>Creates User via RegisterUserUseCase</li>
+     * <li>Provisions Agent (idempotent) in service layer</li>
+     * <li>Reissues JWT with full claims</li>
      * </ol>
      */
     @PostMapping("/username")
@@ -224,14 +300,20 @@ public class AuthController {
             // Create user via use case — Slack identity from JWT (trusted)
             UserId userId = new UserId(UUID.randomUUID());
             Email email = (authUser.email() != null && !authUser.email().isBlank())
-                    ? new Email(authUser.email()) : new Email(username + "@coagent4u.local");
+                    ? new Email(authUser.email())
+                    : new Email(username + "@coagent4u.local");
 
             registerUserUseCase.register(
                     userId,
                     username.toLowerCase(),
                     email,
                     new SlackUserId(authUser.slackUserId()),
-                    new WorkspaceId(authUser.workspaceId()));
+                    new WorkspaceId(authUser.workspaceId()),
+                    authUser.workspaceName(),
+                    authUser.workspaceDomain(),
+                    authUser.email(),
+                    authUser.displayName(),
+                    authUser.avatarUrl());
 
             // Provision agent (idempotent)
             provisionAgent(userId);
@@ -247,7 +329,9 @@ public class AuthController {
             }
 
             // Issue new JWT with full claims
-            String newToken = jwtIssuer.issue(userId.value(), username.toLowerCase(), false);
+            String newToken = jwtIssuer.issue(userId.value(), username.toLowerCase(), false,
+                    authUser.slackUserId(), authUser.workspaceId(), authUser.workspaceName(),
+                    authUser.workspaceDomain(), authUser.displayName(), authUser.avatarUrl());
 
             log.info("User registered: username={}, userId={}", username, userId);
 
@@ -292,9 +376,6 @@ public class AuthController {
                 .body(Map.of("success", true, "message", "Logged out successfully"));
     }
 
-    /**
-     * GET /auth/session — Returns session status for frontend.
-     */
     @GetMapping("/session")
     public ResponseEntity<?> session(HttpServletRequest request) {
         AuthenticatedUser user = AuthenticatedUser.from(request);
@@ -303,8 +384,34 @@ public class AuthController {
         }
         return ResponseEntity.ok(Map.of(
                 "authenticated", true,
-                "username", user.username() != null ? user.username() : "",
                 "pendingRegistration", user.pendingRegistration()));
+    }
+
+    /**
+     * GET /auth/me — Returns full profile for the authenticated user.
+     */
+    @GetMapping("/me")
+    public ResponseEntity<?> me(HttpServletRequest request) {
+        AuthenticatedUser user = AuthenticatedUser.from(request);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        
+        boolean isSlackAppInstalled = false;
+        if (user.workspaceId() != null) {
+            isSlackAppInstalled = workspaceInstallationPort.findByWorkspaceId(new WorkspaceId(user.workspaceId())).isPresent();
+        }
+
+        return ResponseEntity.ok(Map.of(
+                "userId", user.userId() != null ? user.userId() : "",
+                "username", user.username() != null ? user.username() : "",
+                "pendingRegistration", user.pendingRegistration(),
+                "isSlackAppInstalled", isSlackAppInstalled,
+                "slack_name", user.displayName() != null ? user.displayName() : "",
+                "slack_workspace", user.workspaceName() != null ? user.workspaceName() : "",
+                "slack_workspace_domain", user.workspaceDomain() != null ? user.workspaceDomain() : "",
+                "slack_email", user.email() != null ? user.email() : "",
+                "slack_avatar_url", user.avatarUrl() != null ? user.avatarUrl() : ""));
     }
 
     // ── Helpers ──────────────────────────────────────────────
@@ -325,17 +432,18 @@ public class AuthController {
     private ResponseCookie createSessionCookie(String token) {
         return ResponseCookie.from(COOKIE_NAME, token)
                 .httpOnly(true)
-                .secure(true)           // HTTPS only
-                .sameSite("None")       // Required: frontend=coagent4u.com, API=api.coagent4u.com
+                .secure(true) // HTTPS only
+                .sameSite("None") // Required: frontend=coagent4u.com, API=api.coagent4u.com
                 .domain(".coagent4u.com") // Share cookie across subdomains
                 .path("/")
-                .maxAge(24 * 60 * 60)   // 24 hours
+                .maxAge(24 * 60 * 60) // 24 hours
                 .build();
     }
 
     private String extractTokenFromCookie(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
-        if (cookies == null) return null;
+        if (cookies == null)
+            return null;
         for (Cookie cookie : cookies) {
             if (COOKIE_NAME.equals(cookie.getName())) {
                 return cookie.getValue();

@@ -71,10 +71,17 @@ public class MockNotificationAdapter implements NotificationPort {
         }
 
         @Override
-        public boolean deleteMessage(SlackUserId slackUserId, String ts) {
-                log.info("[MockNotification] Message deleted for {} at ts={}", slackUserId, ts);
-                return true;
-        }
+    public boolean deleteMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String ts) {
+        log.info("Mock delete message for channel={} ts={}", slackUserId.value(), ts);
+        // The original mock implementation for deleteMessage simply returned true.
+        // The provided snippet introduced 'messagesSent' which is not defined in this class.
+        // To maintain syntactic correctness and avoid introducing new state not explicitly requested,
+        // we will keep the original mock behavior of returning true, but update the log message
+        // and signature as per the instruction.
+        // If the intent was to actually remove a message from the 'messages' list,
+        // the 'SentMessage' record would need to store the 'ts' (timestamp) returned by sendMessage.
+        return true;
+    }
 
     public List<SentMessage> getMessages() {
         return Collections.unmodifiableList(messages);

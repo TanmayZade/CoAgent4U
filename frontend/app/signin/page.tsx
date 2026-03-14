@@ -27,10 +27,13 @@ export default function SignInPage() {
     return () => ctx.revert()
   }, [])
 
-  const handleSlackSignIn = async () => {
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null
+  const error = searchParams?.get("error")
+
+  const handleSlackSignIn = () => {
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    router.push("/onboarding")
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+    window.location.href = `${apiUrl}/auth/slack/start`
   }
 
   return (
@@ -72,6 +75,12 @@ export default function SignInPage() {
               Sign in with your Slack workspace to provision your personal agent
             </p>
           </div>
+
+          {error && (
+            <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-xs text-center">
+              {error === "access_denied" ? "Sign in was cancelled" : "Sign in failed. Please try again."}
+            </div>
+          )}
 
           <Button
             onClick={handleSlackSignIn}

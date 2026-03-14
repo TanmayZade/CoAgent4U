@@ -53,8 +53,11 @@ public class JwtValidator {
             String authProvider,
             String slackUserId,
             String workspaceId,
+            String workspaceName,
+            String workspaceDomain,
             String email,
             String displayName,
+            String avatarUrl,
             Instant issuedAt,
             Instant expiry) {
     }
@@ -81,9 +84,11 @@ public class JwtValidator {
             String authProvider = claims.get("auth_provider", String.class);
             String slackUserId = claims.get("slack_user_id", String.class);
             String workspaceId = claims.get("workspace_id", String.class);
+            String workspaceName = claims.get("workspace_name", String.class);
+            String workspaceDomain = claims.get("workspace_domain", String.class);
             String email = claims.get("email", String.class);
             String displayName = claims.get("display_name", String.class);
-
+            String avatarUrl = claims.get("avatar_url", String.class);
             Instant issuedAt = claims.getIssuedAt() != null ? claims.getIssuedAt().toInstant() : null;
             Instant expiry = claims.getExpiration() != null ? claims.getExpiration().toInstant() : null;
 
@@ -95,8 +100,11 @@ public class JwtValidator {
                     authProvider,
                     slackUserId,
                     workspaceId,
+                    workspaceName,
+                    workspaceDomain,
                     email,
                     displayName,
+                    avatarUrl,
                     issuedAt,
                     expiry));
         } catch (JwtException | IllegalArgumentException e) {

@@ -22,7 +22,7 @@ class UserTest {
 
     @Test
     void register_createsUserWithEvent() {
-        User user = User.register(UID, "alice_dev", EMAIL, SLACK, WS);
+        User user = User.register(UID, "alice_dev", EMAIL, SLACK, WS, null, null, null, null, null);
         assertEquals("alice_dev", user.getUsername());
         assertEquals(SLACK, user.getSlackIdentity().slackUserId());
         assertFalse(user.isDeleted());
@@ -34,18 +34,18 @@ class UserTest {
     @Test
     void register_blankUsernameRejects() {
         assertThrows(IllegalArgumentException.class,
-                () -> User.register(UID, "", EMAIL, SLACK, WS));
+                () -> User.register(UID, "", EMAIL, SLACK, WS, null, null, null, null, null));
     }
 
     @Test
     void register_invalidUsernameRejects() {
         assertThrows(IllegalArgumentException.class,
-                () -> User.register(UID, "Alice Dev!", EMAIL, SLACK, WS));
+                () -> User.register(UID, "Alice Dev!", EMAIL, SLACK, WS, null, null, null, null, null));
     }
 
     @Test
     void connectService_addsConnection() {
-        User user = User.register(UID, "bob", EMAIL, SLACK, WS);
+        User user = User.register(UID, "bob", EMAIL, SLACK, WS, null, null, null, null, null);
         user.pullDomainEvents(); // clear
         user.connectService("GOOGLE_CALENDAR", "enc_token", "enc_refresh", Instant.now().plusSeconds(3600));
         assertEquals(1, user.getServiceConnections().size());
@@ -54,7 +54,7 @@ class UserTest {
 
     @Test
     void disconnectService_revokesConnection() {
-        User user = User.register(UID, "charlie", EMAIL, SLACK, WS);
+        User user = User.register(UID, "charlie", EMAIL, SLACK, WS, null, null, null, null, null);
         user.connectService("GOOGLE_CALENDAR", "t", "r", Instant.now().plusSeconds(3600));
         user.disconnectService("GOOGLE_CALENDAR");
         assertFalse(user.getServiceConnections().get(0).isActive());
@@ -62,7 +62,7 @@ class UserTest {
 
     @Test
     void delete_softDeletes() {
-        User user = User.register(UID, "dave", EMAIL, SLACK, WS);
+        User user = User.register(UID, "dave", EMAIL, SLACK, WS, null, null, null, null, null);
         user.pullDomainEvents(); // clear registration event
         user.delete();
         assertTrue(user.isDeleted());
@@ -72,14 +72,14 @@ class UserTest {
 
     @Test
     void delete_alreadyDeleted_rejects() {
-        User user = User.register(UID, "eve", EMAIL, SLACK, WS);
+        User user = User.register(UID, "eve", EMAIL, SLACK, WS, null, null, null, null, null);
         user.delete();
         assertThrows(IllegalStateException.class, user::delete);
     }
 
     @Test
     void connectService_afterDelete_rejects() {
-        User user = User.register(UID, "frank", EMAIL, SLACK, WS);
+        User user = User.register(UID, "frank", EMAIL, SLACK, WS, null, null, null, null, null);
         user.delete();
         assertThrows(IllegalStateException.class,
                 () -> user.connectService("GOOGLE_CALENDAR", "t", "r", Instant.now()));
@@ -87,7 +87,7 @@ class UserTest {
 
     @Test
     void pullDomainEvents_clearsAfterPull() {
-        User user = User.register(UID, "grace", EMAIL, SLACK, WS);
+        User user = User.register(UID, "grace", EMAIL, SLACK, WS, null, null, null, null, null);
         assertEquals(1, user.pullDomainEvents().size());
         assertEquals(0, user.pullDomainEvents().size()); // already cleared
     }

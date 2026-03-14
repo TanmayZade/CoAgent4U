@@ -42,7 +42,7 @@ public class JwtIssuer {
 
     /** Backward-compatible: issues JWT with userId only. */
     public String issue(UUID userId) {
-        return issue(userId, null, false);
+        return issue(userId, null, false, null, null, null, null, null, null);
     }
 
     /**
@@ -53,7 +53,8 @@ public class JwtIssuer {
      * @param pendingRegistration true if user has not yet completed onboarding
      * @return signed JWT string
      */
-    public String issue(UUID userId, String username, boolean pendingRegistration) {
+    public String issue(UUID userId, String username, boolean pendingRegistration,
+            String slackUserId, String workspaceId, String workspaceName, String workspaceDomain, String displayName, String avatarUrl) {
         Instant now = Instant.now();
         var builder = Jwts.builder()
                 .id(UUID.randomUUID().toString())
@@ -64,6 +65,24 @@ public class JwtIssuer {
                 .expiration(Date.from(now.plusSeconds(expiryMinutes * 60)));
         if (username != null) {
             builder.claim("username", username);
+        }
+        if (slackUserId != null) {
+            builder.claim("slack_user_id", slackUserId);
+        }
+        if (workspaceId != null) {
+            builder.claim("workspace_id", workspaceId);
+        }
+        if (workspaceName != null) {
+            builder.claim("workspace_name", workspaceName);
+        }
+        if (workspaceDomain != null) {
+            builder.claim("workspace_domain", workspaceDomain);
+        }
+        if (displayName != null) {
+            builder.claim("display_name", displayName);
+        }
+        if (avatarUrl != null) {
+            builder.claim("avatar_url", avatarUrl);
         }
         return builder.signWith(key).compact();
     }
@@ -84,7 +103,7 @@ public class JwtIssuer {
      * @return signed JWT string with 10-minute expiry
      */
     public String issuePending(UUID userId, String slackUserId,
-            String workspaceId, String email, String displayName) {
+            String workspaceId, String workspaceName, String workspaceDomain, String email, String displayName, String avatarUrl) {
         Instant now = Instant.now();
         var builder = Jwts.builder()
                 .id(UUID.randomUUID().toString())
@@ -93,6 +112,8 @@ public class JwtIssuer {
                 .claim("auth_provider", "slack")
                 .claim("slack_user_id", slackUserId)
                 .claim("workspace_id", workspaceId)
+                .claim("workspace_name", workspaceName)
+                .claim("workspace_domain", workspaceDomain)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(PENDING_EXPIRY_MINUTES * 60)));
         if (email != null) {
@@ -100,6 +121,9 @@ public class JwtIssuer {
         }
         if (displayName != null) {
             builder.claim("display_name", displayName);
+        }
+        if (avatarUrl != null) {
+            builder.claim("avatar_url", avatarUrl);
         }
         return builder.signWith(key).compact();
     }

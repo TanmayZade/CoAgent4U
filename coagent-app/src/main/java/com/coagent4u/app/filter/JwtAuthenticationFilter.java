@@ -98,8 +98,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 claims.authProvider(),
                 claims.slackUserId(),
                 claims.workspaceId(),
+                claims.workspaceName(),
+                claims.workspaceDomain(),
                 claims.email(),
-                claims.displayName());
+                claims.displayName(),
+                claims.avatarUrl());
         request.setAttribute(AuthenticatedUser.REQUEST_ATTRIBUTE, user);
 
         filterChain.doFilter(request, response);

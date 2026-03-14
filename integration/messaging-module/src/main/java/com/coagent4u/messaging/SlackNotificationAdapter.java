@@ -21,7 +21,9 @@ import com.coagent4u.config.CoagentProperties;
 import com.coagent4u.shared.SlackUserId;
 import com.coagent4u.shared.TimeSlot;
 import com.coagent4u.shared.WorkspaceId;
+import com.coagent4u.user.domain.WorkspaceInstallation;
 import com.coagent4u.user.port.out.NotificationPort;
+import com.coagent4u.user.port.out.WorkspaceInstallationPersistencePort;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -42,16 +44,19 @@ public class SlackNotificationAdapter implements NotificationPort {
     private final WebClient webClient;
     private final CoagentProperties properties;
     private final ObjectMapper objectMapper;
+    private final WorkspaceInstallationPersistencePort workspaceInstallationPort;
 
     public SlackNotificationAdapter(
             WebClient.Builder webClientBuilder,
             CoagentProperties properties,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            WorkspaceInstallationPersistencePort workspaceInstallationPort) {
         this.webClient = webClientBuilder
                 .baseUrl("https://slack.com/api")
                 .build();
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.workspaceInstallationPort = workspaceInstallationPort;
     }
 
     // ── Public API ──────────────────────────────────────────────
@@ -59,14 +64,14 @@ public class SlackNotificationAdapter implements NotificationPort {
     @Override
     public String sendMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String message) {
         String payload = buildBlockKitPayload(slackUserId.value(), message);
-        return postToSlack(payload, slackUserId.value());
+        return postToSlack(payload, slackUserId.value(), workspaceId);
     }
 
     @Override
     public String sendApprovalRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
             String proposalText, String approvalId, String coordinationId) {
         String payload = buildApprovalPayload(slackUserId.value(), proposalText, approvalId, coordinationId);
-        return postToSlack(payload, slackUserId.value());
+        return postToSlack(payload, slackUserId.value(), workspaceId);
     }
 
     @Override
@@ -75,7 +80,7 @@ public class SlackNotificationAdapter implements NotificationPort {
         log.info("[SlackAdapter] Sending slot selection card to user={} for coordination={}",
                 slackUserId.value(), coordinationId);
         String payload = buildSlotSelectionPayload(slackUserId.value(), coordinationId, slots, requesterMention);
-        return postToSlack(payload, slackUserId.value());
+        return postToSlack(payload, slackUserId.value(), workspaceId);
     }
 
     /**
@@ -84,11 +89,12 @@ public class SlackNotificationAdapter implements NotificationPort {
      *
      * @return the message timestamp (ts) if successful
      */
-    public String postToSlack(String payload, String userId) {
+    public String postToSlack(String payload, String userId, WorkspaceId workspaceId) {
         try {
+            String botToken = getBotToken(workspaceId);
             String response = webClient.post()
                     .uri("/chat.postMessage")
-                    .header("Authorization", "Bearer " + properties.getSlack().getBotToken())
+                    .header("Authorization", "Bearer " + botToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(payload)
                     .retrieve()
@@ -132,18 +138,19 @@ public class SlackNotificationAdapter implements NotificationPort {
     }
 
     @Override
-    public boolean deleteMessage(SlackUserId slackUserId, String ts) {
-        return deleteMessage(slackUserId.value(), ts);
+    public boolean deleteMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String ts) {
+        return deleteMessage(slackUserId.value(), workspaceId, ts);
     }
 
     /**
      * Deletes a Slack message using chat.delete.
      *
      * @param channel the channel ID
+     * @param workspaceId the workspace ID
      * @param ts      the message timestamp
      * @return true if deleted successfully, false otherwise
      */
-    public boolean deleteMessage(String channel, String ts) {
+    public boolean deleteMessage(String channel, WorkspaceId workspaceId, String ts) {
         try {
             ObjectNode body = objectMapper.createObjectNode();
             body.put("channel", channel);
@@ -180,11 +187,12 @@ public class SlackNotificationAdapter implements NotificationPort {
      *
      * @return the message timestamp (ts) if successful
      */
-    public String updateMessage(String channel, String ts, String payload) {
+    public String updateMessage(String channel, WorkspaceId workspaceId, String ts, String payload) {
         try {
+            String botToken = getBotToken(workspaceId);
             String response = webClient.post()
                     .uri("/chat.update")
-                    .header("Authorization", "Bearer " + properties.getSlack().getBotToken())
+                    .header("Authorization", "Bearer " + botToken)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(payload)
                     .retrieve()
@@ -206,7 +214,20 @@ public class SlackNotificationAdapter implements NotificationPort {
         }
     }
 
-    // ── Payload Builders ────────────────────────────────────────
+    // ── Block Kit Helpers ───────────────────────────────────────
+
+    /**
+     * Helper to get the correct bot token for a workspace. Check DB first, fallback to properties.
+     */
+    private String getBotToken(WorkspaceId workspaceId) {
+        if (workspaceId == null || workspaceId.value() == null || workspaceId.value().isBlank()) {
+            return properties.getSlack().getBotToken();
+        }
+        
+        return workspaceInstallationPort.findByWorkspaceId(workspaceId)
+                .map(WorkspaceInstallation::botToken)
+                .orElse(properties.getSlack().getBotToken());
+    }
 
     /**
      * Builds a plain text Block Kit message with colored sidebar.

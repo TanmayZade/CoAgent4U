@@ -21,8 +21,14 @@ public class CorsConfig implements WebMvcConfigurer {
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
+        String frontendUrl = properties.getFrontendUrl();
+        // Extract base domain for pattern matching if using a custom domain
+        String domainPattern = frontendUrl.replace("https://", "https://*.")
+                                         .replace("http://", "http://*.");
+
         registry.addMapping("/**")
-                .allowedOrigins(properties.getFrontendUrl())
+                .allowedOrigins(frontendUrl, "https://www.coagent4u.com", "https://coagent4u.com")
+                .allowedOriginPatterns(domainPattern, "https://*.coagent4u.com")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)

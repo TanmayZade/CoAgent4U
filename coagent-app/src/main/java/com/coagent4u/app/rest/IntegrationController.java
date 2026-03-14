@@ -106,17 +106,17 @@ public class IntegrationController {
         if (error != null) {
             log.warn("Google OAuth callback error: {}", error);
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=" + error)
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/onboarding?google=error&reason=" + error)
                     .build();
         }
         if (code == null || code.isBlank()) {
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=missing_code")
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/onboarding?google=error&reason=missing_code")
                     .build();
         }
         if (state == null || state.isBlank()) {
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=missing_state")
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/onboarding?google=error&reason=missing_state")
                     .build();
         }
 
@@ -125,7 +125,7 @@ public class IntegrationController {
         if (userId == null) {
             log.warn("Invalid or expired Google OAuth state token");
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=invalid_state")
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/onboarding?google=error&reason=invalid_state")
                     .build();
         }
 
@@ -143,13 +143,13 @@ public class IntegrationController {
 
             log.info("Google Calendar connected for userId={}", userId);
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=success")
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/onboarding?google=success")
                     .build();
 
         } catch (Exception e) {
             log.error("Google OAuth callback failed", e);
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, frontendUrl + "/dashboard?google=error&reason=exchange_failed")
+                    .header(HttpHeaders.LOCATION, frontendUrl + "/onboarding?google=error&reason=exchange_failed")
                     .build();
         }
     }

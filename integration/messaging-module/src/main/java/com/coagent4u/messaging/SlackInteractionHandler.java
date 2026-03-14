@@ -196,7 +196,7 @@ public class SlackInteractionHandler {
             String requesterSlackId = coordinationProtocol.getMetadata(coordId, "requester_slack_id");
             String requesterNotifTs = coordinationProtocol.getMetadata(coordId, "requester_notification_ts");
             if (requesterSlackId != null && requesterNotifTs != null) {
-                slackAdapter.deleteMessage(requesterSlackId, requesterNotifTs);
+                slackAdapter.deleteMessage(requesterSlackId, new WorkspaceId(teamId), requesterNotifTs);
             }
 
             // 4. Delete old slot selection card and repost "Selected Time Slot" with waiting
@@ -206,7 +206,7 @@ public class SlackInteractionHandler {
                     + "_Selected at " + now.format(TIMESTAMP_FMT) + "_\n"
                     + "⏳ Waiting for approval...";
 
-            String newTs = deleteAndRepost(channel, messageTs, channel, statusText, "#3AA3E3");
+            String newTs = deleteAndRepost(channel, new WorkspaceId(teamId), messageTs, channel, statusText, "#3AA3E3");
             if (newTs != null) {
                 coordinationProtocol.updateMetadata(coordId, "selected_slot_ts", newTs);
             }
@@ -235,7 +235,7 @@ public class SlackInteractionHandler {
             }
 
             // 2. Streamlined Flow: Immediate deletion of interactive card, skip status reposts
-            slackAdapter.deleteMessage(slackUserId, messageTs);
+            slackAdapter.deleteMessage(slackUserId, new WorkspaceId(teamId), messageTs);
             log.info("[InteractionHandler] Decision processed (approved={}). Deleting card and skipping intermediate status updates.", approved);
 
             // Skip "final_status_ts" metadata as we no longer repost mid-status cards
@@ -268,18 +268,18 @@ public class SlackInteractionHandler {
     /**
      * @return the timestamp of the newly posted/updated message
      */
-    private String deleteAndRepost(String channel, String messageTs,
+    private String deleteAndRepost(String channel, WorkspaceId workspaceId, String messageTs,
             String repostChannel, String statusText, String color) {
         try {
             String newPayload = buildStatusCard(repostChannel, statusText, color);
-            boolean deleted = slackAdapter.deleteMessage(channel, messageTs);
+            boolean deleted = slackAdapter.deleteMessage(channel, workspaceId, messageTs);
 
             if (deleted) {
-                return slackAdapter.postToSlack(newPayload, repostChannel);
+                return slackAdapter.postToSlack(newPayload, repostChannel, workspaceId);
             } else {
                 log.info("[InteractionHandler] Fallback to chat.update for channel={} ts={}", channel, messageTs);
                 String updatePayload = buildFallbackUpdatePayload(channel, messageTs, statusText, color);
-                return slackAdapter.updateMessage(channel, messageTs, updatePayload);
+                return slackAdapter.updateMessage(channel, workspaceId, messageTs, updatePayload);
             }
         } catch (Exception e) {
             log.warn("[InteractionHandler] Delete-and-repost failed: {}", e.getMessage());

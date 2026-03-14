@@ -1,21 +1,21 @@
 -- V1: User module tables
 -- Owner: user-module (UserPersistencePort)
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     user_id         UUID PRIMARY KEY,
     email           VARCHAR(255) NOT NULL UNIQUE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     preferences     JSONB
 );
 
-CREATE TABLE slack_identities (
+CREATE TABLE IF NOT EXISTS slack_identities (
     slack_user_id   VARCHAR(64) PRIMARY KEY,
     workspace_id    VARCHAR(64) NOT NULL,
     display_name    VARCHAR(255),
     linked_user_id  UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE
 );
 
-CREATE TABLE service_connections (
+CREATE TABLE IF NOT EXISTS service_connections (
     connection_id       UUID PRIMARY KEY,
     user_id             UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
     service_type        VARCHAR(32) NOT NULL,

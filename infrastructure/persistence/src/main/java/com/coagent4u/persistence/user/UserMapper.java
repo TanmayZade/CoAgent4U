@@ -29,6 +29,11 @@ public final class UserMapper {
                 SlackIdentityJpaEntity slack = new SlackIdentityJpaEntity();
                 slack.setSlackUserId(user.getSlackIdentity().slackUserId().value());
                 slack.setWorkspaceId(user.getSlackIdentity().workspaceId().value());
+                slack.setWorkspaceName(user.getSlackIdentity().workspaceName());
+                slack.setWorkspaceDomain(user.getSlackIdentity().workspaceDomain());
+                slack.setEmail(user.getSlackIdentity().email());
+                slack.setDisplayName(user.getSlackIdentity().displayName());
+                slack.setAvatarUrl(user.getSlackIdentity().avatarUrl());
                 slack.setUser(entity);
                 entity.setSlackIdentity(slack);
 
@@ -60,7 +65,12 @@ public final class UserMapper {
                                 e.getUsername(),
                                 Email.of(e.getEmail()),
                                 SlackUserId.of(e.getSlackIdentity().getSlackUserId()),
-                                WorkspaceId.of(e.getSlackIdentity().getWorkspaceId()));
+                                WorkspaceId.of(e.getSlackIdentity().getWorkspaceId()),
+                                e.getSlackIdentity().getWorkspaceName(),
+                                e.getSlackIdentity().getWorkspaceDomain(),
+                                e.getSlackIdentity().getEmail(),
+                                e.getSlackIdentity().getDisplayName(),
+                                e.getSlackIdentity().getAvatarUrl());
                 // 2. Discard the spurious UserRegistered event
                 user.pullDomainEvents();
 

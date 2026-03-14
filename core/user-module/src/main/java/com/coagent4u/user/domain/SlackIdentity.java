@@ -14,6 +14,11 @@ import com.coagent4u.shared.WorkspaceId;
 public record SlackIdentity(
         SlackUserId slackUserId,
         WorkspaceId workspaceId,
+        String workspaceName,
+        String workspaceDomain,
+        String email,
+        String displayName,
+        String avatarUrl,
         Instant linkedAt) {
     public SlackIdentity {
         Objects.requireNonNull(slackUserId, "slackUserId must not be null");
@@ -21,7 +26,8 @@ public record SlackIdentity(
         Objects.requireNonNull(linkedAt, "linkedAt must not be null");
     }
 
-    public static SlackIdentity of(SlackUserId slackUserId, WorkspaceId workspaceId) {
-        return new SlackIdentity(slackUserId, workspaceId, Instant.now());
+    public static SlackIdentity of(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String workspaceName, String workspaceDomain, String email, String displayName, String avatarUrl) {
+        return new SlackIdentity(slackUserId, workspaceId, workspaceName, workspaceDomain, email, displayName, avatarUrl, Instant.now());
     }
 }

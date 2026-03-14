@@ -1,7 +1,7 @@
 -- V5: Monitoring / audit tables
 -- Owner: monitoring module (AuditPersistencePort)
 
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     log_id          UUID PRIMARY KEY,
     user_id         UUID,
     event_type      VARCHAR(64) NOT NULL,

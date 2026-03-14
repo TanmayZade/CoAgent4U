@@ -63,8 +63,8 @@ public class MockNotificationAdapter implements NotificationPort {
         }
 
         @Override
-        public boolean deleteMessage(SlackUserId slackUserId, String ts) {
-                return true;
+    public boolean deleteMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String ts) {
+        return true;
         }
 
     // ── Getters for assertions ──

@@ -108,7 +108,7 @@ class UserPersistenceAdapterIT extends PostgresIntegrationTest {
                 Instant.now(), Instant.now(), null);
         // SlackIdentityJpaEntity(String slackUserId, String workspaceId, String
         // displayName)
-        SlackIdentityJpaEntity slack = new SlackIdentityJpaEntity(slackId, "W_TEST", username);
+        SlackIdentityJpaEntity slack = new SlackIdentityJpaEntity(slackId, "W_TEST", "Test Workspace", "test.slack.com", username + "@slack.com", username, "http://avatar.url");
         entity.setSlackIdentity(slack);
         return entity;
     }

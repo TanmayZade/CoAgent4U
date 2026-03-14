@@ -1,7 +1,7 @@
 -- V3: Coordination module tables
 -- Owner: coordination-module (CoordinationPersistencePort)
 
-CREATE TABLE coordinations (
+CREATE TABLE IF NOT EXISTS coordinations (
     coordination_id     UUID PRIMARY KEY,
     requester_agent_id  UUID NOT NULL,       -- NO FK to agents (cross-module boundary)
     invitee_agent_id    UUID NOT NULL,       -- NO FK to agents (cross-module boundary)
@@ -27,7 +27,7 @@ CREATE TABLE coordinations (
     ))
 );
 
-CREATE TABLE coordination_state_log (
+CREATE TABLE IF NOT EXISTS coordination_state_log (
     log_id              UUID PRIMARY KEY,
     coordination_id     UUID NOT NULL REFERENCES coordinations(coordination_id),
     from_state          VARCHAR(32) NOT NULL,

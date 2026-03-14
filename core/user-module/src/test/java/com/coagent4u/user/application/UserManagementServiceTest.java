@@ -38,7 +38,7 @@ class UserManagementServiceTest {
         when(persistence.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
 
         service.register(UserId.generate(), "alice_dev", Email.of("a@b.com"),
-                SlackUserId.of("U1"), WorkspaceId.of("T1"));
+                SlackUserId.of("U1"), WorkspaceId.of("T1"), null, null, null, null, null);
 
         verify(persistence).save(any(User.class));
         verify(eventPublisher).publish(any(DomainEvent.class));
@@ -49,14 +49,14 @@ class UserManagementServiceTest {
         when(persistence.existsByUsername("taken")).thenReturn(true);
         assertThrows(IllegalArgumentException.class,
                 () -> service.register(UserId.generate(), "taken", Email.of("a@b.com"),
-                        SlackUserId.of("U1"), WorkspaceId.of("T1")));
+                        SlackUserId.of("U1"), WorkspaceId.of("T1"), null, null, null, null, null));
     }
 
     @Test
     void connect_success() {
         UserId uid = UserId.generate();
         User user = User.register(uid, "bob", Email.of("b@c.com"),
-                SlackUserId.of("U2"), WorkspaceId.of("T2"));
+                SlackUserId.of("U2"), WorkspaceId.of("T2"), null, null, null, null, null);
         user.pullDomainEvents();
         when(persistence.findById(uid)).thenReturn(Optional.of(user));
         when(persistence.save(any())).thenAnswer(i -> i.getArgument(0));
@@ -69,7 +69,7 @@ class UserManagementServiceTest {
     void delete_success() {
         UserId uid = UserId.generate();
         User user = User.register(uid, "charlie", Email.of("c@d.com"),
-                SlackUserId.of("U3"), WorkspaceId.of("T3"));
+                SlackUserId.of("U3"), WorkspaceId.of("T3"), null, null, null, null, null);
         user.pullDomainEvents();
         when(persistence.findById(uid)).thenReturn(Optional.of(user));
         when(persistence.save(any())).thenAnswer(i -> i.getArgument(0));

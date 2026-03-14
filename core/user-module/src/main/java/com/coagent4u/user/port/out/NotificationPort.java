@@ -49,8 +49,9 @@ public interface NotificationPort {
          * Deletes an existing message.
          *
          * @param slackUserId the user ID (channel)
+         * @param workspaceId the Slack workspace
          * @param ts          the message timestamp
          * @return true if deleted
          */
-        boolean deleteMessage(SlackUserId slackUserId, String ts);
+        boolean deleteMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String ts);
 }

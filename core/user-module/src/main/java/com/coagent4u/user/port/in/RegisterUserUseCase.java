@@ -20,5 +20,6 @@ public interface RegisterUserUseCase {
      *                                  already exists
      */
     void register(UserId userId, String username, Email email,
-            SlackUserId slackUserId, WorkspaceId workspaceId);
+            SlackUserId slackUserId, WorkspaceId workspaceId,
+            String workspaceName, String workspaceDomain, String slackEmail, String displayName, String avatarUrl);
 }

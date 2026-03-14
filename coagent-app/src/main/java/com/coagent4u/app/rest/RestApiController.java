@@ -80,7 +80,8 @@ public class RestApiController {
                     request.username(),
                     new Email(request.email()),
                     new SlackUserId(request.slackUserId()),
-                    new WorkspaceId(request.workspaceId()));
+                    new WorkspaceId(request.workspaceId()),
+                    null, null, null, null, null);
 
             return ResponseEntity.ok("User registered successfully");
         } catch (IllegalArgumentException e) {

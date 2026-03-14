@@ -1,5 +1,5 @@
 -- Event proposals table for tracking personal event creation workflow
-CREATE TABLE event_proposals (
+CREATE TABLE IF NOT EXISTS event_proposals (
     id              UUID PRIMARY KEY,
     agent_id        UUID NOT NULL,
     approval_id     UUID,
@@ -12,6 +12,6 @@ CREATE TABLE event_proposals (
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_event_proposals_approval ON event_proposals(approval_id);
-CREATE INDEX idx_event_proposals_agent ON event_proposals(agent_id);
-CREATE INDEX idx_event_proposals_status ON event_proposals(status);
+CREATE INDEX IF NOT EXISTS idx_event_proposals_approval ON event_proposals(approval_id);
+CREATE INDEX IF NOT EXISTS idx_event_proposals_agent ON event_proposals(agent_id);
+CREATE INDEX IF NOT EXISTS idx_event_proposals_status ON event_proposals(status);

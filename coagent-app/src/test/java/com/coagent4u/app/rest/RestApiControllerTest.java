@@ -92,7 +92,8 @@ class RestApiControllerTest {
                                 .andExpect(status().isOk())
                                 .andExpect(content().string("User registered successfully"));
 
-                verify(registerUserUseCase).register(any(), eq("alice"), any(), any(), any());
+                verify(registerUserUseCase).register(any(), eq("alice"), any(), any(), any(),
+                                any(), any(), any(), any(), any());
         }
 
         @Test

@@ -1,7 +1,7 @@
 -- V4: Approval module tables
 -- Owner: approval-module (ApprovalPersistencePort)
 
-CREATE TABLE approvals (
+CREATE TABLE IF NOT EXISTS approvals (
     approval_id         UUID PRIMARY KEY,
     coordination_id     UUID,                    -- nullable for PERSONAL type; NO FK (cross-module)
     user_id             UUID NOT NULL,           -- NO FK to users (cross-module boundary)

@@ -19,8 +19,11 @@ public record AuthenticatedUser(
         String authProvider,
         String slackUserId,
         String workspaceId,
+        String workspaceName,
+        String workspaceDomain,
         String email,
-        String displayName) {
+        String displayName,
+        String avatarUrl) {
 
     public static final String REQUEST_ATTRIBUTE = "AUTHENTICATED_USER";
 
