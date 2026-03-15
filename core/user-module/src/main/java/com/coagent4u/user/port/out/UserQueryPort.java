@@ -14,5 +14,7 @@ import com.coagent4u.user.domain.User;
 public interface UserQueryPort {
     Optional<User> findById(UserId userId);
 
+    Optional<User> findByUsername(String username);
+
     boolean existsById(UserId userId);
 }

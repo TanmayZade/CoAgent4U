@@ -30,4 +30,6 @@ public record SlackIdentity(
             String workspaceName, String workspaceDomain, String email, String displayName, String avatarUrl) {
         return new SlackIdentity(slackUserId, workspaceId, workspaceName, workspaceDomain, email, displayName, avatarUrl, Instant.now());
     }
+
+
 }

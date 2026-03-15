@@ -123,4 +123,80 @@ public class BeanWiringConfig {
             CreateApprovalUseCase createApprovalUseCase) {
         return new ApprovalPortAdapter(agentPersistence, createApprovalUseCase);
     }
+
+    // ── Dashboard Query Services ─────────────────────────────────
+
+    @Bean
+    com.coagent4u.coordination.application.CoordinationQueryService coordinationQueryService(
+            CoordinationPersistencePort coordinationPersistence,
+            AgentPersistencePort agentPersistence,
+            UserQueryPort userQuery) {
+
+        // Bridge: resolves username ↔ AgentId without coupling modules
+        com.coagent4u.coordination.application.CoordinationQueryService.UserAgentResolver resolver =
+                new com.coagent4u.coordination.application.CoordinationQueryService.UserAgentResolver() {
+                    @Override
+                    public java.util.Optional<com.coagent4u.shared.AgentId> resolveAgentId(String username) {
+                        return userQuery.findByUsername(username)
+                                .flatMap(user -> agentPersistence.findByUserId(user.getUserId()))
+                                .map(agent -> agent.getAgentId());
+                    }
+
+                    @Override
+                    public String resolveUsername(com.coagent4u.shared.AgentId agentId) {
+                        return agentPersistence.findById(agentId)
+                                .flatMap(agent -> userQuery.findById(agent.getUserId()))
+                                .map(user -> user.getUsername())
+                                .orElse("unknown");
+                    }
+                };
+
+        return new com.coagent4u.coordination.application.CoordinationQueryService(
+                coordinationPersistence, resolver);
+    }
+
+    @Bean
+    com.coagent4u.agent.application.DashboardService dashboardService(
+            UserQueryPort userQuery,
+            AgentPersistencePort agentPersistence,
+            ApprovalPersistencePort approvalPersistence,
+            com.coagent4u.coordination.application.CoordinationQueryService coordinationQueryService) {
+
+        // Bridge: maps recent coordinations to summaries with resolved usernames
+        com.coagent4u.agent.application.DashboardService.CoordinationSummaryMapper mapper =
+                (agentId, limit) -> coordinationQueryService.getHistory(
+                        // Resolve agentId back to username for the query service
+                        agentPersistence.findById(agentId)
+                                .flatMap(agent -> userQuery.findById(agent.getUserId()))
+                                .map(user -> user.getUsername())
+                                .orElse("unknown"),
+                        0, limit).content();
+
+        return new com.coagent4u.agent.application.DashboardService(
+                userQuery, agentPersistence,
+                approvalPersistence, mapper);
+    }
+
+    // ── Priority 3-5: Audit Log & Pending Approvals ──────────
+
+    @Bean
+    com.coagent4u.user.application.AuditLogQueryService auditLogQueryService(
+            UserQueryPort userQuery,
+            com.coagent4u.user.port.out.AuditLogQueryPort auditLogQuery) {
+        return new com.coagent4u.user.application.AuditLogQueryService(userQuery, auditLogQuery);
+    }
+
+    @Bean
+    com.coagent4u.approval.application.PendingApprovalsService pendingApprovalsService(
+            UserQueryPort userQuery,
+            ApprovalPersistencePort approvalPersistence) {
+
+        // Bridge: username → UserId without coupling approval-module to user-module
+        com.coagent4u.approval.application.PendingApprovalsService.UserIdResolver resolver =
+                username -> userQuery.findByUsername(username)
+                        .map(user -> user.getUserId());
+
+        return new com.coagent4u.approval.application.PendingApprovalsService(
+                resolver, approvalPersistence);
+    }
 }

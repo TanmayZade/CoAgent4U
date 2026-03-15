@@ -27,7 +27,7 @@ export function SlackInstallGuard() {
   }, [user, loading])
 
   const handleCopyLink = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.coagent4u.com"
     const installUrl = `${apiUrl}/auth/slack/install/start`
     
     navigator.clipboard.writeText(installUrl)
@@ -37,7 +37,7 @@ export function SlackInstallGuard() {
   }
 
   const handleAddtoSlack = () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.coagent4u.com"
     window.location.href = `${apiUrl}/auth/slack/install/start`
   }
 

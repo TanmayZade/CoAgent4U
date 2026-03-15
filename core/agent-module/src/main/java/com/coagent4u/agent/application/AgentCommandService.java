@@ -27,7 +27,23 @@ import com.coagent4u.agent.port.out.CalendarPort;
 import com.coagent4u.agent.port.out.EventProposalPersistencePort;
 import com.coagent4u.agent.port.out.LLMPort;
 import com.coagent4u.common.DomainEventPublisher;
+import com.coagent4u.common.events.AgentActivated;
+import com.coagent4u.common.events.CalendarSourced;
+import com.coagent4u.common.events.ConflictDetected;
+import com.coagent4u.common.events.CoordinationInitiated;
+import com.coagent4u.common.events.CoordinationRequestReceived;
+import com.coagent4u.common.events.DateResolved;
+import com.coagent4u.common.events.IntentParsed;
+import com.coagent4u.common.events.LLMFallbackTriggered;
+import com.coagent4u.common.events.PersonalApprovalRequested;
 import com.coagent4u.common.events.PersonalEventCreated;
+import com.coagent4u.common.events.PersonalEventFailed;
+import com.coagent4u.common.events.ScheduleViewed;
+import com.coagent4u.common.events.SlotsProposed;
+import com.coagent4u.common.events.SlotsReceived;
+import com.coagent4u.common.events.TaskCompleted;
+import com.coagent4u.common.events.TaskFailed;
+import com.coagent4u.common.events.UnrecognizedIntent;
 import com.coagent4u.coordination.port.in.CoordinationProtocolPort;
 import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.ApprovalId;
@@ -100,6 +116,9 @@ public class AgentCommandService
     public void handleMessage(AgentId agentId, String rawText) {
         Agent agent = loadAgent(agentId);
 
+        // ── Event: AgentActivated ──
+        eventPublisher.publish(AgentActivated.of(agentId, agent.getUserId(), "Slack", rawText));
+
         // Tier 1: rule-based parsing
         ParsedIntent intent = intentParser.parse(rawText);
         log.info("[IntentParser] Parsed intent={} from text=\"{}\"", intent.type(), rawText);
@@ -108,7 +127,12 @@ public class AgentCommandService
         if (intent.type() == IntentType.UNKNOWN) {
             log.info("[IntentParser] Tier 1 returned UNKNOWN, falling back to LLM");
             Optional<String> llmResult = llmPort.classifyIntent(agentId, rawText);
-            log.info("[LLMAdapter] LLM classified intent={}", llmResult.orElse("EMPTY"));
+            String llmResponse = llmResult.orElse("EMPTY");
+            log.info("[LLMAdapter] LLM classified intent={}", llmResponse);
+
+            // ── Event: LLMFallbackTriggered ──
+            eventPublisher.publish(LLMFallbackTriggered.of(agentId, agent.getUserId(), rawText, llmResponse));
+
             if (llmResult.isPresent() && !"UNKNOWN".equalsIgnoreCase(llmResult.get())) {
                 try {
                     IntentType llmType = IntentType.valueOf(llmResult.get().toUpperCase());
@@ -121,9 +145,14 @@ public class AgentCommandService
         }
 
         if (intent.type() == IntentType.UNKNOWN) {
+            // ── Event: UnrecognizedIntent ──
+            eventPublisher.publish(UnrecognizedIntent.of(agentId, agent.getUserId(), rawText));
             sendUnknownIntentReply(agent);
             return;
         }
+
+        // ── Event: IntentParsed ──
+        eventPublisher.publish(IntentParsed.of(agentId, agent.getUserId(), intent.type().name(), rawText));
 
         routeIntent(agent, intent);
     }
@@ -186,6 +215,9 @@ public class AgentCommandService
         TimeRange nextWeek = TimeRange.of(LocalDate.now(), LocalDate.now().plusDays(7));
         List<CalendarEvent> events = calendarPort.getCalendarEvents(agent.getAgentId(), nextWeek);
 
+        // ── Event: ScheduleViewed ──
+        eventPublisher.publish(ScheduleViewed.of(agent.getAgentId(), agent.getUserId(), events.size()));
+
         java.time.ZoneId ist = java.time.ZoneId.of("Asia/Kolkata");
         java.time.format.DateTimeFormatter dayFmt = java.time.format.DateTimeFormatter.ofPattern("EEE, MMM dd");
         java.time.format.DateTimeFormatter timeFmt = java.time.format.DateTimeFormatter.ofPattern("hh:mm a");
@@ -212,6 +244,10 @@ public class AgentCommandService
                 user.getSlackIdentity().slackUserId(),
                 user.getSlackIdentity().workspaceId(),
                 sb.toString());
+
+        // ── Event: TaskCompleted ──
+        eventPublisher.publish(TaskCompleted.of(agent.getAgentId(), agent.getUserId(),
+                "VIEW_SCHEDULE", "Sent schedule with " + events.size() + " events"));
     }
 
     // ── Add Event Flow (State Machine) ─────────────────────────
@@ -239,6 +275,10 @@ public class AgentCommandService
             if (resolved.isPresent()) {
                 eventStart = resolved.get();
                 eventEnd = eventStart.plusSeconds(3600); // default 1-hour event
+
+                // ── Event: DateResolved ──
+                eventPublisher.publish(DateResolved.of(agent.getAgentId(), agent.getUserId(),
+                        dateTimeText, eventStart));
             }
         }
 
@@ -287,6 +327,10 @@ public class AgentCommandService
                 approvalId.value().toString(),
                 null); // No coordinationId for personal events
         log.info("[NotificationService] Approval card sent to user for proposal {}", proposalId);
+
+        // ── Event: PersonalApprovalRequested ──
+        eventPublisher.publish(PersonalApprovalRequested.of(agent.getAgentId(), agent.getUserId(),
+                approvalId, proposalText));
     }
 
     /**
@@ -342,11 +386,23 @@ public class AgentCommandService
                         confirmMsg);
                 log.info("[NotificationService] Success notification sent for proposal {}", proposal.getProposalId());
 
+                // ── Event: TaskCompleted ──
+                eventPublisher.publish(TaskCompleted.of(proposal.getAgentId(), agent.getUserId(),
+                        "ADD_EVENT", "Created event: " + proposal.getTitle()));
+
             } catch (Exception e) {
                 // → FAILED
                 proposal.transitionTo(EventProposalStatus.FAILED);
                 proposalPersistence.save(proposal);
                 log.error("[EventService] Proposal {} → FAILED: {}", proposal.getProposalId(), e.getMessage(), e);
+
+                // ── Event: PersonalEventFailed ──
+                eventPublisher.publish(PersonalEventFailed.of(proposal.getAgentId(), agent.getUserId(),
+                        proposal.getTitle(), e.getMessage()));
+
+                // ── Event: TaskFailed ──
+                eventPublisher.publish(TaskFailed.of(proposal.getAgentId(), agent.getUserId(),
+                        "ADD_EVENT", e.getMessage()));
 
                 notificationPort.sendMessage(
                         user.getSlackIdentity().slackUserId(),
@@ -459,10 +515,26 @@ public class AgentCommandService
                 lookAhead, 60, "Meeting", "Asia/Kolkata");
         log.info("[AgentService] Coordination initiated id={}", coordId);
 
+        // ── Event: CoordinationInitiated (Requester's log) ──
+        eventPublisher.publish(CoordinationInitiated.of(agent.getAgentId(), agent.getUserId(),
+                coordId, targetUser.getUserId()));
+
+        // ── Event: CoordinationRequestReceived (Invitee's log) ──
+        eventPublisher.publish(CoordinationRequestReceived.of(inviteeAgentId, targetUser.getUserId(),
+                coordId, agent.getUserId()));
+
         // Get available slots and send selection card to invitee
         java.util.List<TimeSlot> availableSlots = coordinationProtocol.getAvailableSlots(coordId);
 
         if (availableSlots.isEmpty()) {
+            // ── Event: ConflictDetected ──
+            eventPublisher.publish(ConflictDetected.of(agent.getAgentId(), agent.getUserId(),
+                    coordId, targetUsername + " is busy during all office hours on " + targetDate));
+
+            // ── Event: TaskFailed ──
+            eventPublisher.publish(TaskFailed.of(agent.getAgentId(), agent.getUserId(),
+                    "SCHEDULE_WITH", "No available slots found for " + targetUsername));
+
             // No slots available — notify requester
             User requesterUser = userPersistence.findById(agent.getUserId()).orElse(null);
             if (requesterUser != null) {
@@ -513,6 +585,14 @@ public class AgentCommandService
         coordinationProtocol.updateMetadata(coordId, "slot_selection_ts", slotSelectionTs);
         log.info("[NotificationService] Slot selection card sent to invitee @{} with {} slots",
                 targetUsername, availableSlots.size());
+
+        // ── Event: SlotsProposed (Requester's log) ──
+        eventPublisher.publish(SlotsProposed.of(agent.getAgentId(), agent.getUserId(),
+                coordId, availableSlots.size()));
+
+        // ── Event: SlotsReceived (Invitee's log) ──
+        eventPublisher.publish(SlotsReceived.of(inviteeAgentId, targetUser.getUserId(),
+                coordId, availableSlots.size()));
 
         // Step 3: Notify requester that slots were sent
         if (requesterUser != null) {

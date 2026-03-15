@@ -51,6 +51,8 @@ public class JwtIssuer {
      * @param userId              the user's UUID (subject)
      * @param username            display username (may be null for legacy calls)
      * @param pendingRegistration true if user has not yet completed onboarding
+     * @param avatarUrl           user's avatar image URL
+     * @param dmChannelId         Slack DM channel ID (prefixed with D)
      * @return signed JWT string
      */
     public String issue(UUID userId, String username, boolean pendingRegistration,
@@ -95,11 +97,9 @@ public class JwtIssuer {
      * <p>Slack identity is embedded as signed claims so it cannot be tampered
      * with by the client.</p>
      *
-     * @param userId      temporary user ID (not yet persisted)
-     * @param slackUserId Slack platform user ID
-     * @param workspaceId Slack workspace / team ID
      * @param email       may be null
      * @param displayName may be null
+     * @param avatarUrl   may be null
      * @return signed JWT string with 10-minute expiry
      */
     public String issuePending(UUID userId, String slackUserId,
@@ -128,4 +128,3 @@ public class JwtIssuer {
         return builder.signWith(key).compact();
     }
 }
-

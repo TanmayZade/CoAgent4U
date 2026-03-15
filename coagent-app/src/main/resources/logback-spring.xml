@@ -24,8 +24,8 @@
         </layout>
     </appender>
 
-    <!-- Dedicated logger for REST API details -->
-    <logger name="com.coagent4u.rest_api" level="info" additivity="false">
+    <!-- Capture all application logs -->
+    <logger name="com.coagent4u" level="info" additivity="false">
         <appender-ref ref="REST_API_FILE" />
         <appender-ref ref="Console" />
     </logger>

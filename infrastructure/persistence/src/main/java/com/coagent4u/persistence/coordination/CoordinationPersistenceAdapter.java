@@ -60,6 +60,26 @@ public class CoordinationPersistenceAdapter implements CoordinationPersistencePo
         });
     }
 
+    @Override
+    public List<Coordination> findByAgentId(AgentId agentId, int offset, int limit) {
+        org.springframework.data.domain.Page<CoordinationJpaEntity> page =
+                repository.findByRequesterAgentIdOrInviteeAgentIdOrderByCreatedAtDesc(
+                        agentId.value(), agentId.value(),
+                        org.springframework.data.domain.PageRequest.of(offset / Math.max(limit, 1), limit));
+        return page.getContent().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long countByAgentId(AgentId agentId) {
+        return repository.countByRequesterAgentIdOrInviteeAgentId(agentId.value(), agentId.value());
+    }
+
+    @Override
+    public List<Coordination> findRecentByAgentId(AgentId agentId, int limit) {
+        return repository.findTopNByAgentId(agentId.value(), limit)
+                .stream().map(this::toDomain).toList();
+    }
+
     private CoordinationJpaEntity toJpa(Coordination c) {
         CoordinationJpaEntity entity = new CoordinationJpaEntity();
         entity.setCoordinationId(c.getCoordinationId().value());

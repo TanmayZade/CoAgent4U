@@ -3,7 +3,7 @@
 import { useState, useEffect, createContext, useContext } from "react"
 import { Sidebar } from "@/components/layout/sidebar"
 import { ThemeToggle } from "@/components/theme-toggle"
-import { Bell, LogOut } from "lucide-react"
+import { Bell, LogOut, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { authAPI, APIError } from "@/lib/api"
 
@@ -12,6 +12,7 @@ interface UserData {
   username: string
   slack_name: string
   slack_workspace: string
+  slack_workspace_id: string
   slack_workspace_domain: string
   slack_avatar_url: string
   isSlackAppInstalled: boolean
@@ -132,6 +133,27 @@ export default function DashboardLayout({
                 </p>
               </div>
               <div className="flex items-center gap-4">
+                {/* Chat with Bot Button */}
+                {user?.slack_workspace_id && user?.isSlackAppInstalled && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2 hidden sm:flex"
+                    onClick={() => {
+                      const workspaceId = user.slack_workspace_id || 'T0AEP1ZHEKT'
+                      const appId = process.env.NEXT_PUBLIC_SLACK_APP_ID || 'A0AL92Q9RCZ'
+                      const chatUrl = `https://slack.com/app_redirect?team=${workspaceId}&app=${appId}`
+                      window.open(chatUrl, '_blank', 'noopener,noreferrer')
+                    }}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Chat with Agent
+                  </Button>
+                )}
+
+                {/* Theme Toggle */}
+                <ThemeToggle />
+
                 {/* Agent Status */}
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20">
                   <span className="relative flex h-2 w-2">
@@ -140,35 +162,6 @@ export default function DashboardLayout({
                   </span>
                   <span className="text-xs font-semibold text-primary">ACTIVE</span>
                 </div>
-                
-                {/* Notifications */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative text-foreground/60 hover:text-foreground h-10 w-10"
-                >
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-destructive" />
-                </Button>
-
-                {/* Theme Toggle */}
-                <ThemeToggle />
-
-                {/* Logout */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleLogout}
-                  disabled={isLoggingOut}
-                  className="text-foreground/60 hover:text-destructive hover:bg-destructive/10 h-10 w-10 disabled:opacity-50"
-                  title="Sign out"
-                >
-                  {isLoggingOut ? (
-                    <div className="w-5 h-5 border-2 border-destructive/30 border-t-destructive rounded-full animate-spin" />
-                  ) : (
-                    <LogOut className="w-5 h-5" />
-                  )}
-                </Button>
               </div>
             </div>
           </header>

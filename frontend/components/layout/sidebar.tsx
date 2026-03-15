@@ -28,11 +28,10 @@ interface UserData {
 
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard", group: "main" },
-  { href: "/dashboard/calendar", icon: Calendar, label: "Calendar", group: "main" },
   { href: "/dashboard/coordinations", icon: Users, label: "Coordinations", group: "main" },
   { href: "/dashboard/audit", icon: FileText, label: "Audit Log", group: "main" },
-  { href: "/dashboard/data", icon: Shield, label: "Data & Permissions", group: "settings" },
-  { href: "/dashboard/settings", icon: Settings, label: "Settings", group: "settings" },
+  { href: "/dashboard/integrations", icon: Settings, label: "Integrations", group: "settings" },
+  { href: "/dashboard/account", icon: Shield, label: "Account", group: "settings" },
 ]
 
 export function Sidebar({ user, isLoading }: { user: UserData | null, isLoading: boolean }) {

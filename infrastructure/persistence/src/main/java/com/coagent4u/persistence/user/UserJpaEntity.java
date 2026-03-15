@@ -40,7 +40,7 @@ public class UserJpaEntity {
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private SlackIdentityJpaEntity slackIdentity;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<ServiceConnectionJpaEntity> serviceConnections = new ArrayList<>();
 
     protected UserJpaEntity() {

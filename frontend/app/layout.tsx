@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Poppins, JetBrains_Mono, Playfair_Display } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { ThemeProvider } from '@/components/theme-provider'
+import { QueryProvider } from '@/components/query-provider'
 import './globals.css'
 
 const poppins = Poppins({ 
@@ -68,7 +69,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange={false}
         >
-          {children}
+          <QueryProvider>
+            {children}
+          </QueryProvider>
         </ThemeProvider>
         <Analytics />
       </body>

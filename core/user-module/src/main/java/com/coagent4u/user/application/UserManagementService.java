@@ -38,13 +38,13 @@ public class UserManagementService
         this.eventPublisher = eventPublisher;
     }
 
-    @Override
     public void register(UserId userId, String username, Email email,
             SlackUserId slackUserId, WorkspaceId workspaceId,
             String workspaceName, String workspaceDomain, String slackEmail, String displayName, String avatarUrl) {
         if (persistence.existsByUsername(username)) {
             throw new IllegalArgumentException("Username already taken: " + username);
         }
+        // Factory creates user + UserRegistered event
         User user = User.register(userId, username, email, slackUserId, workspaceId, 
                 workspaceName, workspaceDomain, slackEmail, displayName, avatarUrl);
         persistence.save(user);

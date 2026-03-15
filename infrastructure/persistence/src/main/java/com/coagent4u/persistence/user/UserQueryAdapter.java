@@ -27,6 +27,11 @@ public class UserQueryAdapter implements UserQueryPort {
     }
 
     @Override
+    public Optional<User> findByUsername(String username) {
+        return repository.findByUsername(username).map(UserMapper::toDomain);
+    }
+
+    @Override
     public boolean existsById(UserId userId) {
         return repository.existsById(userId.value());
     }

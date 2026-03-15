@@ -1,211 +1,190 @@
 "use client"
 
-import Link from "next/link"
-import { StateMachineViz } from "@/components/coordination/state-machine-viz"
-import { ParticipantCard } from "@/components/coordination/participant-card"
-import { EventProposalCard } from "@/components/coordination/event-proposal-card"
-import { AuditTimeline } from "@/components/common/audit-timeline"
-import { GlowCard } from "@/components/common/glow-card"
+import { useQuery } from "@tanstack/react-query"
+import { useUser } from "../../layout"
+import { coordinationsAPI } from "@/lib/api/coordinations"
+import { StatusChip } from "@/components/ui/status-chip"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, Copy } from "lucide-react"
+import { ArrowLeft, Clock, Calendar, Check, X, ShieldAlert } from "lucide-react"
+import Link from "next/link"
+import { useParams } from "next/navigation"
+import { CoordinationState } from "@/lib/api/dashboard"
 
-const auditEvents = [
-  {
-    timestamp: "14:23:01",
-    description: "Agent A initiated coordination request",
-    type: "info" as const,
-  },
-  {
-    timestamp: "14:23:02",
-    description: "Agent A queried User A calendar",
-    type: "info" as const,
-    payload: { action: "CALENDAR_READ", userId: "user_alex", slots: 8 },
-  },
-  {
-    timestamp: "14:23:03",
-    description: "Free slots found: 4 windows",
-    type: "success" as const,
-    payload: {
-      slots: [
-        "Fri 3:00-3:30 PM",
-        "Fri 4:00-4:30 PM",
-        "Fri 6:00-6:30 PM",
-        "Mon 10:00-10:30 AM",
-      ],
-    },
-  },
-  {
-    timestamp: "14:23:04",
-    description: "A2A Coordination Engine engaged Agent B",
-    type: "info" as const,
-  },
-  {
-    timestamp: "14:23:05",
-    description: "Agent B queried User B calendar",
-    type: "info" as const,
-    payload: { action: "CALENDAR_READ", userId: "user_mike", slots: 6 },
-  },
-  {
-    timestamp: "14:23:06",
-    description: "Matching algorithm found 1 common slot",
-    type: "success" as const,
-  },
-  {
-    timestamp: "14:23:06",
-    description: "Proposal generated: Friday 6:00-6:30 PM",
-    type: "success" as const,
-    payload: {
-      proposedSlot: "2024-03-15T18:00:00Z",
-      duration: 30,
-      title: "Project Sync",
-    },
-  },
-  {
-    timestamp: "14:23:07",
-    description: "Approval request sent to User B",
-    type: "info" as const,
-  },
-  {
-    timestamp: "14:25:12",
-    description: "User B approved the proposal",
-    type: "success" as const,
-  },
-  {
-    timestamp: "14:25:13",
-    description: "Approval request sent to User A",
-    type: "info" as const,
-  },
-  {
-    timestamp: "14:27:45",
-    description: "Awaiting User A approval",
-    type: "warning" as const,
-  },
+const PROTOCOL_STATES = [
+  "INITIATED",
+  "CHECKING_AVAILABILITY_A",
+  "CHECKING_AVAILABILITY_B",
+  "MATCHING",
+  "PROPOSAL_GENERATED",
+  "AWAITING_APPROVAL_B",
+  "AWAITING_APPROVAL_A",
+  "APPROVED_BY_BOTH",
+  "CREATING_EVENT_A",
+  "CREATING_EVENT_B",
+  "COMPLETED"
 ]
 
-export default function CoordinationDetailPage({
-  params,
-}: {
-  params: { id: string }
-}) {
+export default function CoordinationDetailPage() {
+  const { user } = useUser()
+  const params = useParams()
+  const id = params.id as string
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['coordination', id, user?.username],
+    queryFn: () => coordinationsAPI.getDetail(id, user!.username),
+    enabled: !!user?.username && !!id,
+    refetchInterval: 10000 // refresh every 10s
+  })
+
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            asChild
-            className="text-cream/70 hover:text-cream"
-          >
-            <Link href="/dashboard/coordinations">
-              <ChevronLeft className="w-4 h-4 mr-1" />
-              Back
-            </Link>
-          </Button>
-          <div className="w-px h-6 bg-charcoal-light" />
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Header & Back tracking */}
+      <div className="flex items-center gap-4">
+        <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-foreground/60 hover:text-foreground">
+          <Link href="/dashboard/coordinations">
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+        </Button>
+        <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-cream font-[family-name:var(--font-display)]">
-              Coordination Details
+            <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3">
+              Meeting with {data?.contactName || '...'}
+              {data && <StatusChip state={data.status} />}
             </h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs font-mono text-cream/50">
-                {params.id}
-              </span>
-              <button className="text-cream/50 hover:text-accent transition-colors">
-                <Copy className="w-3 h-3" />
-              </button>
+            <p className="text-foreground/50 font-mono text-xs mt-1">
+              ID: {id}
+            </p>
+          </div>
+          {data && (
+            <div className="text-sm text-foreground/60 flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Started {new Date(data.createdAt).toLocaleString()}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="p-12 text-center text-foreground/50">
+          <div className="flex justify-center mb-4">
+            <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          </div>
+          Loading coordination details...
+        </div>
+      ) : data ? (
+        <>
+          {/* THE SIGNATURE ELEMENT: STATE MACHINE TIMELINE */}
+          <div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm overflow-hidden">
+            <h3 className="text-lg font-semibold tracking-tight mb-8">State Machine</h3>
+            
+            <div className="relative pb-4">
+              <div className="flex items-center justify-between w-full overflow-x-auto pb-6 scrollbar-thin">
+                <div className="relative flex items-center min-w-[800px] w-full px-4">
+                  
+                  {/* Background track line */}
+                  <div className="absolute left-8 right-8 top-1/2 -translate-y-1/2 h-0.5 bg-border/40 z-0"></div>
+
+                  {PROTOCOL_STATES.map((stateInfo, index) => {
+                    const isTerminalRejection = (data.status === 'REJECTED' || data.status === 'FAILED')
+                    const isActive = data.status === stateInfo || 
+                                    (isTerminalRejection && stateInfo === data.status)
+                    const isPast = PROTOCOL_STATES.indexOf(data.status) > index && !isTerminalRejection
+                    const stateLog = data.stateLogs?.find((log: any) => log.toState === stateInfo)
+
+                    let colorClass = "bg-muted border-border/50 text-foreground/40"
+                    if (isActive) {
+                      colorClass = isTerminalRejection 
+                        ? "bg-rose-500/20 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)] text-rose-500 animate-pulse"
+                        : "bg-primary/20 border-primary shadow-[0_0_15px_rgba(129,140,248,0.3)] text-primary animate-pulse"
+                    } else if (isPast) {
+                      colorClass = "bg-primary border-primary text-primary-foreground"
+                    }
+
+                    return (
+                      <div key={stateInfo} className="relative z-10 flex flex-col items-center flex-1">
+                        <div className={`w-4 h-4 rounded-full border-2 ${colorClass} transition-all duration-500`}></div>
+                        <div className="absolute top-6 w-32 text-center">
+                          <p className={`text-[9px] font-mono leading-tight ${isActive || isPast ? 'text-foreground' : 'text-foreground/40'}`}>
+                            {stateInfo.replace(/_/g, ' ')}
+                          </p>
+                          {stateLog && (
+                            <p className="text-[10px] text-foreground/50 mt-1 font-mono">
+                              {new Date(stateLog.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  
+                  {/* Append Terminal Error Node dynamically if applicable */}
+                  {(data.status === 'REJECTED' || data.status === 'FAILED') && (
+                     <div className="relative z-10 flex flex-col items-center ml-4">
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 h-0.5 bg-rose-500/40 w-8 -z-10"></div>
+                        <div className={`w-4 h-4 rounded-full border-2 bg-rose-500/20 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)] text-rose-500 animate-pulse transition-all duration-500 flex items-center justify-center`}>
+                          <ShieldAlert className="w-2.5 h-2.5" />
+                        </div>
+                        <div className="absolute top-6 w-32 text-center">
+                          <p className={`text-[9px] font-mono leading-tight text-rose-500`}>
+                            {data.status}
+                          </p>
+                        </div>
+                     </div>
+                  )}
+
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* State Machine Visualization */}
-      <GlowCard className="p-6">
-        <h2 className="text-lg font-semibold text-cream mb-6 font-[family-name:var(--font-display)]">
-          Coordination State
-        </h2>
-        <StateMachineViz currentStateIndex={4} interactive={false} />
-      </GlowCard>
-
-      {/* Main content grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left column - Participants */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-cream/50">
-            Participants
-          </h3>
-          <ParticipantCard
-            name="Alex Johnson"
-            handle="@alex-johnson"
-            avatarInitials="AJ"
-            role="initiator"
-            approvalStatus="pending"
-            availability="Mon-Fri, 9AM-6PM"
-            isCurrentUser
-          />
-          <ParticipantCard
-            name="Mike Wilson"
-            handle="@mike-wilson"
-            avatarInitials="MW"
-            role="recipient"
-            approvalStatus="approved"
-            availability="Mon-Fri, 10AM-5PM"
-          />
-        </div>
-
-        {/* Center column - Event Proposal */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-cream/50">
-            Event Proposal
-          </h3>
-          <EventProposalCard
-            title="Project Sync"
-            date="Friday, March 15, 2024"
-            time="6:00 PM"
-            duration="30 minutes"
-            participants={["@alex-johnson", "@mike-wilson"]}
-            canApprove={true}
-            status="pending"
-          />
-        </div>
-
-        {/* Right column - Quick Info */}
-        <div className="space-y-4">
-          <h3 className="text-sm font-medium text-cream/50">
-            Quick Info
-          </h3>
-          <GlowCard className="p-4">
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs text-cream/50 mb-1">Type</p>
-                <p className="text-sm text-cream">Meeting</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Proposal Context */}
+            {data.proposalTime && (
+              <div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm">
+                <h3 className="text-lg font-semibold tracking-tight mb-4 flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-primary" />
+                  Proposed Schedule
+                </h3>
+                <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
+                  <p className="text-foreground text-lg mb-1">{new Date(data.proposalTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="text-primary font-mono text-xl">{new Date(data.proposalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-cream/50 mb-1">Created</p>
-                <p className="text-sm font-mono text-cream">
-                  2024-03-11 14:23:01
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-cream/50 mb-1">Duration</p>
-                <p className="text-sm text-cream">4 min 44 sec</p>
-              </div>
-              <div>
-                <p className="text-xs text-cream/50 mb-1">
-                  Current State
-                </p>
-                <p className="text-sm text-amber-500 font-mono">
-                  AWAITING_APPROVAL_A
-                </p>
+            )}
+
+            {/* Approvals History (if any) */}
+            <div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm">
+              <h3 className="text-lg font-semibold tracking-tight mb-4 flex items-center gap-2">
+                <Check className="w-5 h-5 text-emerald-500" />
+                Approval Context
+              </h3>
+              <div className="space-y-3">
+                {/* Simulated dummy data for the approval trace if not available yet on backend */}
+                <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                  <span className="text-sm font-medium">You</span>
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium">Approved</span>
+                    <span className="text-foreground/50 font-mono">14:03 PM</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                  <span className="text-sm font-medium">{data.contactName}</span>
+                  <div className="flex items-center gap-2 text-xs">
+                     {data.status === 'AWAITING_APPROVAL_B' ? (
+                        <span className="text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium animate-pulse">Pending...</span>
+                     ) : (
+                        <>
+                          <span className="text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full font-medium">Approved</span>
+                          <span className="text-foreground/50 font-mono">14:01 PM</span>
+                        </>
+                     )}
+                  </div>
+                </div>
               </div>
             </div>
-          </GlowCard>
-        </div>
-      </div>
-
-      {/* Audit Timeline */}
-      <AuditTimeline events={auditEvents} />
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }

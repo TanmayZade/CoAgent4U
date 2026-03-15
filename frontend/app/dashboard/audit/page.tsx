@@ -1,339 +1,208 @@
 "use client"
 
 import { useState } from "react"
-import { GlowCard } from "@/components/common/glow-card"
+import { useQuery } from "@tanstack/react-query"
+import { useUser } from "../layout"
+import { auditAPI, AuditLogEntry } from "@/lib/api/audit"
 import { Button } from "@/components/ui/button"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
-  Search,
-  Filter,
-  Download,
-  ChevronDown,
-  ChevronRight,
-  Info,
-  CheckCircle,
-  AlertTriangle,
-  XCircle,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
+import { Download, Search, Filter, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSm } from "lucide-react"
 
-type LogLevel = "info" | "success" | "warning" | "error"
-
-interface AuditLog {
-  id: string
-  timestamp: string
-  user: string
-  action: string
-  entity: string
-  status: LogLevel
-  payload?: Record<string, unknown>
+function LevelChip({ level }: { level: AuditLogEntry['level'] }) {
+  const colors = {
+    INFO: "bg-blue-500/10 text-blue-500 border-blue-500/20",
+    SUCCESS: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+    WARNING: "bg-amber-500/10 text-amber-500 border-amber-500/20",
+    ERROR: "bg-rose-500/10 text-rose-500 border-rose-500/20"
+  }
+  
+  return (
+    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider border ${colors[level]}`}>
+      {level}
+    </span>
+  )
 }
 
-const logs: AuditLog[] = [
-  {
-    id: "log-001",
-    timestamp: "2024-03-11 14:27:45",
-    user: "alex-johnson",
-    action: "COORDINATION_INITIATED",
-    entity: "coord-002",
-    status: "info",
-    payload: { targetUser: "mike-wilson", type: "meeting" },
-  },
-  {
-    id: "log-002",
-    timestamp: "2024-03-11 14:27:46",
-    user: "system",
-    action: "CALENDAR_READ",
-    entity: "user_alex",
-    status: "success",
-    payload: { slots: 8, provider: "google" },
-  },
-  {
-    id: "log-003",
-    timestamp: "2024-03-11 14:27:47",
-    user: "system",
-    action: "CALENDAR_READ",
-    entity: "user_mike",
-    status: "success",
-    payload: { slots: 6, provider: "google" },
-  },
-  {
-    id: "log-004",
-    timestamp: "2024-03-11 14:27:48",
-    user: "system",
-    action: "PROPOSAL_GENERATED",
-    entity: "coord-002",
-    status: "success",
-    payload: { proposedSlot: "2024-03-15T18:00:00Z", duration: 30 },
-  },
-  {
-    id: "log-005",
-    timestamp: "2024-03-11 14:27:49",
-    user: "system",
-    action: "APPROVAL_REQUESTED",
-    entity: "user_mike",
-    status: "info",
-  },
-  {
-    id: "log-006",
-    timestamp: "2024-03-11 14:30:12",
-    user: "mike-wilson",
-    action: "APPROVAL_GRANTED",
-    entity: "coord-002",
-    status: "success",
-  },
-  {
-    id: "log-007",
-    timestamp: "2024-03-11 14:30:13",
-    user: "system",
-    action: "APPROVAL_REQUESTED",
-    entity: "user_alex",
-    status: "info",
-  },
-  {
-    id: "log-008",
-    timestamp: "2024-03-11 12:15:30",
-    user: "sarah-chen",
-    action: "APPROVAL_REJECTED",
-    entity: "coord-001",
-    status: "error",
-    payload: { reason: "Schedule conflict" },
-  },
-  {
-    id: "log-009",
-    timestamp: "2024-03-11 11:00:00",
-    user: "system",
-    action: "OAUTH_REFRESH",
-    entity: "google_calendar",
-    status: "warning",
-    payload: { attempts: 2 },
-  },
-  {
-    id: "log-010",
-    timestamp: "2024-03-11 10:30:00",
-    user: "alex-johnson",
-    action: "CALENDAR_WRITE",
-    entity: "event_123",
-    status: "success",
-    payload: { eventId: "ev_abc123", title: "Team Standup" },
-  },
-]
+function LogRow({ log }: { log: AuditLogEntry }) {
+  const [expanded, setExpanded] = useState(false)
 
-const statusConfig = {
-  info: {
-    icon: Info,
-    color: "text-accent",
-    bgColor: "bg-accent/10",
-  },
-  success: {
-    icon: CheckCircle,
-    color: "text-emerald-500",
-    bgColor: "bg-emerald-500/10",
-  },
-  warning: {
-    icon: AlertTriangle,
-    color: "text-amber-500",
-    bgColor: "bg-amber-500/10",
-  },
-  error: {
-    icon: XCircle,
-    color: "text-red-500",
-    bgColor: "bg-red-500/10",
-  },
+  return (
+    <>
+      <tr className="hover:bg-muted/20 transition-colors cursor-pointer group" onClick={() => setExpanded(!expanded)}>
+        <td className="px-6 py-3 w-8">
+          {expanded ? <ChevronDown className="w-4 h-4 text-foreground/40" /> : <ChevronRightSm className="w-4 h-4 text-foreground/40 group-hover:text-primary" />}
+        </td>
+        <td className="px-6 py-3 whitespace-nowrap text-foreground/70 font-mono text-xs">
+          {new Date(log.occurredAt).toLocaleString()}
+        </td>
+        <td className="px-6 py-3 whitespace-nowrap font-medium text-foreground">
+          {log.action}
+        </td>
+        <td className="px-6 py-3 whitespace-nowrap text-foreground/60 font-mono text-xs">
+          {log.entityType ? `${log.entityType}:${log.entityId?.substring(0,8)}` : '—'}
+        </td>
+        <td className="px-6 py-3 whitespace-nowrap text-right">
+          <LevelChip level={log.level} />
+        </td>
+      </tr>
+      {expanded && log.payload && (
+        <tr>
+          <td colSpan={5} className="px-6 py-4 bg-muted/10 border-b border-border/50">
+            <pre className="p-4 rounded-lg bg-black/40 border border-border/30 text-[11px] font-mono text-primary/80 overflow-x-auto">
+              {JSON.stringify(log.payload, null, 2)}
+            </pre>
+            <div className="flex justify-end mt-2">
+              <span className="text-[10px] text-foreground/40 font-mono uppercase tracking-widest">
+                Correlation ID: {log.correlationId || 'none'}
+              </span>
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
 }
-
-const filterOptions = ["All", "INFO", "SUCCESS", "WARNING", "ERROR"]
 
 export default function AuditLogPage() {
-  const [expandedRow, setExpandedRow] = useState<string | null>(null)
-  const [activeFilter, setActiveFilter] = useState("All")
+  const { user } = useUser()
+  const [page, setPage] = useState(0)
+  const [levelFilter, setLevelFilter] = useState("ALL")
+  const [searchQuery, setSearchQuery] = useState("")
 
-  const filteredLogs =
-    activeFilter === "All"
-      ? logs
-      : logs.filter(
-          (log) => log.status.toUpperCase() === activeFilter
-        )
+  const { data, isLoading } = useQuery({
+    queryKey: ['audit', user?.username, page, levelFilter],
+    queryFn: () => auditAPI.getLogs(user!.username, page, 50, levelFilter),
+    enabled: !!user?.username,
+    keepPreviousData: true
+  })
+
+  // Basic client-side search across specific page logs
+  const filteredData = data?.content.filter(item => 
+    searchQuery === "" || 
+    item.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    JSON.stringify(item.payload || {}).toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const handleExport = () => {
+    if (!user) return
+    const url = auditAPI.exportLogsUrl(user.username)
+    window.open(url, '_blank')
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-cream font-[family-name:var(--font-display)]">
-            Audit Log
-          </h1>
-          <p className="text-cream/70 mt-1">
-            Complete visibility into every agent action
+          <h1 className="text-2xl font-bold tracking-tight">Audit Log</h1>
+          <p className="text-foreground/60 text-sm mt-1">
+            Complete visibility into every action taken by the agent or system.
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="border-charcoal-light hover:border-accent/50 hover:bg-accent/5"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export JSON
-          </Button>
-          <Button
-            variant="outline"
-            className="border-charcoal-light hover:border-accent/50 hover:bg-accent/5"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
-        </div>
+        <Button onClick={handleExport} variant="outline" className="border-border/50 gap-2">
+          <Download className="w-4 h-4" />
+          Export JSON
+        </Button>
       </div>
 
-      <GlowCard className="overflow-hidden">
+      <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
         {/* Filter Bar */}
-        <div className="p-4 border-b border-charcoal-light flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cream/40" />
-              <input
-                type="text"
-                placeholder="Search logs..."
-                className="bg-charcoal-light border border-charcoal-lighter rounded-lg pl-9 pr-4 py-2 text-sm text-cream placeholder:text-cream/40 focus:outline-none focus:border-accent/50 w-64"
-              />
-            </div>
-
-            {/* Date Range */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="border-charcoal-light text-cream/70"
+        <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/20">
+          <div className="relative w-full sm:max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40" />
+            <Input 
+              placeholder="Search action or payload..." 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 bg-background/50 border-border/50"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Filter className="h-4 w-4 text-foreground/40" />
+            <select
+              value={levelFilter}
+              onChange={(e) => { setLevelFilter(e.target.value); setPage(0); }}
+              className="px-3 py-2 bg-background/50 border border-border/50 rounded-md text-sm outline-none w-full sm:w-auto text-foreground"
             >
-              <Filter className="w-4 h-4 mr-2" />
-              Date Range
-            </Button>
+              <option value="ALL">All Levels</option>
+              <option value="INFO">Info</option>
+              <option value="SUCCESS">Success</option>
+              <option value="WARNING">Warning</option>
+              <option value="ERROR">Error</option>
+            </select>
           </div>
+        </div>
 
-          {/* Level Filter */}
-          <div className="flex items-center gap-1 bg-charcoal-light rounded-lg p-1 border border-charcoal-lighter">
-            {filterOptions.map((option) => (
-              <button
-                key={option}
-                onClick={() => setActiveFilter(option)}
-                className={cn(
-                  "px-3 py-1.5 text-xs font-medium rounded-md transition-colors",
-                  activeFilter === option
-                    ? option === "All"
-                      ? "bg-accent/10 text-accent"
-                      : option === "SUCCESS"
-                      ? "bg-emerald-500/10 text-emerald-500"
-                      : option === "WARNING"
-                      ? "bg-amber-500/10 text-amber-500"
-                      : option === "ERROR"
-                      ? "bg-red-500/10 text-red-500"
-                      : "bg-accent/10 text-accent"
-                    : "text-cream/50 hover:text-cream"
-                )}
+        {/* Data Table */}
+        <div className="overflow-x-auto min-h-[400px]">
+          <table className="w-full text-sm text-left">
+            <thead className="bg-muted/30 text-foreground/60 text-xs uppercase font-medium">
+              <tr>
+                <th className="px-6 py-4 w-8"></th>
+                <th className="px-6 py-4 font-medium tracking-wider">Timestamp</th>
+                <th className="px-6 py-4 font-medium tracking-wider">Action</th>
+                <th className="px-6 py-4 font-medium tracking-wider">Entity</th>
+                <th className="px-6 py-4 font-medium tracking-wider text-right">Level</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {isLoading && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-foreground/50">
+                    <div className="flex justify-center mb-4">
+                      <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                    </div>
+                    Loading audit trail...
+                  </td>
+                </tr>
+              )}
+              
+              {!isLoading && filteredData?.map((log) => (
+                <LogRow key={log.logId} log={log} />
+              ))}
+              
+              {!isLoading && filteredData?.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-foreground/50">
+                    No logs found matching the current filters.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {data && data.totalPages > 1 && (
+          <div className="p-4 border-t border-border/50 flex items-center justify-between text-sm text-foreground/60 bg-muted/20">
+            <div>
+              Showing {page * 50 + 1}-{Math.min((page + 1) * 50, data.totalElements)} of {data.totalElements} entries
+            </div>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-8 w-8" 
+                disabled={data.isFirst}
+                onClick={() => setPage(page - 1)}
               >
-                {option}
-              </button>
-            ))}
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="px-4 font-medium text-foreground">
+                Page {page + 1} of {data.totalPages}
+              </span>
+              <Button 
+                variant="outline" 
+                size="icon" 
+                className="h-8 w-8" 
+                disabled={data.isLast}
+                onClick={() => setPage(page + 1)}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-charcoal-light hover:bg-transparent">
-                <TableHead className="w-10 text-cream/50"></TableHead>
-                <TableHead className="text-cream/50 font-mono">
-                  Timestamp
-                </TableHead>
-                <TableHead className="text-cream/50">User</TableHead>
-                <TableHead className="text-cream/50">Action</TableHead>
-                <TableHead className="text-cream/50">Entity</TableHead>
-                <TableHead className="text-cream/50">Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLogs.map((log) => {
-                const StatusIcon = statusConfig[log.status].icon
-                const isExpanded = expandedRow === log.id
-                const hasPayload = !!log.payload
-
-                return (
-                  <>
-                    <TableRow
-                      key={log.id}
-                      className={cn(
-                        "border-charcoal-light hover:bg-charcoal-light/50 transition-colors cursor-pointer",
-                        isExpanded && "bg-charcoal-light/50"
-                      )}
-                      onClick={() =>
-                        hasPayload &&
-                        setExpandedRow(isExpanded ? null : log.id)
-                      }
-                    >
-                      <TableCell>
-                        {hasPayload && (
-                          <button className="text-cream/50">
-                            {isExpanded ? (
-                              <ChevronDown className="w-4 h-4" />
-                            ) : (
-                              <ChevronRight className="w-4 h-4" />
-                            )}
-                          </button>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-cream/70">
-                        {log.timestamp}
-                      </TableCell>
-                      <TableCell className="text-accent">
-                        @{log.user}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-cream">
-                        {log.action}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm text-cream/70">
-                        {log.entity}
-                      </TableCell>
-                      <TableCell>
-                        <div
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs",
-                            statusConfig[log.status].bgColor,
-                            statusConfig[log.status].color
-                          )}
-                        >
-                          <StatusIcon className="w-3 h-3" />
-                          {log.status.toUpperCase()}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                    {isExpanded && log.payload && (
-                      <TableRow className="border-charcoal-light bg-charcoal-light/30">
-                        <TableCell colSpan={6} className="py-0">
-                          <div className="p-4">
-                            <p className="text-xs text-cream/50 mb-2">
-                              Payload:
-                            </p>
-                            <pre className="p-3 bg-charcoal rounded-lg border border-charcoal-light text-xs font-mono text-cream/70 overflow-x-auto">
-                              {JSON.stringify(log.payload, null, 2)}
-                            </pre>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )}
-                  </>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      </GlowCard>
+        )}
+      </div>
     </div>
   )
 }

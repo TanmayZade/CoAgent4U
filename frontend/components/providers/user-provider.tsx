@@ -36,7 +36,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.coagent4u.com"
       const res = await fetch(`${apiUrl}/auth/me`, {
         credentials: "include", // Required for cross-origin cookies
       })

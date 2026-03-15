@@ -67,13 +67,15 @@ public class IntegrationController {
      * State parameter is a signed JWT containing userId + nonce + timestamp.
      */
     @GetMapping("/authorize")
-    public ResponseEntity<Void> authorize(HttpServletRequest request) {
+    public ResponseEntity<Void> authorize(
+            HttpServletRequest request,
+            @RequestParam(required = false) String returnTo) {
         AuthenticatedUser user = AuthenticatedUser.from(request);
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
-        String stateToken = stateService.createStateToken(user.userId());
+        String stateToken = stateService.createStateToken(user.userId(), returnTo);
 
         String authUrl = "https://accounts.google.com/o/oauth2/v2/auth"
                 + "?client_id=" + properties.getGoogle().getClientId()
@@ -121,13 +123,16 @@ public class IntegrationController {
         }
 
         // Validate signed state token
-        UUID userId = stateService.validateStateToken(state);
-        if (userId == null) {
+        GoogleOAuthStateService.StateInfo stateInfo = stateService.validateStateToken(state);
+        if (stateInfo == null) {
             log.warn("Invalid or expired Google OAuth state token");
             return ResponseEntity.status(HttpStatus.FOUND)
                     .header(HttpHeaders.LOCATION, frontendUrl + "/onboarding?google=error&reason=invalid_state")
                     .build();
         }
+        
+        UUID userId = stateInfo.userId();
+        String returnTo = stateInfo.returnTo() != null ? stateInfo.returnTo() : "/onboarding";
 
         try {
             // Exchange code for encrypted tokens
@@ -143,13 +148,13 @@ public class IntegrationController {
 
             log.info("Google Calendar connected for userId={}", userId);
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, frontendUrl + "/onboarding?google=success")
+                    .header(HttpHeaders.LOCATION, frontendUrl + returnTo + "?google=success")
                     .build();
 
         } catch (Exception e) {
             log.error("Google OAuth callback failed", e);
             return ResponseEntity.status(HttpStatus.FOUND)
-                    .header(HttpHeaders.LOCATION, frontendUrl + "/onboarding?google=error&reason=exchange_failed")
+                    .header(HttpHeaders.LOCATION, frontendUrl + returnTo + "?google=error&reason=exchange_failed")
                     .build();
         }
     }

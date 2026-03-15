@@ -15,5 +15,11 @@ public interface CoordinationPersistencePort {
 
     Optional<Coordination> findById(CoordinationId coordinationId);
 
+    java.util.List<Coordination> findByAgentId(com.coagent4u.shared.AgentId agentId, int offset, int limit);
+
+    long countByAgentId(com.coagent4u.shared.AgentId agentId);
+
+    java.util.List<Coordination> findRecentByAgentId(com.coagent4u.shared.AgentId agentId, int limit);
+
     void appendStateLog(CoordinationStateLogEntry entry);
 }

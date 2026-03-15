@@ -9,13 +9,20 @@ const recentActivity = [
   { action: "Meeting scheduled with @sarah", time: "15 min ago" },
   { action: "Approval received from @mike", time: "1 hour ago" },
 ]
+import { AgentStatus, ConnectedService } from "@/lib/api/dashboard"
 
-export function AgentStatusCard() {
+interface AgentStatusCardProps {
+  status?: AgentStatus
+  services?: ConnectedService[]
+  isLoading?: boolean
+}
+
+export function AgentStatusCard({ status, services, isLoading }: AgentStatusCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const countersRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!cardRef.current) return
+    if (!cardRef.current || isLoading) return
 
     const ctx = gsap.context(() => {
       gsap.fromTo(
@@ -23,6 +30,7 @@ export function AgentStatusCard() {
         { y: 20, opacity: 0 },
         { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }
       )
+
 
       // Animate counters
       if (countersRef.current) {

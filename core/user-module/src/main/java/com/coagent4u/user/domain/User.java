@@ -70,6 +70,8 @@ public class User {
         return user;
     }
 
+
+
     /**
      * Reconnects or updates a service connection (e.g. Google Calendar OAuth).
      */

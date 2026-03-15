@@ -34,6 +34,8 @@ public class SlackIdentityJpaEntity {
     @Column(name = "avatar_url")
     private String avatarUrl;
 
+
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "linked_user_id", nullable = false)
     private UserJpaEntity user;

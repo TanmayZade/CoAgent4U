@@ -173,6 +173,7 @@ public class AuthController {
             if (existingUser.isPresent()) {
                 // Existing user — issue full JWT
                 User user = existingUser.get();
+                
                 String token = jwtIssuer.issue(
                         user.getUserId().value(),
                         user.getUsername(),
@@ -380,6 +381,7 @@ public class AuthController {
                 "pendingRegistration", user.pendingRegistration(),
                 "slack_name", user.displayName() != null ? user.displayName() : "",
                 "slack_workspace", user.workspaceName() != null ? user.workspaceName() : "",
+                "slack_workspace_id", user.workspaceId() != null ? user.workspaceId() : "",
                 "slack_workspace_domain", user.workspaceDomain() != null ? user.workspaceDomain() : "",
                 "slack_email", user.email() != null ? user.email() : "",
                 "slack_avatar_url", user.avatarUrl() != null ? user.avatarUrl() : "",

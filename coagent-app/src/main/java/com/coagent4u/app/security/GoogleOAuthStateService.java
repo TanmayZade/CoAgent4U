@@ -31,31 +31,43 @@ public class GoogleOAuthStateService {
     }
 
     /**
-     * Creates a signed state token containing the userId.
+     * DTO containing decoded state information.
      */
-    public String createStateToken(UUID userId) {
+    public record StateInfo(UUID userId, String returnTo) {}
+
+    /**
+     * Creates a signed state token containing the userId and an optional return URL.
+     */
+    public String createStateToken(UUID userId, String returnTo) {
         Instant now = Instant.now();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .id(UUID.randomUUID().toString()) // nonce
                 .subject(userId.toString())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusSeconds(STATE_TOKEN_TTL_SECONDS)))
-                .signWith(key)
-                .compact();
+                .signWith(key);
+                
+        if (returnTo != null && !returnTo.isBlank()) {
+            builder.claim("returnTo", returnTo);
+        }
+        
+        return builder.compact();
     }
 
     /**
-     * Validates the state token and returns the userId.
+     * Validates the state token and returns the parsed state information.
      * Returns null if the state token is invalid or expired.
      */
-    public UUID validateStateToken(String stateToken) {
+    public StateInfo validateStateToken(String stateToken) {
         try {
             Claims claims = Jwts.parser()
                     .verifyWith(key)
                     .build()
                     .parseSignedClaims(stateToken)
                     .getPayload();
-            return UUID.fromString(claims.getSubject());
+            UUID userId = UUID.fromString(claims.getSubject());
+            String returnTo = claims.get("returnTo", String.class);
+            return new StateInfo(userId, returnTo);
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }

@@ -102,7 +102,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 claims.workspaceDomain(),
                 claims.email(),
                 claims.displayName(),
-                claims.avatarUrl());
+                claims.avatarUrl(),
+                claims.dmChannelId());
         request.setAttribute(AuthenticatedUser.REQUEST_ATTRIBUTE, user);
 
         filterChain.doFilter(request, response);

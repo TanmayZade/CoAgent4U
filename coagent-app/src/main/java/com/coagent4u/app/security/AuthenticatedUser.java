@@ -23,7 +23,8 @@ public record AuthenticatedUser(
         String workspaceDomain,
         String email,
         String displayName,
-        String avatarUrl) {
+        String avatarUrl,
+        String dmChannelId) {
 
     public static final String REQUEST_ATTRIBUTE = "AUTHENTICATED_USER";
 
