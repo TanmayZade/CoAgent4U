@@ -7,7 +7,6 @@ import com.coagent4u.common.events.*;
 import com.coagent4u.persistence.agent.AgentJpaEntity;
 import com.coagent4u.persistence.agent.AgentJpaRepository;
 import com.coagent4u.persistence.coordination.CoordinationJpaRepository;
-import com.coagent4u.persistence.user.UserJpaEntity;
 import com.coagent4u.persistence.user.UserJpaRepository;
 
 import org.springframework.stereotype.Component;
@@ -208,7 +207,12 @@ public class EventDescriptionMapper {
 
     private String resolveUsername(UUID userId) {
         return userRepository.findById(userId)
-                .map(UserJpaEntity::getUsername)
+                .map(u -> {
+                    if (u.getSlackIdentity() != null && u.getSlackIdentity().getDisplayName() != null) {
+                        return u.getSlackIdentity().getDisplayName();
+                    }
+                    return u.getUsername();
+                })
                 .orElse("Unknown");
     }
 
