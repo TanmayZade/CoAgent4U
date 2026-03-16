@@ -1,5 +1,6 @@
 package com.coagent4u.user.application;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.coagent4u.shared.PaginatedResponse;
@@ -26,15 +27,15 @@ public class AgentActivityQueryService implements GetAgentActivityUseCase {
 
     @Override
     public PaginatedResponse<AgentActivityEntry> getAgentActivity(
-            String username, String eventTypeFilter, int page, int size) {
+            String username, String eventTypeFilter, String levelFilter, Instant startDate, Instant endDate, int page, int size) {
         User user = userQuery.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown user: " + username));
 
         UserId userId = user.getUserId();
         int offset = page * size;
 
-        List<AgentActivityEntry> entries = agentActivityQuery.findByUserId(userId, eventTypeFilter, offset, size);
-        long total = agentActivityQuery.countByUserId(userId, eventTypeFilter);
+        List<AgentActivityEntry> entries = agentActivityQuery.findByUserId(userId, eventTypeFilter, levelFilter, startDate, endDate, offset, size);
+        long total = agentActivityQuery.countByUserId(userId, eventTypeFilter, levelFilter, startDate, endDate);
 
         return new PaginatedResponse<>(entries, page, size, total,
                 (int) Math.ceil((double) total / size));

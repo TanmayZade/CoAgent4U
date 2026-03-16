@@ -79,11 +79,22 @@ export default function AgentActivityPage() {
   const { user } = useUser()
   const [page, setPage] = useState(0)
   const [levelFilter, setLevelFilter] = useState("ALL")
+  const [eventTypeFilter, setEventTypeFilter] = useState("ALL")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
 
   const { data, isLoading } = useQuery({
-    queryKey: ['audit', user?.username, page, levelFilter],
-    queryFn: () => activityAPI.getLogs(user!.username, page, 50, levelFilter),
+    queryKey: ['activity', user?.username, page, levelFilter, eventTypeFilter, startDate, endDate],
+    queryFn: () => activityAPI.getLogs(
+      user!.username, 
+      page, 
+      50, 
+      levelFilter, 
+      eventTypeFilter,
+      startDate ? new Date(startDate).toISOString() : undefined,
+      endDate ? new Date(endDate).toISOString() : undefined
+    ),
     enabled: !!user?.username
   })
 
@@ -116,32 +127,77 @@ export default function AgentActivityPage() {
       </div>
 
       <div className="rounded-xl border border-border/50 bg-card overflow-hidden shadow-sm">
-        {/* Filter Bar */}
-        <div className="p-4 border-b border-border/50 flex flex-col sm:flex-row gap-4 items-center justify-between bg-muted/20">
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40" />
-            <Input 
-              placeholder="Search action or payload..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-background/50 border-border/50"
-            />
+          {/* Filter Bar */}
+          <div className="p-4 border-b border-border/50 flex flex-col xl:flex-row gap-4 items-center justify-between bg-muted/20">
+            {/* Search */}
+            <div className="relative w-full xl:max-w-md shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground/40" />
+              <Input 
+                placeholder="Search action or payload..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 bg-background/50 border-border/50"
+              />
+            </div>
+            
+            {/* Filters Group */}
+            <div className="flex flex-wrap items-center justify-start xl:justify-end gap-3 w-full">
+              {/* Event Type Filter */}
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-foreground/40" />
+                <select
+                  value={eventTypeFilter}
+                  onChange={(e) => { setEventTypeFilter(e.target.value); setPage(0); }}
+                  className="px-3 py-2 bg-background/50 border border-border/50 rounded-md text-sm outline-none text-foreground"
+                >
+                  <option value="ALL">All Events</option>
+                  <option value="INTENT_CLASSIFIED">Intent Classified</option>
+                  <option value="PROPOSAL_GENERATED">Proposal Generated</option>
+                  <option value="SLOTS_PROPOSED">Slots Proposed</option>
+                  <option value="COORDINATION_SUCCESS">Coordination Success</option>
+                  <option value="COORDINATION_FAILED">Coordination Failed</option>
+                  <option value="CALENDAR_SYNCED">Calendar Synced</option>
+                </select>
+              </div>
+
+              {/* Level Filter */}
+              <div className="flex items-center gap-2">
+                <Filter className="h-4 w-4 text-foreground/40" />
+                <select
+                  value={levelFilter}
+                  onChange={(e) => { setLevelFilter(e.target.value); setPage(0); }}
+                  className="px-3 py-2 bg-background/50 border border-border/50 rounded-md text-sm outline-none text-foreground"
+                >
+                  <option value="ALL">All Levels</option>
+                  <option value="INFO">Info</option>
+                  <option value="SUCCESS">Success</option>
+                  <option value="WARNING">Warning</option>
+                  <option value="ERROR">Error</option>
+                </select>
+              </div>
+
+              {/* Date Range Start */}
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => { setStartDate(e.target.value); setPage(0); }}
+                  className="bg-background/50 border-border/50 text-sm"
+                />
+              </div>
+
+              {/* Date Range End */}
+              <div className="flex items-center gap-2">
+                <span className="text-foreground/40 text-sm">to</span>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => { setEndDate(e.target.value); setPage(0); }}
+                  className="bg-background/50 border-border/50 text-sm"
+                />
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Filter className="h-4 w-4 text-foreground/40" />
-            <select
-              value={levelFilter}
-              onChange={(e) => { setLevelFilter(e.target.value); setPage(0); }}
-              className="px-3 py-2 bg-background/50 border border-border/50 rounded-md text-sm outline-none w-full sm:w-auto text-foreground"
-            >
-              <option value="ALL">All Levels</option>
-              <option value="INFO">Info</option>
-              <option value="SUCCESS">Success</option>
-              <option value="WARNING">Warning</option>
-              <option value="ERROR">Error</option>
-            </select>
-          </div>
-        </div>
 
         {/* Data Table */}
         <div className="overflow-x-auto min-h-[400px]">

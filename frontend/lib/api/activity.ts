@@ -27,11 +27,23 @@ export const activityAPI = {
     username: string, 
     page: number = 0, 
     size: number = 20, 
-    level?: string
+    level?: string,
+    eventType?: string,
+    startDate?: string,
+    endDate?: string
   ): Promise<PaginatedResponse<AgentActivityEntry>> => {
     let url = `/api/agent-activities?username=${encodeURIComponent(username)}&page=${page}&size=${size}`
     if (level && level !== 'ALL') {
       url += `&level=${encodeURIComponent(level)}`
+    }
+    if (eventType && eventType !== 'ALL') {
+      url += `&eventType=${encodeURIComponent(eventType)}`
+    }
+    if (startDate) {
+      url += `&startDate=${encodeURIComponent(startDate)}`
+    }
+    if (endDate) {
+      url += `&endDate=${encodeURIComponent(endDate)}`
     }
     return apiRequest<PaginatedResponse<AgentActivityEntry>>(url)
   },

@@ -1,5 +1,6 @@
 package com.coagent4u.app.rest;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -42,11 +43,14 @@ public class AgentActivityController {
     public ResponseEntity<?> getAgentActivitys(
             @RequestParam String username,
             @RequestParam(required = false) String eventType,
+            @RequestParam(required = false) String level,
+            @RequestParam(required = false) Instant startDate,
+            @RequestParam(required = false) Instant endDate,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         try {
             PaginatedResponse<AgentActivityEntry> response = agentActivityUseCase.getAgentActivity(
-                    username, eventType, page, size);
+                    username, eventType, level, startDate, endDate, page, size);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             log.warn("[AgentActivityController] Bad request: {}", e.getMessage());
