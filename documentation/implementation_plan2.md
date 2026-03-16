@@ -1,12 +1,12 @@
 # Phase 2 — Corrected Persistence & Infrastructure Plan
 
-## Audit Summary — Violations Found in Current Implementation
+## AgentActivity Summary — Violations Found in Current Implementation
 
 | # | Violation | Constraint | Severity |
 |---|-----------|------------|----------|
 | 1 | V3 `CHECK (state IN (...))` + V7 re-adds CHECK constraint | #3 — State machine duplication | **CRITICAL** |
 | 2 | [reconstitute()](file:///e:/CoAgent4U/core/approval-module/src/main/java/com/coagent4u/approval/domain/Approval.java#55-62) added to [User](file:///e:/CoAgent4U/core/user-module/src/main/java/com/coagent4u/user/domain/User.java#31-201), [Agent](file:///e:/CoAgent4U/core/agent-module/src/main/java/com/coagent4u/agent/domain/Agent.java#16-87), [Coordination](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/domain/Coordination.java#20-135), [Approval](file:///e:/CoAgent4U/core/approval-module/src/main/java/com/coagent4u/approval/domain/Approval.java#20-134) | Domain layer frozen | **CRITICAL** |
-| 3 | [AuditEventHandler](file:///e:/CoAgent4U/infrastructure/monitoring/src/main/java/com/coagent4u/monitoring/AuditEventHandler.java#16-38) calls `UUID.randomUUID()` | #2 — Infra must not generate domain UUIDs | MEDIUM |
+| 3 | [AgentActivityEventHandler](file:///e:/CoAgent4U/infrastructure/monitoring/src/main/java/com/coagent4u/monitoring/AgentActivityEventHandler.java#16-38) calls `UUID.randomUUID()` | #2 — Infra must not generate domain UUIDs | MEDIUM |
 | 4 | `@Async` uses unbounded `SimpleAsyncTaskExecutor` | #8 — Bounded executor required | **CRITICAL** |
 | 5 | [JwtIssuer](file:///e:/CoAgent4U/infrastructure/security/src/main/java/com/coagent4u/security/JwtIssuer.java#16-37) secret has default fallback in YML | #5 — Fail fast if key missing | HIGH |
 | 6 | [AesTokenEncryption](file:///e:/CoAgent4U/infrastructure/security/src/main/java/com/coagent4u/security/AesTokenEncryption.java#15-67) takes raw arg, no boot-time validation | #6 — Env var mandatory, no fallback | HIGH |
@@ -119,7 +119,7 @@ public final class UserMapper {
 | `persistence/coordination/` | [CoordinationPersistenceAdapter.java](file:///e:/CoAgent4U/infrastructure/persistence/src/main/java/com/coagent4u/persistence/coordination/CoordinationPersistenceAdapter.java) | **REWRITE** — use `new Coordination(…)` + [transition()](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/domain/Coordination.java#72-89) loop + [pullDomainEvents()](file:///e:/CoAgent4U/core/user-module/src/main/java/com/coagent4u/user/domain/User.java#156-162), serialize proposal with deterministic ObjectMapper |
 | `persistence/coordination/` | `MeetingProposalJsonMapper.java` | **NEW** — explicit `ObjectMapper` for [MeetingProposal](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/domain/MeetingProposal.java#12-31) JSONB (no default typing, no polymorphism, explicit field mapping) |
 | `persistence/approval/` | [ApprovalPersistenceAdapter.java](file:///e:/CoAgent4U/infrastructure/persistence/src/main/java/com/coagent4u/persistence/approval/ApprovalPersistenceAdapter.java) | **REWRITE** — use `new Approval(…)` + [decide()](file:///e:/CoAgent4U/core/approval-module/src/main/java/com/coagent4u/approval/port/in/DecideApprovalUseCase.java#12-22)/[expire()](file:///e:/CoAgent4U/core/approval-module/src/main/java/com/coagent4u/approval/domain/Approval.java#80-92) + [pullDomainEvents()](file:///e:/CoAgent4U/core/user-module/src/main/java/com/coagent4u/user/domain/User.java#156-162) |
-| `persistence/audit/` | [AuditLogJpaEntity.java](file:///e:/CoAgent4U/infrastructure/persistence/src/main/java/com/coagent4u/persistence/audit/AuditLogJpaEntity.java) | **FIX** — remove `DEFAULT NOW()` timestamp; `occurred_at` comes from the domain event's [occurredAt()](file:///e:/CoAgent4U/common-domain/src/main/java/com/coagent4u/common/DomainEvent.java#23-27) field, not from infrastructure |
+| `persistence/audit/` | [AgentActivityJpaEntity.java](file:///e:/CoAgent4U/infrastructure/persistence/src/main/java/com/coagent4u/persistence/audit/AgentActivityJpaEntity.java) | **FIX** — remove `DEFAULT NOW()` timestamp; `occurred_at` comes from the domain event's [occurredAt()](file:///e:/CoAgent4U/common-domain/src/main/java/com/coagent4u/common/DomainEvent.java#23-27) field, not from infrastructure |
 
 #### JSONB Serialization (Constraint #4)
 
@@ -230,14 +230,14 @@ public class AsyncConfig implements AsyncConfigurer {
 }
 ```
 
-#### AuditEventHandler Fix (Constraint #2)
+#### AgentActivityEventHandler Fix (Constraint #2)
 
-The current [AuditEventHandler](file:///e:/CoAgent4U/infrastructure/monitoring/src/main/java/com/coagent4u/monitoring/AuditEventHandler.java#16-38) generates `UUID.randomUUID()` for the audit log ID. This is **acceptable** because [AuditLogJpaEntity](file:///e:/CoAgent4U/infrastructure/persistence/src/main/java/com/coagent4u/persistence/audit/AuditLogJpaEntity.java#11-71) is an infrastructure entity (not a domain aggregate), and the `log_id` is an infrastructure-assigned surrogate key. No domain semantics.
+The current [AgentActivityEventHandler](file:///e:/CoAgent4U/infrastructure/monitoring/src/main/java/com/coagent4u/monitoring/AgentActivityEventHandler.java#16-38) generates `UUID.randomUUID()` for the agent activity ID. This is **acceptable** because [AgentActivityJpaEntity](file:///e:/CoAgent4U/infrastructure/persistence/src/main/java/com/coagent4u/persistence/audit/AgentActivityJpaEntity.java#11-71) is an infrastructure entity (not a domain aggregate), and the `log_id` is an infrastructure-assigned surrogate key. No domain semantics.
 
 However, the `occurred_at` timestamp **must come from the domain event**, not `NOW()`:
 
 ```java
-new AuditLogJpaEntity(
+new AgentActivityJpaEntity(
     UUID.randomUUID(),          // OK — infrastructure surrogate key
     null,                        // userId extracted per event type
     event.getClass().getSimpleName(),
@@ -255,9 +255,9 @@ Each `@EventListener @Async` handler must catch all exceptions internally. A fai
 @Async @EventListener
 public void handle(DomainEvent event) {
     try {
-        auditRepo.save(/* ... */);
+        activityRepo.save(/* ... */);
     } catch (Exception e) {
-        log.error("Audit write failed for event {} — coordination unaffected",
+        log.error("AgentActivity write failed for event {} — coordination unaffected",
                   event.eventId(), e);
     }
 }
@@ -377,9 +377,9 @@ void proposalJsonRoundTrip() {
 ```java
 @Test
 void auditHandlerFailure_doesNotRollbackCoordination() {
-    // 1. Configure AuditEventHandler to throw
+    // 1. Configure AgentActivityEventHandler to throw
     // 2. Save a Coordination + trigger transition (publishes events)
-    // 3. Verify: Coordination persisted, AuditLog NOT persisted
+    // 3. Verify: Coordination persisted, AgentActivity NOT persisted
     // 4. Verify: no exception propagated to caller
 }
 ```
@@ -403,7 +403,7 @@ void auditHandlerFailure_doesNotRollbackCoordination() {
 | **Security** | [AesTokenEncryption.java](file:///e:/CoAgent4U/infrastructure/security/src/main/java/com/coagent4u/security/AesTokenEncryption.java) | FIX — fail-fast validation |
 | **Security** | [SlackSignatureVerifier.java](file:///e:/CoAgent4U/infrastructure/security/src/main/java/com/coagent4u/security/SlackSignatureVerifier.java) | FIX — 5-min timestamp tolerance |
 | **Monitoring** | `AsyncConfig.java` | NEW — bounded ThreadPoolTaskExecutor |
-| **Monitoring** | [AuditEventHandler.java](file:///e:/CoAgent4U/infrastructure/monitoring/src/main/java/com/coagent4u/monitoring/AuditEventHandler.java) | FIX — try-catch, use domain timestamp |
+| **Monitoring** | [AgentActivityEventHandler.java](file:///e:/CoAgent4U/infrastructure/monitoring/src/main/java/com/coagent4u/monitoring/AgentActivityEventHandler.java) | FIX — try-catch, use domain timestamp |
 | **Monitoring** | [StructuredLogHandler.java](file:///e:/CoAgent4U/infrastructure/monitoring/src/main/java/com/coagent4u/monitoring/StructuredLogHandler.java) | FIX — try-catch |
 | **Monitoring** | [MetricsEventHandler.java](file:///e:/CoAgent4U/infrastructure/monitoring/src/main/java/com/coagent4u/monitoring/MetricsEventHandler.java) | FIX — try-catch |
 | **Config** | [application.yml](file:///e:/CoAgent4U/coagent-app/src/main/resources/application.yml) | FIX — remove all fallback secrets |
@@ -418,7 +418,7 @@ void auditHandlerFailure_doesNotRollbackCoordination() {
 | # | Requirement | Status |
 |---|-------------|--------|
 | 1 | Domain layer unmodified (aggregates, events, state machine, coordination) | ✅ Revert [reconstitute()](file:///e:/CoAgent4U/core/approval-module/src/main/java/com/coagent4u/approval/domain/Approval.java#55-62) |
-| 2 | Infrastructure never generates domain UUIDs/timestamps | ✅ Audit `log_id` is infra surrogate key (acceptable); `occurred_at` comes from domain event |
+| 2 | Infrastructure never generates domain UUIDs/timestamps | ✅ AgentActivity `log_id` is infra surrogate key (acceptable); `occurred_at` comes from domain event |
 | 3 | No state machine duplication in DB constraints | ✅ DROP CHECK; domain validates before save |
 | 4 | JSONB deterministic serialization, no polymorphic typing | ✅ Explicit `MeetingProposalJsonMapper` with `NON_NULL`, `JavaTimeModule`, no default typing |
 | 5 | JWT: HS256, userId/iat/exp(24h)/jti, no PII, fail-fast | ✅ Boot-time validation of secret length + expiry |
@@ -429,7 +429,7 @@ void auditHandlerFailure_doesNotRollbackCoordination() {
 | 10 | Config: `@ConfigurationProperties`, no hardcoded secrets, `ddl-auto=validate` | ✅ All secrets from env vars, `SecurityBeanConfig` wires beans |
 | 11 | Hexagonal: one adapter per port, no port coupling | ✅ [UserPersistenceAdapter](file:///e:/CoAgent4U/infrastructure/persistence/src/main/java/com/coagent4u/persistence/user/UserPersistenceAdapter.java#14-56) + separate `UserQueryAdapter` |
 | 12 | No AI-driven coordination, no approval bypass, no plaintext tokens | ✅ Not introduced |
-| 13 | GDPR: soft-delete, encrypted tokens, audit trail | ✅ `deleted_at`, AES-256-GCM, `audit_logs` |
+| 13 | GDPR: soft-delete, encrypted tokens, audit trail | ✅ `deleted_at`, AES-256-GCM, `agent_activities` |
 
 ---
 

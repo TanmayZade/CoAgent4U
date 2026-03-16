@@ -20,7 +20,7 @@ export default function AccountPage() {
   const handleDelete = async () => {
     if (!user) return
     const confirmDelete = window.confirm(
-      "Are you absolutely sure you want to delete your CoAgent4U account? This action is irreversible and will delete all your coordination history, audit logs, and agent settings."
+      "Are you absolutely sure you want to delete your CoAgent4U account? This action is irreversible and will delete all your coordination history, agent activity logs, and agent settings."
     )
     if (!confirmDelete) return
 
@@ -111,7 +111,7 @@ export default function AccountPage() {
         <div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm flex flex-col items-start">
           <h3 className="text-lg font-semibold tracking-tight mb-2">GDPR Data Export</h3>
           <p className="text-sm text-foreground/60 mb-6 flex-1">
-            Download a machine-readable JSON archive containing your profile, active configurations, full coordination history, and the complete agent audit log.
+            Download a machine-readable JSON archive containing your profile, active configurations, full coordination history, and the complete agent activity log.
           </p>
           <Button onClick={handleExport} className="w-full sm:w-auto mt-auto gap-2">
             <Download className="w-4 h-4" />

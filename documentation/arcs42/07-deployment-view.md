@@ -320,7 +320,7 @@ flowchart TB
         subgraph INFRA_MODULES["Infrastructure (In-Process)"]
             PERS["persistence<br/>(JPA Repositories)"]
             SEC["security<br/>(JWT, Encryption)"]
-            MON["monitoring<br/>(Actuator, Metrics,<br/>AuditEventHandler)"]
+            MON["monitoring<br/>(Actuator, Metrics,<br/>AgentActivityEventHandler)"]
             EVT["SpringEventPublisherAdapter<br/>(In-Process Event Bus)"]
         end
 
@@ -369,7 +369,7 @@ The domain event bus is implemented using Spring's `ApplicationEventPublisher`, 
 
 Events published by one module are dispatched to subscribed `@EventListener` methods in other modules within the same JVM. Asynchronous event handlers use the `@Async` annotation and execute on a dedicated thread pool (`async-event-pool`, configurable size, default 4 threads). If the application node crashes, in-flight async events are lost — this is acceptable because async events are side effects (notifications, audit, metrics) and do not affect coordination state. The coordination state machine transitions are persisted synchronously before any event is published.
 
-The event bus carries several categories of domain events. Coordination lifecycle events (`CoordinationCompleted`, `CoordinationFailed`, `CoordinationRejected`, `CoordinationStateChanged`) are published by the `coordination-module` and consumed by `NotificationEventHandler` (`messaging-module`), `AuditEventHandler` (monitoring), and `MetricsEventHandler` (monitoring). Approval lifecycle events (`ApprovalDecisionMade`, `ApprovalExpired`) are published by the `approval-module` and consumed by `agent-module` handlers (`PersonalApprovalDecisionHandler`, `CollaborativeApprovalDecisionHandler`, `PersonalApprovalExpiredHandler`, `CollaborativeApprovalExpiredHandler`). For collaborative approvals, the `agent-module` handlers translate approval events into `CoordinationProtocolPort` calls, which advance the coordination state machine synchronously.
+The event bus carries several categories of domain events. Coordination lifecycle events (`CoordinationCompleted`, `CoordinationFailed`, `CoordinationRejected`, `CoordinationStateChanged`) are published by the `coordination-module` and consumed by `NotificationEventHandler` (`messaging-module`), `AgentActivityEventHandler` (monitoring), and `MetricsEventHandler` (monitoring). Approval lifecycle events (`ApprovalDecisionMade`, `ApprovalExpired`) are published by the `approval-module` and consumed by `agent-module` handlers (`PersonalApprovalDecisionHandler`, `CollaborativeApprovalDecisionHandler`, `PersonalApprovalExpiredHandler`, `CollaborativeApprovalExpiredHandler`). For collaborative approvals, the `agent-module` handlers translate approval events into `CoordinationProtocolPort` calls, which advance the coordination state machine synchronously.
 
 Implication for horizontal scaling: Each application instance has its own independent event bus. An event published in Instance 1 is not visible to Instance 2. This is correct for the CoAgent4U architecture because events are local side effects of a request that completed on a specific instance. There is no cross-instance event coordination requirement. The database is the sole source of truth for state. The only event flow that triggers a state-affecting action — approval events consumed by agents that call `CoordinationProtocolPort` — always originates on the same instance that processed the approval callback, so cross-instance visibility is not required.
 
@@ -395,7 +395,7 @@ Application nodes are stateless. All durable state resides in PostgreSQL. The fo
 |---|---|---|
 | Coordination state | PostgreSQL (`coordinations` table) | ✅ Yes |
 | Approval status | PostgreSQL (`approvals` table) | ✅ Yes |
-| Audit logs | PostgreSQL (`audit_logs`, `coordination_state_log`) | ✅ Yes |
+| Agent Activity logs | PostgreSQL (`agent_activities`, `coordination_state_log`) | ✅ Yes |
 | User profiles, agent state | PostgreSQL | ✅ Yes |
 | OAuth tokens (encrypted) | PostgreSQL (`service_connections`) | ✅ Yes |
 | Caffeine cache entries | JVM heap | ❌ No (rebuilt on demand) |

@@ -20,7 +20,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
  * <li>No default typing</li>
  * <li>No polymorphic type magic</li>
  * <li>Explicit field mapping</li>
- * <li>Audit-safe output (human-readable, no class metadata)</li>
+ * <li>AgentActivity-safe output (human-readable, no class metadata)</li>
  * </ul>
  */
 public final class MeetingProposalJsonMapper {

@@ -3,12 +3,13 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useUser } from "../layout"
-import { auditAPI, AuditLogEntry } from "@/lib/api/audit"
+import { activityAPI, AgentActivityEntry } from "@/lib/api/activity"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Download, Search, Filter, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSm } from "lucide-react"
+import { Download, Search, Filter, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSm, Info } from "lucide-react"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
-function LevelChip({ level }: { level: AuditLogEntry['level'] }) {
+function LevelChip({ level }: { level: AgentActivityEntry['level'] }) {
   const colors = {
     INFO: "bg-blue-500/10 text-blue-500 border-blue-500/20",
     SUCCESS: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
@@ -23,7 +24,7 @@ function LevelChip({ level }: { level: AuditLogEntry['level'] }) {
   )
 }
 
-function LogRow({ log }: { log: AuditLogEntry }) {
+function LogRow({ log }: { log: AgentActivityEntry }) {
   const [expanded, setExpanded] = useState(false)
 
   return (
@@ -36,25 +37,36 @@ function LogRow({ log }: { log: AuditLogEntry }) {
           {new Date(log.occurredAt).toLocaleString()}
         </td>
         <td className="px-6 py-3 whitespace-nowrap font-medium text-foreground">
-          {log.action}
+          {log.eventType}
         </td>
-        <td className="px-6 py-3 whitespace-nowrap text-foreground/60 font-mono text-xs">
-          {log.entityType ? `${log.entityType}:${log.entityId?.substring(0,8)}` : '—'}
+        <td className="px-6 py-3 text-foreground/80 text-sm max-w-[21rem]">
+          <div className="flex items-center gap-2">
+            <span className="truncate">{log.description}</span>
+            <HoverCard>
+              <HoverCardTrigger asChild>
+                <button
+                  className="text-foreground/40 hover:text-foreground/80 focus:outline-none shrink-0 cursor-help"
+                  aria-label="View full description"
+                >
+                  <Info className="w-4 h-4" />
+                </button>
+              </HoverCardTrigger>
+              <HoverCardContent side="top" className="w-[400px] text-sm leading-relaxed overflow-hidden text-ellipsis z-50">
+                {log.description}
+              </HoverCardContent>
+            </HoverCard>
+          </div>
         </td>
         <td className="px-6 py-3 whitespace-nowrap text-right">
           <LevelChip level={log.level} />
         </td>
       </tr>
-      {expanded && log.payload && (
+      {expanded && (
         <tr>
-          <td colSpan={5} className="px-6 py-4 bg-muted/10 border-b border-border/50">
-            <pre className="p-4 rounded-lg bg-black/40 border border-border/30 text-[11px] font-mono text-primary/80 overflow-x-auto">
-              {JSON.stringify(log.payload, null, 2)}
-            </pre>
-            <div className="flex justify-end mt-2">
-              <span className="text-[10px] text-foreground/40 font-mono uppercase tracking-widest">
-                Correlation ID: {log.correlationId || 'none'}
-              </span>
+          <td colSpan={5} className="px-6 py-3 bg-muted/10 border-b border-border/50">
+            <div className="flex flex-col gap-1 text-[10px] text-foreground/50 font-mono uppercase tracking-widest pl-6">
+              <span>Correlation ID: {log.correlationId || 'none'}</span>
+              <span>Coordination ID: {log.coordinationId || 'none'}</span>
             </div>
           </td>
         </tr>
@@ -63,7 +75,7 @@ function LogRow({ log }: { log: AuditLogEntry }) {
   )
 }
 
-export default function AuditLogPage() {
+export default function AgentActivityPage() {
   const { user } = useUser()
   const [page, setPage] = useState(0)
   const [levelFilter, setLevelFilter] = useState("ALL")
@@ -71,21 +83,20 @@ export default function AuditLogPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['audit', user?.username, page, levelFilter],
-    queryFn: () => auditAPI.getLogs(user!.username, page, 50, levelFilter),
-    enabled: !!user?.username,
-    keepPreviousData: true
+    queryFn: () => activityAPI.getLogs(user!.username, page, 50, levelFilter),
+    enabled: !!user?.username
   })
 
   // Basic client-side search across specific page logs
   const filteredData = data?.content.filter(item => 
     searchQuery === "" || 
-    item.action.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    JSON.stringify(item.payload || {}).toLowerCase().includes(searchQuery.toLowerCase())
+    item.eventType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.description.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   const handleExport = () => {
     if (!user) return
-    const url = auditAPI.exportLogsUrl(user.username)
+    const url = activityAPI.exportLogsUrl(user.username)
     window.open(url, '_blank')
   }
 
@@ -93,7 +104,7 @@ export default function AuditLogPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Audit Log</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Agent Activity</h1>
           <p className="text-foreground/60 text-sm mt-1">
             Complete visibility into every action taken by the agent or system.
           </p>
@@ -139,8 +150,8 @@ export default function AuditLogPage() {
               <tr>
                 <th className="px-6 py-4 w-8"></th>
                 <th className="px-6 py-4 font-medium tracking-wider">Timestamp</th>
-                <th className="px-6 py-4 font-medium tracking-wider">Action</th>
-                <th className="px-6 py-4 font-medium tracking-wider">Entity</th>
+                <th className="px-6 py-4 font-medium tracking-wider">Event Type</th>
+                <th className="px-6 py-4 font-medium tracking-wider">Description</th>
                 <th className="px-6 py-4 font-medium tracking-wider text-right">Level</th>
               </tr>
             </thead>
@@ -172,10 +183,10 @@ export default function AuditLogPage() {
         </div>
 
         {/* Pagination */}
-        {data && data.totalPages > 1 && (
+        {data && (
           <div className="p-4 border-t border-border/50 flex items-center justify-between text-sm text-foreground/60 bg-muted/20">
             <div>
-              Showing {page * 50 + 1}-{Math.min((page + 1) * 50, data.totalElements)} of {data.totalElements} entries
+              Showing {data.totalElements === 0 ? 0 : page * 50 + 1}-{Math.min((page + 1) * 50, data.totalElements)} of {data.totalElements} entries
             </div>
             <div className="flex items-center gap-1">
               <Button 

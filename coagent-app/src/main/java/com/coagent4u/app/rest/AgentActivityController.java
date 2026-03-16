@@ -12,58 +12,58 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.coagent4u.shared.PaginatedResponse;
-import com.coagent4u.user.application.dto.AuditLogEntry;
-import com.coagent4u.user.port.in.GetAuditLogUseCase;
-import com.coagent4u.user.port.out.AuditLogQueryPort;
+import com.coagent4u.user.application.dto.AgentActivityEntry;
+import com.coagent4u.user.port.in.GetAgentActivityUseCase;
+import com.coagent4u.user.port.out.AgentActivityQueryPort;
 import com.coagent4u.user.port.out.UserQueryPort;
 
 /**
- * REST controller for audit log page.
+ * REST controller for agent activity page.
  */
 @RestController
-@RequestMapping("/api/audit-logs")
-public class AuditLogController {
+@RequestMapping("/api/agent-activities")
+public class AgentActivityController {
 
-    private static final Logger log = LoggerFactory.getLogger(AuditLogController.class);
+    private static final Logger log = LoggerFactory.getLogger(AgentActivityController.class);
 
-    private final GetAuditLogUseCase auditLogUseCase;
+    private final GetAgentActivityUseCase agentActivityUseCase;
     private final UserQueryPort userQuery;
-    private final AuditLogQueryPort auditLogQuery;
+    private final AgentActivityQueryPort agentActivityQuery;
 
-    public AuditLogController(GetAuditLogUseCase auditLogUseCase,
+    public AgentActivityController(GetAgentActivityUseCase agentActivityUseCase,
                                UserQueryPort userQuery,
-                               AuditLogQueryPort auditLogQuery) {
-        this.auditLogUseCase = auditLogUseCase;
+                               AgentActivityQueryPort agentActivityQuery) {
+        this.agentActivityUseCase = agentActivityUseCase;
         this.userQuery = userQuery;
-        this.auditLogQuery = auditLogQuery;
+        this.agentActivityQuery = agentActivityQuery;
     }
 
     @GetMapping
-    public ResponseEntity<?> getAuditLogs(
+    public ResponseEntity<?> getAgentActivitys(
             @RequestParam String username,
             @RequestParam(required = false) String eventType,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         try {
-            PaginatedResponse<AuditLogEntry> response = auditLogUseCase.getAuditLog(
+            PaginatedResponse<AgentActivityEntry> response = agentActivityUseCase.getAgentActivity(
                     username, eventType, page, size);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
-            log.warn("[AuditLogController] Bad request: {}", e.getMessage());
+            log.warn("[AgentActivityController] Bad request: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
     @GetMapping("/export")
-    public ResponseEntity<?> exportAuditLogs(@RequestParam String username) {
+    public ResponseEntity<?> exportAgentActivitys(@RequestParam String username) {
         try {
             var user = userQuery.findByUsername(username)
                     .orElseThrow(() -> new IllegalArgumentException("Unknown user: " + username));
 
-            List<AuditLogEntry> allLogs = auditLogQuery.findAllByUserId(user.getUserId());
+            List<AgentActivityEntry> allLogs = agentActivityQuery.findAllByUserId(user.getUserId());
             return ResponseEntity.ok(allLogs);
         } catch (IllegalArgumentException e) {
-            log.warn("[AuditLogController] Bad request: {}", e.getMessage());
+            log.warn("[AgentActivityController] Bad request: {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }

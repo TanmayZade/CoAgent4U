@@ -256,7 +256,7 @@ INITIATED
 
 ### InfrastructureMonitoring
 - `MetricsCollector`
-- `AuditLogger`
+- `AgentActivityger`
 
 ---
 

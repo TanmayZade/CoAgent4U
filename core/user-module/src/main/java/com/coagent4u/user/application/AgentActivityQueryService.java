@@ -4,28 +4,28 @@ import java.util.List;
 
 import com.coagent4u.shared.PaginatedResponse;
 import com.coagent4u.shared.UserId;
-import com.coagent4u.user.application.dto.AuditLogEntry;
+import com.coagent4u.user.application.dto.AgentActivityEntry;
 import com.coagent4u.user.domain.User;
-import com.coagent4u.user.port.in.GetAuditLogUseCase;
-import com.coagent4u.user.port.out.AuditLogQueryPort;
+import com.coagent4u.user.port.in.GetAgentActivityUseCase;
+import com.coagent4u.user.port.out.AgentActivityQueryPort;
 import com.coagent4u.user.port.out.UserQueryPort;
 
 /**
- * Application service for audit log queries.
+ * Application service for agent activity queries.
  * No Spring annotations — assembled by DI in coagent-app.
  */
-public class AuditLogQueryService implements GetAuditLogUseCase {
+public class AgentActivityQueryService implements GetAgentActivityUseCase {
 
     private final UserQueryPort userQuery;
-    private final AuditLogQueryPort auditLogQuery;
+    private final AgentActivityQueryPort agentActivityQuery;
 
-    public AuditLogQueryService(UserQueryPort userQuery, AuditLogQueryPort auditLogQuery) {
+    public AgentActivityQueryService(UserQueryPort userQuery, AgentActivityQueryPort agentActivityQuery) {
         this.userQuery = userQuery;
-        this.auditLogQuery = auditLogQuery;
+        this.agentActivityQuery = agentActivityQuery;
     }
 
     @Override
-    public PaginatedResponse<AuditLogEntry> getAuditLog(
+    public PaginatedResponse<AgentActivityEntry> getAgentActivity(
             String username, String eventTypeFilter, int page, int size) {
         User user = userQuery.findByUsername(username)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown user: " + username));
@@ -33,8 +33,8 @@ public class AuditLogQueryService implements GetAuditLogUseCase {
         UserId userId = user.getUserId();
         int offset = page * size;
 
-        List<AuditLogEntry> entries = auditLogQuery.findByUserId(userId, eventTypeFilter, offset, size);
-        long total = auditLogQuery.countByUserId(userId, eventTypeFilter);
+        List<AgentActivityEntry> entries = agentActivityQuery.findByUserId(userId, eventTypeFilter, offset, size);
+        long total = agentActivityQuery.countByUserId(userId, eventTypeFilter);
 
         return new PaginatedResponse<>(entries, page, size, total,
                 (int) Math.ceil((double) total / size));

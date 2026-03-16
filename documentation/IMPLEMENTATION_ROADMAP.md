@@ -64,11 +64,11 @@
 
 | Step | Module | Action | Tests |
 |------|--------|--------|-------|
-| 2.1 | `persistence` | Create JPA entity classes: `UserJpaEntity`, `AgentJpaEntity`, `CoordinationJpaEntity`, `ApprovalJpaEntity`, `AuditLogJpaEntity`, etc. Create mapper classes. Implement all five `PersistencePort` adapters with Spring Data repositories. | Repository integration tests with Testcontainers (PostgreSQL). CRUD + query tests for each adapter. |
+| 2.1 | `persistence` | Create JPA entity classes: `UserJpaEntity`, `AgentJpaEntity`, `CoordinationJpaEntity`, `ApprovalJpaEntity`, `AgentActivityJpaEntity`, etc. Create mapper classes. Implement all five `PersistencePort` adapters with Spring Data repositories. | Repository integration tests with Testcontainers (PostgreSQL). CRUD + query tests for each adapter. |
 | 2.2 | `persistence` | Refine Flyway migrations: indexes, constraints, JSONB columns for proposals. Verify schema matches JPA entities. | `ddl-auto=validate` passes on startup. |
 | 2.3 | `security` | Implement `JwtValidator` + `JwtIssuer` (HS256). Implement `AesTokenEncryption` (AES-256-GCM). Implement `SlackSignatureVerifier` (HMAC-SHA256). Implement `CaffeineRateLimiter`. | Unit tests for each component. JWT round-trip test. AES encrypt/decrypt round-trip test. Signature verification test. |
 | 2.4 | `config` | Create `application.yml`, `application-dev.yml`, `application-staging.yml` profiles. Define all `@ConfigurationProperties` classes. | Config loads on Spring context boot. |
-| 2.5 | `monitoring` | Implement `SpringEventPublisherAdapter` (implements `DomainEventPublisher`). Create async event handlers: `AuditEventHandler`, `MetricsEventHandler`, `StructuredLogHandler`. Configure Micrometer with custom metrics. | Event publishing and handler integration test. Verify event loss doesn't affect coordination state. |
+| 2.5 | `monitoring` | Implement `SpringEventPublisherAdapter` (implements `DomainEventPublisher`). Create async event handlers: `AgentActivityEventHandler`, `MetricsEventHandler`, `StructuredLogHandler`. Configure Micrometer with custom metrics. | Event publishing and handler integration test. Verify event loss doesn't affect coordination state. |
 
 **Exit Criterion:** Full Spring context boots. Domain services wired to PostgreSQL via persistence adapters. Flyway migrations run. JWT, AES, Slack signature verification work. Event bus dispatches events.
 
@@ -327,7 +327,7 @@ CoAgent4U/
 │       ├── pom.xml
 │       └── src/main/java/com/coagent4u/monitoring/
 │           ├── SpringEventPublisherAdapter.java  # Implements DomainEventPublisher
-│           ├── AuditEventHandler.java
+│           ├── AgentActivityEventHandler.java
 │           ├── MetricsEventHandler.java
 │           └── StructuredLogHandler.java
 │
@@ -517,7 +517,7 @@ V4__create_approval_tables.sql
   └── approvals
 
 V5__create_audit_tables.sql
-  └── audit_logs
+  └── agent_activities
 
 V6__create_indexes.sql
   ├── idx_slack_identities_user_id
@@ -530,7 +530,7 @@ V6__create_indexes.sql
   ├── idx_approvals_user_id
   ├── idx_approvals_coordination_id
   ├── idx_approvals_expires_at  (for scheduler scan)
-  └── idx_audit_logs_user_id
+  └── idx_agent_activities_user_id
 ```
 
 ### Cross-Module Reference Pattern

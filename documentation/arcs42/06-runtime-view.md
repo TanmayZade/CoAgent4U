@@ -33,7 +33,7 @@
   - [9.4 Concurrent Approval and Timeout Race Condition](#94-concurrent-approval-and-timeout-race-condition)
 - [10. Intent Parsing Runtime Flow](#10-intent-parsing-runtime-flow)
 - [11. Asynchronous Side Effect Flows](#11-asynchronous-side-effect-flows)
-  - [11.1 Audit Logging](#111-audit-logging)
+  - [11.1 Agent Activityging](#111-audit-logging)
   - [11.2 Notification Delivery](#112-notification-delivery)
   - [11.3 Metrics Emission](#113-metrics-emission)
 
@@ -45,7 +45,7 @@ This section documents the runtime behavior of the CoAgent4U platform through se
 
 Every runtime flow documented here enforces the **Agent Sovereignty Principle** (§2.8 of `04-solution-strategy.md`). The `coordination-module` never directly accesses `CalendarPort`, `ApprovalPort`, `NotificationPort`, user persistence, or any external integration. All user-scoped operations are mediated exclusively through agent capability ports (`AgentAvailabilityPort`, `AgentEventExecutionPort`, `AgentProfilePort`, `AgentApprovalPort`), with each user's agent acting as the sole gateway to their data and connected services. Coordination state advances are driven exclusively by agents calling `CoordinationProtocolPort` — the `coordination-module` never subscribes directly to approval events.
 
-Runtime flows are categorized into two execution paths: the **synchronous deterministic path** (coordination state transitions, agent capability calls, saga execution) and **asynchronous side effects** (notifications, audit logging, metrics). This separation is maintained throughout all diagrams and narratives.
+Runtime flows are categorized into two execution paths: the **synchronous deterministic path** (coordination state transitions, agent capability calls, saga execution) and **asynchronous side effects** (notifications, agent activityging, metrics). This separation is maintained throughout all diagrams and narratives.
 
 ---
 
@@ -111,7 +111,7 @@ These calls are transactional, blocking, and their success or failure directly d
 |---|---|
 | Domain event publication | `CoordinationStateChanged`, `CoordinationCompleted`, `CoordinationFailed`, `ApprovalDecisionMade`, `ApprovalExpired` |
 | Notification delivery | Slack messages for approvals, confirmations, errors |
-| Audit log writes | Append-only entries to `coordination_state_log` and `audit_logs` |
+| AgentActivity log writes | Append-only entries to `coordination_state_log` and `agent_activities` |
 | Metrics emission | Micrometer counters and timers |
 
 If an asynchronous handler fails (e.g., Slack is unreachable), the coordination state machine is unaffected. The coordination can be `COMPLETED` even if the confirmation notification fails to deliver. Failed side effects are logged and retried by their respective modules.
@@ -779,7 +779,7 @@ sequenceDiagram
     participant CalA as calendar-module<br/>(CalendarPort)
     participant CalB as calendar-module<br/>(CalendarPort)
     participant EventBus as DomainEventBus
-    participant Audit as monitoring<br/>(AuditHandler)
+    participant AgentActivity as monitoring<br/>(AgentActivityHandler)
 
     Note over Coord: State: CREATING_EVENT_A
 
@@ -807,12 +807,12 @@ sequenceDiagram
     Coord->>Coord: Flag coordination as REQUIRES_MANUAL_INTERVENTION
 
     Coord--)EventBus: publish CoordinationFailed(coordinationId, COMPENSATION_FAILED, orphanedEventId=eventId_A)
-    EventBus--)Audit: Log CRITICAL: compensation failure with orphaned event details
+    EventBus--)AgentActivity: Log CRITICAL: compensation failure with orphaned event details
 
     Note over EventBus: Async notification delivery (see §11.2)<br/>NotificationEventHandler sends orphaned-event warnings to both users
 ```
 
-The `REQUIRES_MANUAL_INTERVENTION` flag is stored on the `Coordination` entity and surfaced on the web dashboard. The audit log entry includes the orphaned Google Calendar event ID, the user whose calendar contains it, and the timestamp — enabling manual cleanup.
+The `REQUIRES_MANUAL_INTERVENTION` flag is stored on the `Coordination` entity and surfaced on the web dashboard. The agent activity entry includes the orphaned Google Calendar event ID, the user whose calendar contains it, and the timestamp — enabling manual cleanup.
 
 ---
 
@@ -886,7 +886,7 @@ sequenceDiagram
     participant EventBus as DomainEventBus
     participant NotifHandler as messaging-module<br/>(NotificationEventHandler)
     participant SlackAPI as Slack Web API
-    participant Audit as monitoring<br/>(AuditHandler)
+    participant AgentActivity as monitoring<br/>(AgentActivityHandler)
 
     Note over NotifHandler: Handling CoordinationCompleted event
 
@@ -905,7 +905,7 @@ sequenceDiagram
     Note over NotifHandler: Coordination remains COMPLETED.<br/>Notification failure does not affect state.
 
     NotifHandler--)EventBus: publish NotificationFailed(coordinationId, "confirmation")
-    EventBus--)Audit: Log WARNING: notification delivery failed
+    EventBus--)AgentActivity: Log WARNING: notification delivery failed
 ```
 
 The notification is a side effect. The coordination's terminal state (`COMPLETED`) is already persisted. The calendar events exist in both users' calendars. The failed notification is logged for monitoring and can be retried manually or by a scheduled reconciliation task. Note that `NotificationFailed` is published by the `NotificationEventHandler` in the `messaging-module` — the `coordination-module` is not involved.
@@ -1008,27 +1008,27 @@ sequenceDiagram
 
 All flows in this section are asynchronous, non-blocking, and failure-tolerant. They do not affect coordination state machine transitions. `coordination-module` notifications are delivered exclusively through this async pathway — the `coordination-module` never calls `NotificationPort` directly.
 
-### 11.1 Audit Logging
+### 11.1 Agent Activityging
 
 ```mermaid
 sequenceDiagram
     participant Coord as coordination-module
     participant EventBus as DomainEventBus<br/>(SpringEventPublisherAdapter)
-    participant Audit as monitoring<br/>(AuditEventHandler)
-    participant DB as persistence<br/>(AuditLogPersistencePort)
+    participant AgentActivity as monitoring<br/>(AgentActivityEventHandler)
+    participant DB as persistence<br/>(AgentActivityPersistencePort)
 
     Coord--)EventBus: publish CoordinationStateChanged(coordId, MATCHING → PROPOSAL_GENERATED, reason)
 
     Note over EventBus: Async dispatch (@Async)
 
-    EventBus--)Audit: onCoordinationStateChanged(event)
+    EventBus--)AgentActivity: onCoordinationStateChanged(event)
 
-    Audit->>DB: AuditLogPersistencePort.append({<br/>  logId: UUID,<br/>  userId: null,<br/>  agentId: null,<br/>  actionType: "COORDINATION_STATE_CHANGE",<br/>  actionDetails: {coordId, from, to, reason},<br/>  timestamp: event.timestamp,<br/>  correlationId: event.correlationId<br/>})
+    AgentActivity->>DB: AgentActivityPersistencePort.append({<br/>  logId: UUID,<br/>  userId: null,<br/>  agentId: null,<br/>  actionType: "COORDINATION_STATE_CHANGE",<br/>  actionDetails: {coordId, from, to, reason},<br/>  timestamp: event.timestamp,<br/>  correlationId: event.correlationId<br/>})
 
-    Audit->>DB: CoordinationPersistencePort.appendStateLog({<br/>  coordId, from=MATCHING, to=PROPOSAL_GENERATED,<br/>  reason="1 overlapping slot found", timestamp<br/>})
+    AgentActivity->>DB: CoordinationPersistencePort.appendStateLog({<br/>  coordId, from=MATCHING, to=PROPOSAL_GENERATED,<br/>  reason="1 overlapping slot found", timestamp<br/>})
 ```
 
-Audit logging is append-only and immutable. Both the `audit_logs` and `coordination_state_log` tables receive entries for every coordination state transition. The audit handler runs in its own transaction — if it fails, the coordination state is unaffected.
+AgentActivity logging is append-only and immutable. Both the `agent_activities` and `coordination_state_log` tables receive entries for every coordination state transition. The audit handler runs in its own transaction — if it fails, the coordination state is unaffected.
 
 ### 11.2 Notification Delivery
 
@@ -1078,7 +1078,7 @@ sequenceDiagram
     SlackAPI-->>NotifHandler: ok
 ```
 
-The `NotificationEventHandler` handles all coordination lifecycle events: `CoordinationCompleted` produces confirmation messages ("✅ Meeting confirmed"), `CoordinationFailed` produces failure messages ("❌ Meeting could not be created") with reason-specific details, and `CoordinationRejected` produces rejection messages ("📅 Meeting request was declined" or "⏰ Approval timed out"). The handler resolves user Slack channel IDs and formats messages using Block Kit. If delivery fails after retries, the handler publishes a `NotificationFailed` event for audit logging (see §9.3).
+The `NotificationEventHandler` handles all coordination lifecycle events: `CoordinationCompleted` produces confirmation messages ("✅ Meeting confirmed"), `CoordinationFailed` produces failure messages ("❌ Meeting could not be created") with reason-specific details, and `CoordinationRejected` produces rejection messages ("📅 Meeting request was declined" or "⏰ Approval timed out"). The handler resolves user Slack channel IDs and formats messages using Block Kit. If delivery fails after retries, the handler publishes a `NotificationFailed` event for agent activityging (see §9.3).
 
 ### 11.3 Metrics Emission
 

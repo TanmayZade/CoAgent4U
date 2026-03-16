@@ -116,7 +116,7 @@ flowchart LR
 
         BACKEND["Backend Application<br/>Java 21, Spring Boot 3.x<br/><br/>Modular Monolith<br/>Coordination Engine<br/>Hexagonal Adapters<br/>REST API"]
 
-        DB[("Database<br/>PostgreSQL 15+<br/><br/>Users, Agents,<br/>Coordinations, Approvals,<br/>Audit Logs<br/>Flyway managed schema")]
+        DB[("Database<br/>PostgreSQL 15+<br/><br/>Users, Agents,<br/>Coordinations, Approvals,<br/>Agent Activitys<br/>Flyway managed schema")]
     end
 
     %% =========================

@@ -187,7 +187,7 @@ Status values: `Proposed` | `Accepted` | `Superseded` | `Deprecated`
   - `terminate(coordinationId, reason, agentId)` → void
   - Called by agent-module handlers (`CollaborativeApprovalDecisionHandler`, `CollaborativeApprovalExpiredHandler`)
   - Uses pessimistic row lock (`SELECT FOR UPDATE`)
-  - Audit logged with trigger source `"agent-via-protocol-port"`
+  - AgentActivity logged with trigger source `"agent-via-protocol-port"`
 - **Rejected:** Coordination directly consuming approval events (violates ADR-03), async event-only advancement (non-deterministic)
 - **Consequences:** Clean agent→coordination contract; synchronous lock-protected advancement; extraction-ready as network API; ~50 LOC overhead
 
@@ -214,7 +214,7 @@ Status values: `Proposed` | `Accepted` | `Superseded` | `Deprecated`
 
 ## 9.4 Decision Impact Summary
 
-| ADR | Q1 Determinism | Q3 Auditability | Q5 Reliability | Q6 Modularity | Q7 Testability | OC-01 Solo Dev | OC-03 Budget | OC-04 Portability |
+| ADR | Q1 Determinism | Q3 AgentActivityability | Q5 Reliability | Q6 Modularity | Q7 Testability | OC-01 Solo Dev | OC-03 Budget | OC-04 Portability |
 |-----|:--------------:|:---------------:|:--------------:|:-------------:|:--------------:|:--------------:|:------------:|:-----------------:|
 | ADR-01 | | | | ● | | ● | ● | |
 | ADR-02 | | | | ● | ● | | | |

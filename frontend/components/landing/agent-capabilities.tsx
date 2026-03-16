@@ -33,7 +33,7 @@ const capabilities = [
   {
     icon: History,
     title: "Maintain History",
-    description: "Full coordination history and audit logs. Track every agent interaction and decision.",
+    description: "Full coordination history and agent activity logs. Track every agent interaction and decision.",
   },
 ]
 

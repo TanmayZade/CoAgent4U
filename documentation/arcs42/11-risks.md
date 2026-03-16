@@ -237,7 +237,7 @@ Scores of 15 and above require active mitigation with a named owner. Scores of 2
 | Impact | Medium — Potential for state machine inconsistency between the two paths, leading to coordinations stuck in unexpected states. No data corruption (pessimistic lock prevents dual-write), but functional correctness risk. |
 | Likelihood | Possible — Dual-path complexity is inherent to the design. |
 | Risk Score | 9 |
-| Current Mitigation | Both paths use the identical `CoordinationStateMachine` domain service — there is no code duplication. Property-based state machine tests verify all transitions regardless of entry point. Integration tests explicitly cover concurrent orchestrator + `CoordinationProtocolPort` access (QS-D1, QS-D5). The `trigger_source` field in audit logs (QS-A1) makes it visible which path initiated each transition, aiding incident diagnosis. |
+| Current Mitigation | Both paths use the identical `CoordinationStateMachine` domain service — there is no code duplication. Property-based state machine tests verify all transitions regardless of entry point. Integration tests explicitly cover concurrent orchestrator + `CoordinationProtocolPort` access (QS-D1, QS-D5). The `trigger_source` field in agent activitys (QS-A1) makes it visible which path initiated each transition, aiding incident diagnosis. |
 | Future Mitigation Path | Introduce a state machine test harness that generates all valid interleaving sequences of orchestrator-driven and agent-mediated transitions, verifying that every interleaving reaches a valid terminal state. This extends the current property-based tests from single-path to multi-path coverage. |
 | ADR Reference | ADR-04, ADR-13 |
 
@@ -334,7 +334,7 @@ Scores of 15 and above require active mitigation with a named owner. Scores of 2
 | Impact | Medium — Log storage cost increase. Log search performance degradation. |
 | Likelihood | Possible |
 | Risk Score | 9 |
-| Mitigation | Production log level set to INFO. Per-package log level overrides via configuration. Log sampling for high-frequency events (e.g., health checks). Log rotation and retention policy enforced at infrastructure level. Audit log entries (`coordination_state_log`) are written to the database, not the log stream, limiting their contribution to log volume. |
+| Mitigation | Production log level set to INFO. Per-package log level overrides via configuration. Log sampling for high-frequency events (e.g., health checks). Log rotation and retention policy enforced at infrastructure level. AgentActivity log entries (`coordination_state_log`) are written to the database, not the log stream, limiting their contribution to log volume. |
 
 ---
 
@@ -491,7 +491,7 @@ Hexagonal module boundaries, formalized port interfaces (`CoordinationProtocolPo
 | Severity | Medium |
 | Likelihood | Unlikely |
 | Risk Score | 6 |
-| Mitigation | Correlation IDs are UUIDs generated at request ingress. No PII component. Agent IDs in logs are internal surrogate keys, not email addresses or names. The `trigger_source` field in audit logs uses generic labels ("agent-via-protocol-port", "orchestrator"), not user-identifiable values. |
+| Mitigation | Correlation IDs are UUIDs generated at request ingress. No PII component. Agent IDs in logs are internal surrogate keys, not email addresses or names. The `trigger_source` field in agent activitys uses generic labels ("agent-via-protocol-port", "orchestrator"), not user-identifiable values. |
 
 ---
 
@@ -503,7 +503,7 @@ Hexagonal module boundaries, formalized port interfaces (`CoordinationProtocolPo
 | Severity | Medium |
 | Likelihood | Possible |
 | Risk Score | 9 |
-| Mitigation | Log retention policy defined: 90 days for application logs, 1 year for audit logs (including `coordination_state_log` with `trigger_source` entries). Infrastructure-level lifecycle policies enforce deletion. Audit log entries stored in a separate log stream with distinct retention. |
+| Mitigation | Log retention policy defined: 90 days for application logs, 1 year for agent activitys (including `coordination_state_log` with `trigger_source` entries). Infrastructure-level lifecycle policies enforce deletion. AgentActivity log entries stored in a separate log stream with distinct retention. |
 
 ---
 
@@ -665,7 +665,7 @@ All indicators are exported via Micrometer to the configured metrics backend (Pr
 
 ---
 
-### Pre-Release Security Audit
+### Pre-Release Security AgentActivity
 
 **Trigger:** Every production release that modifies authentication, authorization, token handling, encryption paths, or agent sovereignty boundary (`AgentApprovalPort`, `CoordinationProtocolPort`, or any new agent capability port).
 

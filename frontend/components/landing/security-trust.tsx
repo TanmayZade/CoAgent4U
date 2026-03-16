@@ -28,7 +28,7 @@ const securityFeatures = [
   },
   {
     icon: FileText,
-    title: "Complete Audit Logs",
+    title: "Complete Agent Activity Logs",
     description: "Every action is timestamped and logged. Full transparency into what your agent does and when.",
   },
 ]
@@ -118,7 +118,7 @@ export function SecurityTrust() {
                   <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-600 transition-transform duration-200 hover:scale-105">AES-256</span>
                 </div>
                 <div className="status-item flex items-center justify-between py-3 transition-all duration-300 hover:bg-muted/20 hover:px-2 rounded">
-                  <span className="text-sm text-muted-foreground">Audit Logging</span>
+                  <span className="text-sm text-muted-foreground">Agent Activity Logging</span>
                   <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-600 transition-transform duration-200 hover:scale-105">Enabled</span>
                 </div>
               </div>

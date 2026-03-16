@@ -4,7 +4,7 @@ import com.coagent4u.shared.UserId;
 
 /**
  * Marker interface for domain events that carry a user identity.
- * Implemented by agent activity events so the {@code AuditEventHandler}
+ * Implemented by agent activity events so the {@code AgentActivityEventHandler}
  * can extract the {@code userId} and bind audit rows to the correct user.
  */
 public interface UserAwareEvent extends DomainEvent {

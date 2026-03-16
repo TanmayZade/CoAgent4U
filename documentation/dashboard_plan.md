@@ -11,7 +11,7 @@ This architecture is derived from:
 - **PRD** — Sections 4.1 (Scope), 5.2 (User Journeys), 6.1–6.7 (Functional Requirements), UC-001 through UC-004
 - **API Surface** — [API_DOCUMENTATION.md](file:///e:/CoAgent4U/frontend/API_DOCUMENTATION.md) (all authenticated endpoints)
 - **Domain Model** — 4 modules: `user-module`, `agent-module`, `coordination-module`, `approval-module`
-- **Existing Frontend** — Next.js app with routes for `/dashboard`, `/dashboard/audit`, `/dashboard/calendar`, `/dashboard/coordinations`, `/dashboard/data`
+- **Existing Frontend** — Next.js app with routes for `/dashboard`, `/dashboard/activity`, `/dashboard/calendar`, `/dashboard/coordinations`, `/dashboard/data`
 
 ---
 
@@ -78,9 +78,9 @@ A chronological log of **everything the user's personal agent has done** on thei
 
 | Element | Data Source | PRD Mapping |
 |---------|-----------|-------------|
-| Activity feed (timeline) | Audit log / activity history (API: future endpoint for agent actions log) | REQ-DATA-003 |
+| Activity feed (timeline) | AgentActivity log / activity history (API: future endpoint for agent actions log) | REQ-DATA-003 |
 | Action type badges (Personal Event, Coordination, Conflict, Error) | Categorized from activity data | REQ-DATA-004 |
-| Each entry: timestamp, action description, outcome | Structured audit log entries | REQ-DATA-002 |
+| Each entry: timestamp, action description, outcome | Structured agent activity entries | REQ-DATA-002 |
 | Filter/search by type and date range | Client-side filtering on fetched data | REQ-USE-002 |
 
 ### User Actions
@@ -298,7 +298,7 @@ Home → Settings
 | Section | Available APIs | Missing APIs (Need Backend Work) |
 |---------|---------------|----------------------------------|
 | **Home** | `GET /auth/me`, `GET /me`, `GET /integrations/google/status` | — |
-| **Agent Activity** | — | `GET /me/activity` (audit log endpoint) |
+| **Agent Activity** | — | `GET /me/activity` (agent activity endpoint) |
 | **Coordinations** | — | `GET /me/coordinations`, `GET /me/coordinations/{id}` |
 | **Integrations** | `GET /integrations/google/status`, `GET /integrations/google/authorize`, `DELETE /integrations/google/disconnect`, `GET /auth/slack/install/start` | — |
 | **Settings** | `GET /auth/me`, `GET /me`, `POST /auth/logout` | `DELETE /me` (account deletion) |

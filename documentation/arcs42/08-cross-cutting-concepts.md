@@ -36,7 +36,7 @@
   - [7.1 Structured Logging](#71-structured-logging)
   - [7.2 Correlation ID Propagation](#72-correlation-id-propagation)
   - [7.3 Log Level Policy](#73-log-level-policy)
-  - [7.4 Audit Log Separation](#74-audit-log-separation)
+  - [7.4 Agent Activity Separation](#74-audit-log-separation)
 - [8. Observability and Metrics](#8-observability-and-metrics)
   - [8.1 Metrics Framework](#81-metrics-framework)
   - [8.2 Metrics Inventory](#82-metrics-inventory)
@@ -67,8 +67,8 @@
   - [15.1 Table Ownership](#151-table-ownership)
   - [15.2 Cross-Module Access Rules](#152-cross-module-access-rules)
   - [15.3 Agent Sovereignty Enforcement](#153-agent-sovereignty-enforcement)
-- [16. Audit and Compliance](#16-audit-and-compliance)
-  - [16.1 Audit Log Architecture](#161-audit-log-architecture)
+- [16. AgentActivity and Compliance](#16-audit-and-compliance)
+  - [16.1 Agent Activity Architecture](#161-audit-log-architecture)
   - [16.2 GDPR Compliance](#162-gdpr-compliance)
   - [16.3 Data Retention Policies](#163-data-retention-policies)
 - [17. Testing Strategy Overview](#17-testing-strategy-overview)
@@ -86,7 +86,7 @@ The CoAgent4U platform uses an in-process domain event bus implemented via Sprin
 
 Domain events are used for side-effect decoupling and for asynchronous cross-module reactions. They are never used to directly advance the coordination state machine; any workflow progression is performed synchronously via CoordinationProtocolPort calls invoked by agents. They are published after the primary state change has been persisted to PostgreSQL within a committed transaction. Events are never used for primary coordination workflow orchestration — the coordination state machine advances through synchronous port calls (agent capability ports and `CoordinationProtocolPort`), not events. The `ApprovalDecisionMade` event bridges the `approval-module` and the `agent-module`: for personal approvals the agent handles the event directly, and for collaborative approvals the agent's handler translates the event into a synchronous `CoordinationProtocolPort.advance()` call that advances the coordination state machine. Similarly, `ApprovalExpired` events for collaborative approvals are consumed by the `agent-module`'s handler which calls `CoordinationProtocolPort.terminate()`. In all cases, the approval state transition is persisted before the event is published, ensuring no data loss if the event handler fails.
 
-Event handlers annotated with `@EventListener` run synchronously on the publishing thread by default. Handlers annotated with `@Async` execute on a dedicated thread pool (`async-event-pool`, 4 threads by default). Asynchronous handlers are used for notifications, audit logging, and metrics emission — all of which are side effects that must not block the critical path. The collaborative approval event handlers (`CollaborativeApprovalDecisionHandler`, `CollaborativeApprovalExpiredHandler`) are also `@Async` because the `approval-module`'s transaction must complete independently of coordination state machine advancement; the handler then performs its own synchronous `CoordinationProtocolPort` call within its own thread.
+Event handlers annotated with `@EventListener` run synchronously on the publishing thread by default. Handlers annotated with `@Async` execute on a dedicated thread pool (`async-event-pool`, 4 threads by default). Asynchronous handlers are used for notifications, agent activityging, and metrics emission — all of which are side effects that must not block the critical path. The collaborative approval event handlers (`CollaborativeApprovalDecisionHandler`, `CollaborativeApprovalExpiredHandler`) are also `@Async` because the `approval-module`'s transaction must complete independently of coordination state machine advancement; the handler then performs its own synchronous `CoordinationProtocolPort` call within its own thread.
 
 ### 1.2 Event Routing Map
 
@@ -98,12 +98,12 @@ Event handlers annotated with `@EventListener` run synchronously on the publishi
 | `ApprovalDecisionMade(COLLABORATIVE_REQUESTER)` | `approval-module` | `agent-module` (`CollaborativeApprovalDecisionHandler`) | Async | Agent calls `CoordinationProtocolPort.advance()` to advance coordination state machine |
 | `ApprovalExpired(PERSONAL)` | `approval-module` | `agent-module` (`PersonalApprovalExpiredHandler`) | Async | Notify user of expiration |
 | `ApprovalExpired(COLLABORATIVE)` | `approval-module` | `agent-module` (`CollaborativeApprovalExpiredHandler`) | Async | Agent calls `CoordinationProtocolPort.terminate()` → coordination transitions to `REJECTED` |
-| `CoordinationStateChanged` | `coordination-module` | `monitoring` (`AuditEventHandler`) | Async | Append to `coordination_state_log` and `audit_logs` |
+| `CoordinationStateChanged` | `coordination-module` | `monitoring` (`AgentActivityEventHandler`) | Async | Append to `coordination_state_log` and `agent_activities` |
 | `CoordinationCompleted` | `coordination-module` | `monitoring` (`MetricsEventHandler`), `messaging-module` (`NotificationEventHandler`) | Async | Emit metrics, send confirmations to both users |
 | `CoordinationFailed` | `coordination-module` | `monitoring` (`MetricsEventHandler`), `messaging-module` (`NotificationEventHandler`) | Async | Emit metrics, send failure notifications to both users |
 | `CoordinationRejected` | `coordination-module` | `monitoring` (`MetricsEventHandler`), `messaging-module` (`NotificationEventHandler`) | Async | Emit metrics, send rejection notifications |
-| `PersonalEventCreated` | `agent-module` | `monitoring` (`AuditEventHandler`) | Async | Audit log entry |
-| `UserRegistered` | `user-module` | `monitoring` (`AuditEventHandler`) | Async | Audit log entry |
+| `PersonalEventCreated` | `agent-module` | `monitoring` (`AgentActivityEventHandler`) | Async | AgentActivity log entry |
+| `UserRegistered` | `user-module` | `monitoring` (`AgentActivityEventHandler`) | Async | AgentActivity log entry |
 | `UserDeletionRequested` | `user-module` | `agent-module`, `coordination-module` | Async | Cascading cleanup |
 | `CalendarConnected` | `user-module` | `agent-module` | Async | Agent provisioning trigger |
 | `CalendarDisconnected` | `user-module` | `agent-module` | Async | Agent deactivation trigger |
@@ -135,7 +135,7 @@ flowchart TB
     subgraph CONSUMERS["Event Consumers"]
         AM_PERSONAL["agent-module<br/>PersonalApprovalDecisionHandler<br/>PersonalApprovalExpiredHandler"]
         AM_COLLAB["agent-module<br/>CollaborativeApprovalDecisionHandler<br/>CollaborativeApprovalExpiredHandler"]
-        AUDIT["monitoring<br/>AuditEventHandler"]
+        AUDIT["monitoring<br/>AgentActivityEventHandler"]
         METRICS["monitoring<br/>MetricsEventHandler"]
         NOTIF["messaging-module<br/>NotificationEventHandler"]
     end
@@ -488,7 +488,7 @@ All application logging uses structured JSON format via Logback with the `logsta
 
 ### 7.2 Correlation ID Propagation
 
-A correlation ID is generated at the entry point of every request (Slack webhook or REST API call) and propagated through the entire processing chain using SLF4J's Mapped Diagnostic Context (MDC). The correlation ID is included in every log entry, every domain event, every audit log record, and every outbound API call header.
+A correlation ID is generated at the entry point of every request (Slack webhook or REST API call) and propagated through the entire processing chain using SLF4J's Mapped Diagnostic Context (MDC). The correlation ID is included in every log entry, every domain event, every agent activity record, and every outbound API call header.
 
 ```mermaid
 flowchart LR
@@ -498,7 +498,7 @@ flowchart LR
     UC --> EVT["Domain Event<br/>(carries correlationId)"]
     EVT --> HANDLER["Event Handler<br/>(restores correlationId to MDC)"]
     HANDLER --> OUTBOUND["Outbound API Call<br/>(correlationId in X-Correlation-Id header)"]
-    UC --> DB["Audit Log Entry<br/>(correlationId column)"]
+    UC --> DB["Agent Activity Entry<br/>(correlationId column)"]
 ```
 
 For asynchronous event handlers running on the `async-event-pool`, the correlation ID is extracted from the domain event payload and restored to the MDC before handler execution. This ensures that log entries from async handlers are traceable back to the originating request. This is especially important for collaborative approval event handlers (`CollaborativeApprovalDecisionHandler`, `CollaborativeApprovalExpiredHandler`) that trigger `CoordinationProtocolPort` calls — the correlation ID traces the full chain from the original Slack approval callback through the agent handler into the coordination state transition.
@@ -519,11 +519,11 @@ For asynchronous event handlers running on the `async-event-pool`, the correlati
 | Staging | `DEBUG` | `application-staging.yml` |
 | Production | `INFO` | `application-prod.yml`, overridable per-logger via environment variable |
 
-### 7.4 Audit Log Separation
+### 7.4 Agent Activity Separation
 
-Business audit records are written to dedicated database tables (`audit_logs`, `coordination_state_log`), not to application log files. This separation ensures that audit data is queryable, retained according to compliance policies, and not affected by log rotation or volume limits.
+Business audit records are written to dedicated database tables (`agent_activities`, `coordination_state_log`), not to application log files. This separation ensures that audit data is queryable, retained according to compliance policies, and not affected by log rotation or volume limits.
 
-Application logs are operational and ephemeral — they serve troubleshooting and monitoring. Audit logs are compliance-critical and durable — they serve regulatory and user trust requirements. The two systems share correlation IDs for cross-referencing but are otherwise independent.
+Application logs are operational and ephemeral — they serve troubleshooting and monitoring. Agent Activity logs are compliance-critical and durable — they serve regulatory and user trust requirements. The two systems share correlation IDs for cross-referencing but are otherwise independent.
 
 ---
 
@@ -779,7 +779,7 @@ Each core module owns its database tables exclusively. The persistence infrastru
 | `agent-module` | `agents` | Only `agent-module` persistence adapter reads/writes. Other modules access via `AgentAvailabilityPort`, `AgentEventExecutionPort`, `AgentProfilePort`, `AgentApprovalPort`. |
 | `coordination-module` | `coordinations`, `coordination_state_log` | Only `coordination-module` persistence adapter reads/writes. Other modules access via `CoordinationProtocolPort`. |
 | `approval-module` | `approvals` | Only `approval-module` persistence adapter reads/writes. Other modules access via `ApprovalPort`, `ApprovalQueryPort`. |
-| Infrastructure | `audit_logs` | Written by monitoring audit handler. Read by dashboard export. |
+| Infrastructure | `agent_activities` | Written by monitoring audit handler. Read by dashboard export. |
 
 ### 15.2 Cross-Module Access Rules
 
@@ -804,24 +804,24 @@ The Agent Sovereignty principle is enforced at multiple levels.
 
 ---
 
-## 16. Audit and Compliance
+## 16. AgentActivity and Compliance
 
-### 16.1 Audit Log Architecture
+### 16.1 Agent Activity Architecture
 
 The audit system consists of two complementary storage mechanisms.
 
 The `coordination_state_log` table records every state transition for every coordination instance. Each record contains the coordination ID, from-state, to-state, transition reason, trigger source (e.g., "orchestrator", "agent-via-protocol-port", "timeout-scheduler"), and timestamp. This table is append-only — records are never updated or deleted (except during GDPR-mandated data purge after retention expiry).
 
-The `audit_logs` table records all significant business events across all modules. Each record contains a log ID, optional user ID, optional agent ID, action type, action details (JSONB), timestamp, and correlation ID. Action types include user registration, calendar connection, coordination initiation, approval creation, approval decision, event creation, data export, and account deletion.
+The `agent_activities` table records all significant business events across all modules. Each record contains a log ID, optional user ID, optional agent ID, action type, action details (JSONB), timestamp, and correlation ID. Action types include user registration, calendar connection, coordination initiation, approval creation, approval decision, event creation, data export, and account deletion.
 
-Both tables are populated asynchronously by the `AuditEventHandler` in the monitoring module, which subscribes to domain events. This decoupling ensures that audit logging does not block the critical path.
+Both tables are populated asynchronously by the `AgentActivityEventHandler` in the monitoring module, which subscribes to domain events. This decoupling ensures that agent activityging does not block the critical path.
 
 ### 16.2 GDPR Compliance
 
 | GDPR Requirement | Implementation |
 |---|---|
 | Right to Access | `ExportUserDataUseCase` aggregates all user data across modules via query ports and returns a structured JSON document. Accessible from the web dashboard. |
-| Right to Erasure | `DeleteUserUseCase` triggers cascading deletion: user profile, Slack identity, service connections (encrypted tokens), agent, coordination records where user is participant. Audit logs are anonymized (`user_id` → `NULL`, `action_details` scrubbed of PII). Completes within 30 days. |
+| Right to Erasure | `DeleteUserUseCase` triggers cascading deletion: user profile, Slack identity, service connections (encrypted tokens), agent, coordination records where user is participant. Agent Activity logs are anonymized (`user_id` → `NULL`, `action_details` scrubbed of PII). Completes within 30 days. |
 | Data Minimization | Calendar event content is read transiently by agents during availability checks and is not persisted. Only metadata (time slots, participant IDs, coordination state) is stored. |
 | Consent | Slack OAuth and Google Calendar OAuth flows constitute explicit user consent for data access. Users can revoke consent by disconnecting services or deleting their account. |
 | Breach Notification | Structured logging and audit trails enable rapid identification of affected data in the event of a breach. Correlation IDs trace every access to user data. |
@@ -833,7 +833,7 @@ Both tables are populated asynchronously by the `AuditEventHandler` in the monit
 | Coordination records | 90 days | 90 days (read-only) | After 180 days total |
 | Coordination state log | Same as parent coordination | Same | Same |
 | Approval records | Same as parent coordination or 90 days for personal | Same | Same |
-| Audit logs | 1 year | 1 year (read-only) | After 2 years total |
+| Agent Activity logs | 1 year | 1 year (read-only) | After 2 years total |
 | User profiles | Until deletion request | 30-day grace period | Permanent deletion after grace period |
 | OAuth tokens | Until disconnection or deletion | None | Immediate deletion on disconnection |
 

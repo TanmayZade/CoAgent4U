@@ -47,7 +47,7 @@ class DomainEventsTest {
 
     @Test
     void personalEventCreated_instantiation() {
-        var e = PersonalEventCreated.of(AgentId.generate(), UserId.generate(),
+        var e = PersonalEventCreated.of(AgentId.generate(), UserId.generate(), com.coagent4u.shared.CorrelationId.generate(),
                 EventId.of("gcal-123"),
                 new TimeSlot(Instant.now(), Instant.now().plusSeconds(3600)), "Standup");
         assertEquals("Standup", e.title());

@@ -197,7 +197,7 @@ Coordination never reacts to external systems. It reacts only to agent-to-coordi
 | Quality Goal | How Deterministic Coordination Addresses It |
 |--------------|---------------------------------------------|
 | Determinism (Q1) | Finite state machine with explicit transitions; same inputs always produce same outputs |
-| Auditability (Q3) | Every state transition logged with full provenance |
+| AgentActivityability (Q3) | Every state transition logged with full provenance |
 | Agent Sovereignty (S2.8) | Coordination executes a negotiation protocol exclusively through agent capability ports; it never bypasses agents to reach infrastructure |
 
 | Data Isolation | Coordination receives only value objects (no raw calendar events, no OAuth tokens) |
@@ -356,7 +356,7 @@ flowchart TD
 - `ApprovalExpired` domain event is consumed by the agent-module.
 - The agent decides whether the approval relates to a personal action or an active coordination.
 - For collaborative approvals, the agent invokes the CoordinationProtocolPort to advance or terminate the coordination state machine.
-- All approval decisions and expirations recorded in audit log
+- All approval decisions and expirations recorded in agent activity
 
 ### 2.6 Saga Pattern for Atomic Calendar Creation
 
@@ -417,7 +417,7 @@ flowchart TD
 | Mechanism | Used For | Guarantee |
 |:----------|:---------|:----------|
 | Direct synchronous port calls | Deterministic workflows (coordination state transitions, availability queries via agents, saga execution, approval processing) | Deterministic, transactional |
-| In-memory domain event bus | Side effects (audit logging, Slack notifications, metrics emission, timeout scheduling) | Async, non-blocking, failure-tolerant |
+| In-memory domain event bus | Side effects (agent activityging, Slack notifications, metrics emission, timeout scheduling) | Async, non-blocking, failure-tolerant |
 
 **Rationale:**
 
@@ -638,7 +638,7 @@ Each technology choice is justified against the quality goals and constraints.
 | Java 21 (LTS) | Language & runtime | Long-term support, mature ecosystem, strong type safety for domain modeling, virtual threads for concurrent agent capability calls (future), wide talent pool. Constraint TC-01. |
 | Spring Boot 3.x | Framework | Industry-standard. Provides DI, web server, security, actuator, scheduling. Confined to adapter and configuration layers only. Constraint TC-02. |
 | Maven 3.9+ | Build tool | Multi-module project enforces module boundaries at build level. Domain module importing Spring class = build failure. Constraint TC-03. |
-| PostgreSQL 15+ | Primary persistence | ACID-compliant for coordination state and audit logging. JSONB for flexible proposal data. Constraint TC-04. |
+| PostgreSQL 15+ | Primary persistence | ACID-compliant for coordination state and agent activityging. JSONB for flexible proposal data. Constraint TC-04. |
 | Flyway | Schema management | Version-controlled migrations. No manual DDL. Constraint TC-05. |
 | Caffeine | In-memory cache | Lightweight caching for user profiles, service connections. No external dependency. Constraint TC-06. |
 | Spring WebClient | HTTP client | Non-blocking for outbound API calls. Supports timeouts, retry, circuit-breaker. Constraint TC-07. |
@@ -676,7 +676,7 @@ Each technology choice is justified against the quality goals and constraints.
 |:---|:---|:---|
 | 1 | **Determinism** | Finite state machine for coordination (S2.3). Rule-based parser as primary tier (S2.4). LLM isolated behind outbound port (S2.4). Direct synchronous calls for coordination workflow (S2.7). Deterministic availability matching — earliest overlapping slot (S2.3). Coordination executes a deterministic negotiation protocol between agents via capability ports (S2.8).|
 | 2 | **Security** | Slack signature verification on every webhook (S8). OAuth 2.0 with encrypted token storage — managed by agents, never exposed to coordination (S2.8, S8). JWT for internal APIs (S8). AES-256 encryption at rest (S8). HTTPS/TLS 1.2+ (S8). Rate limiting (S8). |
-| 3 | **Auditability** | Append-only audit log (S7). Every coordination state transition recorded (S2.3). Domain events consumed by audit handler (S2.7). Correlation IDs across full lifecycle (S8). Audit logs queryable from dashboard (S9). |
+| 3 | **AgentActivityability** | Append-only agent activity (S7). Every coordination state transition recorded (S2.3). Domain events consumed by audit handler (S2.7). Correlation IDs across full lifecycle (S8). Agent Activity logs queryable from dashboard (S9). |
 | 4 | **Data Privacy (GDPR)** | Data minimization — no event content stored beyond coordination (S9). Right to erasure — cascading deletion within 30 days (S9). Right to access — export endpoint (S9). Encrypted PII at rest (S8). Retention policies enforced by scheduled purge (S9). |
 | 5 | **Reliability** | Saga pattern with compensation via agent capability ports (S2.6). Idempotency keys on agent-executed mutations (S8). Circuit breaker on outbound adapters (S8). Retry with exponential backoff (S8). 12-hour approval timeout (S2.5). |
 | 6 | **Modularity** | Hexagonal architecture with port-based interfaces (S2.1). Maven multi-module enforcement (S2.2). Module-private persistence (S7). Event bus for cross-cutting concerns (S2.7). Agent Sovereignty for clean coordination boundaries (S2.8). Extraction-ready (S10). |
@@ -869,7 +869,7 @@ flowchart LR
         CE -.->|"publish"| EB["Domain Event Bus"]
         APP -.->|"publish"| EB
 
-        EB -.->|"subscribe"| AUD["Audit Handler"]
+        EB -.->|"subscribe"| AUD["AgentActivity Handler"]
         EB -.->|"subscribe"| NOT["Notification Handler"]
         EB -.->|"subscribe"| MET["Metrics Handler"]
 
@@ -891,7 +891,7 @@ Each module owns its tables exclusively. No module reads from or writes to anoth
 | `agent-module` | `agents` | Coordination-module resolves agent IDs through `AgentQueryPort`. Agent capabilities accessed via `AgentAvailabilityPort` and `AgentEventExecutionPort`. |
 | `coordination-module` | `coordinations`, `coordination_state_log` | Owns entire coordination lifecycle. Proposal data as JSONB. No access to `agents`, `users`, or `service_connections` tables. |
 | `approval-module` | `approvals` | Agent-module creates and queries approvals through `ApprovalPort`. Coordination never interacts directly with approval-module. |
-| `infrastructure/persistence` | `audit_logs` | Populated by async audit event handler. Queryable via `AuditQueryPort`. |
+| `infrastructure/persistence` | `agent_activities` | Populated by async audit event handler. Queryable via `AgentActivityQueryPort`. |
 
 This ownership model means that if the `coordination-module` is extracted into a standalone negotiation protocol service, its tables go with it. Agent capability port calls become remote API calls to the Agent Service. The coordination service has no approval, user, or calendar integration dependencies — it is invoked exclusively by agents.
 
@@ -935,9 +935,9 @@ The GDPR strategy is detailed in [08-cross-cutting-concepts.md](./08-cross-cutti
 | GDPR Requirement | Architectural Implementation |
 |:-----------------|:-----------------------------|
 | **Data Minimization** | Calendar event content read transiently by agents during availability checks; not persisted. Only metadata (time slots, participant IDs, state) stored. |
-| **Right to Erasure** | `DeleteUserUseCase` (initiated via agent-module) triggers cascading deletion: profile, Slack identity, OAuth tokens, agent, coordination records, and related approvals. Audit logs anonymized (user_id → "DELETED_USER"). Completes within 30 days. |
+| **Right to Erasure** | `DeleteUserUseCase` (initiated via agent-module) triggers cascading deletion: profile, Slack identity, OAuth tokens, agent, coordination records, and related approvals. Agent Activity logs anonymized (user_id → "DELETED_USER"). Completes within 30 days. |
 | **Right to Access** | `ExportUserDataUseCase` aggregates data across modules via query ports. JSON export from dashboard. |
-| **Retention** | Coordination logs: 90 days. Audit logs: 1 year active, 1 year archived, then purged. OAuth tokens: deleted immediately on disconnection/deletion. |
+| **Retention** | Coordination logs: 90 days. Agent Activity logs: 1 year active, 1 year archived, then purged. OAuth tokens: deleted immediately on disconnection/deletion. |
 
 ---
 

@@ -112,7 +112,7 @@ Single initial migration with all tables from PRD §9.1:
 - `coordinations` — no cross-module FKs, JSONB proposal
 - `coordination_state_log` — FK to coordinations
 - `approvals` — no cross-module FKs
-- `audit_logs` — append-only
+- `agent_activities` — append-only
 
 All indexes as specified in PRD §9.1.
 

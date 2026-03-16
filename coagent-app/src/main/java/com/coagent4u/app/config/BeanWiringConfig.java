@@ -177,13 +177,13 @@ public class BeanWiringConfig {
                 approvalPersistence, mapper);
     }
 
-    // ── Priority 3-5: Audit Log & Pending Approvals ──────────
+    // ── Priority 3-5: Agent Activity & Pending Approvals ──────────
 
     @Bean
-    com.coagent4u.user.application.AuditLogQueryService auditLogQueryService(
+    com.coagent4u.user.application.AgentActivityQueryService agentActivityQueryService(
             UserQueryPort userQuery,
-            com.coagent4u.user.port.out.AuditLogQueryPort auditLogQuery) {
-        return new com.coagent4u.user.application.AuditLogQueryService(userQuery, auditLogQuery);
+            com.coagent4u.user.port.out.AgentActivityQueryPort agentActivityQuery) {
+        return new com.coagent4u.user.application.AgentActivityQueryService(userQuery, agentActivityQuery);
     }
 
     @Bean

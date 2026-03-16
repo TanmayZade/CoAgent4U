@@ -128,7 +128,7 @@ The following quality goals are ranked by priority and drive the fundamental arc
 |----------|-------------|-------------|---------------------|
 | 1 | Determinism | All coordination logic must produce predictable, repeatable outcomes. No AI or probabilistic decision-making in the orchestration path. | State machine for coordination, rule-based orchestrator, LLM isolated to intent parsing only |
 | 2 | Security | Every entry point is authenticated, every action is authorized, all external communication is encrypted in transit via TLS. | Slack signature verification, OAuth token handling, JWT for internal APIs, encryption strategy |
-| 3 | Auditability | Every state transition, approval decision, and calendar mutation must be recorded with full provenance. | Append-only audit log, domain events persisted, coordination state history |
+| 3 | AgentActivityability | Every state transition, approval decision, and calendar mutation must be recorded with full provenance. | Append-only agent activity, domain events persisted, coordination state history |
 | 4 | Data Privacy (GDPR) | Users must be able to request data export and deletion. Personal data handling must comply with GDPR. | Data classification, retention policies, deletion cascades, export endpoints |
 | 5 | Reliability | Coordination must be atomic (both events created or neither). System must handle partial failures gracefully. | Saga pattern for atomic creation, idempotency keys, compensation logic |
 | 6 | Modularity | The system must support independent evolution of modules without cross-module coupling. | Hexagonal architecture, explicit module boundaries, port-based contracts |

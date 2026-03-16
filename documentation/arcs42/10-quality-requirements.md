@@ -36,12 +36,12 @@
   - [QS-SEC3 — OAuth Token Encryption at Rest](#qs-sec3--oauth-token-encryption-at-rest)
   - [QS-SEC4 — Agent Sovereignty Cross-User Data Isolation](#qs-sec4--agent-sovereignty-cross-user-data-isolation)
   - [QS-SEC5 — Agent Sovereignty Enforcement on Approval Creation](#qs-sec5--agent-sovereignty-enforcement-on-approval-creation)
-- [8. Auditability & Compliance Scenarios](#8-auditability--compliance-scenarios)
+- [8. AgentActivityability & Compliance Scenarios](#8-auditability--compliance-scenarios)
   - [QS-A1 — State Transition Log Completeness](#qs-a1--state-transition-log-completeness)
   - [QS-A2 — Correlation ID End-to-End Propagation](#qs-a2--correlation-id-end-to-end-propagation)
   - [QS-A3 — GDPR Data Export Completeness](#qs-a3--gdpr-data-export-completeness)
-  - [QS-A4 — Saga Compensation Audit Trail](#qs-a4--saga-compensation-audit-trail)
-  - [QS-A5 — Agent-Mediated Approval Advancement Audit Trail](#qs-a5--agent-mediated-approval-advancement-audit-trail)
+  - [QS-A4 — Saga Compensation AgentActivity Trail](#qs-a4--saga-compensation-audit-trail)
+  - [QS-A5 — Agent-Mediated Approval Advancement AgentActivity Trail](#qs-a5--agent-mediated-approval-advancement-audit-trail)
 - [9. Modularity & Extraction Readiness Scenarios](#9-modularity--extraction-readiness-scenarios)
   - [QS-M1 — No Cross-Module JOIN Guarantee](#qs-m1--no-cross-module-join-guarantee)
   - [QS-M2 — No Coordination-to-Calendar/Approval/Messaging Dependency](#qs-m2--no-coordination-to-calendarapprovalmessaging-dependency)
@@ -70,7 +70,7 @@ The following table defines CoAgent4U's quality attributes in strict priority or
 |----------|-------------------|----|----------------------|-------------|
 | 1 — Highest | Determinism | Q1 | ADR-04 (State Machine), ADR-07 (Pessimistic Locking), ADR-10 (Two-Tier Parsing), ADR-13 (CoordinationProtocolPort) | Given identical inputs, the system must produce identical outputs. The coordination state machine, approval resolution, and saga execution must be fully reproducible. Non-determinism is confined to the LLM fallback tier. Agent-mediated state advancement via CoordinationProtocolPort uses the same deterministic state machine and pessimistic locking as the orchestrator path. |
 | 2 | Reliability | Q2 | ADR-05 (Saga + Compensation), ADR-11 (Timeout Mechanism) | External system failures must not corrupt internal state. Partial failures in the dual-calendar saga must be compensated. Approval timeouts must fire regardless of user responsiveness. |
-| 3 | Auditability | Q3 | ADR-04 (State Machine), ADR-08 (Table Ownership), ADR-13 (CoordinationProtocolPort) | Every coordination state transition, approval decision, and saga step must be recorded in an append-only audit trail with correlation IDs. Transitions advanced via CoordinationProtocolPort are logged with trigger source "agent-via-protocol-port". Regulatory and GDPR data export must be satisfiable from the audit store. |
+| 3 | AgentActivityability | Q3 | ADR-04 (State Machine), ADR-08 (Table Ownership), ADR-13 (CoordinationProtocolPort) | Every coordination state transition, approval decision, and saga step must be recorded in an append-only audit trail with correlation IDs. Transitions advanced via CoordinationProtocolPort are logged with trigger source "agent-via-protocol-port". Regulatory and GDPR data export must be satisfiable from the audit store. |
 | 4 | Modularity | Q4 | ADR-01 (Modular Monolith), ADR-02 (Hexagonal), ADR-03 (Agent Sovereignty), ADR-13 (CoordinationProtocolPort), ADR-14 (AgentApprovalPort) | Module boundaries are enforced at compile time and verified by fitness functions. CoordinationProtocolPort and AgentApprovalPort formalize the agent↔coordination boundary — coordination-module has zero compile-time dependency on approval-module or messaging-module. Any module can be extracted to an independent service by replacing in-process port calls with network calls. |
 | 5 | Testability | Q5 | ADR-02 (Hexagonal), ADR-03 (Agent Sovereignty), ADR-13 (CoordinationProtocolPort), ADR-14 (AgentApprovalPort) | Domain logic is testable without Spring context, database, or external services. Every state machine transition, saga path, and guard condition is unit-testable in isolation. CoordinationProtocolPort and AgentApprovalPort can be tested with pure mocks — no approval-module or notification infrastructure required. |
 | 6 | Security | Q6 | ADR-03 (Agent Sovereignty), ADR-09 (Stateless Nodes) | All inbound requests are authenticated and authorized. OAuth tokens are encrypted at rest. Agent Sovereignty prevents cross-user data leakage. JWT authentication is stateless and verifiable on any instance. |
@@ -195,7 +195,7 @@ The LLM's output is coerced into a fixed `ParsedIntent` structure with an enum `
 | Environment | Two container replicas behind round-robin load balancer |
 | Artifact | `CoordinationStateMachine` domain service, `CoordinationProtocolPort`, coordination entity row in PostgreSQL |
 | Response | Both instances acquire the pessimistic lock sequentially. Each transition is evaluated against the current persisted state by the same `CoordinationStateMachine` domain service. The state machine produces the same sequence of transitions regardless of which instance executes each step or which entry point (orchestrator vs. protocol port) is used. |
-| Response Measure | `coordination_state_log` shows a linear, non-branching sequence of transitions. No duplicate transitions. No skipped states. Trigger source column distinguishes orchestrator-driven vs. agent-mediated transitions. Verifiable via load test with 2+ instances and audit log analysis. |
+| Response Measure | `coordination_state_log` shows a linear, non-branching sequence of transitions. No duplicate transitions. No skipped states. Trigger source column distinguishes orchestrator-driven vs. agent-mediated transitions. Verifiable via load test with 2+ instances and agent activity analysis. |
 
 ---
 
@@ -313,7 +313,7 @@ Zone 1 failures are contained in Zone 2 by circuit breakers and timeouts. Zone 3
 | Stimulus | Agent B event creation fails (Step 2), and Agent A event deletion via `AgentEventExecutionPort` also fails (compensation step) |
 | Environment | Google Calendar experiencing widespread outage |
 | Artifact | `CoordinationSaga`, coordination entity |
-| Response | Saga transitions coordination to `REQUIRES_MANUAL_INTERVENTION`. Orphaned `eventId_A` is persisted on the coordination entity. `CRITICAL`-level audit log entry emitted. Reconciliation scheduler will retry compensation via `AgentEventExecutionPort` on each cycle until successful or manually resolved. |
+| Response | Saga transitions coordination to `REQUIRES_MANUAL_INTERVENTION`. Orphaned `eventId_A` is persisted on the coordination entity. `CRITICAL`-level agent activity entry emitted. Reconciliation scheduler will retry compensation via `AgentEventExecutionPort` on each cycle until successful or manually resolved. |
 | Response Measure | Zero silent data inconsistency — the orphaned event is tracked explicitly. `REQUIRES_MANUAL_INTERVENTION` state visible in monitoring dashboard. Reconciliation retry interval: every 5 minutes. Alert emitted to operator channel. |
 
 ---
@@ -432,7 +432,7 @@ Zone 1 failures are contained in Zone 2 by circuit breakers and timeouts. Zone 3
 | Stimulus | Approval decision received, agent calls `CoordinationProtocolPort.advance()` |
 | Environment | Normal operation, single coordination entity targeted |
 | Artifact | `CoordinationProtocolPort`, `CoordinationStateMachine`, pessimistic row lock |
-| Response | Lock acquired, state machine transition evaluated, new state persisted, audit log entry written, domain event published — all within a single transaction. |
+| Response | Lock acquired, state machine transition evaluated, new state persisted, agent activity entry written, domain event published — all within a single transaction. |
 | Response Measure | `CoordinationProtocolPort.advance()` latency P99 < 200ms. P50 < 50ms. Lock acquisition time P99 < 100ms under normal contention. Zero state machine evaluations outside the lock boundary. |
 
 ---
@@ -586,7 +586,7 @@ Each instance operates independently. Caches are local and non-shared — cache 
 
 ---
 
-## 8. Auditability & Compliance Scenarios
+## 8. AgentActivityability & Compliance Scenarios
 
 ### QS-A1 — State Transition Log Completeness
 
@@ -627,7 +627,7 @@ Each instance operates independently. Caches are local and non-shared — cache 
 
 ---
 
-### QS-A4 — Saga Compensation Audit Trail
+### QS-A4 — Saga Compensation AgentActivity Trail
 
 | Element | Description |
 |---------|-------------|
@@ -635,12 +635,12 @@ Each instance operates independently. Caches are local and non-shared — cache 
 | Stimulus | `CoordinationSaga` executes compensation (instruct Agent A to delete event via `AgentEventExecutionPort`) |
 | Environment | Partial failure during saga execution |
 | Artifact | `coordination_state_log`, coordination entity |
-| Response | Audit trail records: transition to `CREATING_EVENT_A` (with `eventId_A`, trigger_source "orchestrator"), transition to `CREATING_EVENT_B` (trigger_source "orchestrator"), transition to `FAILED` with compensation detail (`eventId_A` deletion confirmation or compensation failure), or transition to `REQUIRES_MANUAL_INTERVENTION` (with compensation error). Each saga step logged via the same state machine logging mechanism. |
+| Response | AgentActivity trail records: transition to `CREATING_EVENT_A` (with `eventId_A`, trigger_source "orchestrator"), transition to `CREATING_EVENT_B` (trigger_source "orchestrator"), transition to `FAILED` with compensation detail (`eventId_A` deletion confirmation or compensation failure), or transition to `REQUIRES_MANUAL_INTERVENTION` (with compensation error). Each saga step logged via the same state machine logging mechanism. |
 | Response Measure | Every saga step produces a state transition log entry with `trigger_source`. The full saga history is reconstructable from the log. Compensation actions include the `eventId` being deleted for traceability. |
 
 ---
 
-### QS-A5 — Agent-Mediated Approval Advancement Audit Trail
+### QS-A5 — Agent-Mediated Approval Advancement AgentActivity Trail
 
 | Element | Description |
 |---------|-------------|

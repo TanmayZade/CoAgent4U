@@ -29,7 +29,7 @@ interface UserData {
 const navItems = [
   { href: "/dashboard", icon: Home, label: "Dashboard", group: "main" },
   { href: "/dashboard/coordinations", icon: Users, label: "Coordinations", group: "main" },
-  { href: "/dashboard/audit", icon: FileText, label: "Audit Log", group: "main" },
+  { href: "/dashboard/activity", icon: FileText, label: "Agent Activity", group: "main" },
   { href: "/dashboard/integrations", icon: Settings, label: "Integrations", group: "settings" },
   { href: "/dashboard/account", icon: Shield, label: "Account", group: "settings" },
 ]

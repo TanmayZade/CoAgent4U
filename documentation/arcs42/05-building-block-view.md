@@ -565,7 +565,7 @@ flowchart TB
 
 **Location:** `infrastructure/persistence`
 
-**Ports Implemented:** `UserPersistencePort`, `AgentPersistencePort`, `CoordinationPersistencePort`, `ApprovalPersistencePort`, `AuditPersistencePort`
+**Ports Implemented:** `UserPersistencePort`, `AgentPersistencePort`, `CoordinationPersistencePort`, `ApprovalPersistencePort`, `AgentActivityPersistencePort`
 
 | Port | Owning Module | Owned Tables |
 |------|---------------|--------------|
@@ -573,7 +573,7 @@ flowchart TB
 | AgentPersistencePort | agent-module | agents |
 | CoordinationPersistencePort | coordination-module | coordinations, coordination_state_log |
 | ApprovalPersistencePort | approval-module | approvals |
-| AuditPersistencePort | monitoring | audit_logs |
+| AgentActivityPersistencePort | monitoring | agent_activities |
 
 ---
 
@@ -603,7 +603,7 @@ flowchart TB
 
 ### 5.2.11 Infrastructure — Monitoring
 
-**Purpose:** Provides observability infrastructure including Spring Boot Actuator endpoints, Micrometer metrics emission, structured JSON logging, health checks, and audit log population via domain event consumption.
+**Purpose:** Provides observability infrastructure including Spring Boot Actuator endpoints, Micrometer metrics emission, structured JSON logging, health checks, and agent activity population via domain event consumption.
 
 **Location:** `infrastructure/monitoring`
 
@@ -612,7 +612,7 @@ flowchart TB
 | Actuator | Health, info, metrics endpoints |
 | Micrometer | Dimensional metrics for coordination duration, approval latency, agent response times |
 | Structured Logging | JSON log format with correlation IDs across full coordination lifecycle |
-| Audit Handler | Async consumer of CoordinationStateChanged events → writes to audit_logs table |
+| AgentActivity Handler | Async consumer of CoordinationStateChanged events → writes to agent_activities table |
 
 ---
 
@@ -768,7 +768,7 @@ Guarantee:
 ### 2. Side Effects & Observability (Asynchronous)
 
 Used for:
-- Audit logging
+- AgentActivity logging
 - Metrics emission
 - Slack notifications
 - Timeout scheduling

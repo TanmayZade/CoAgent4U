@@ -12,7 +12,7 @@ Implement the full deterministic coordination flow for **"schedule a meeting wit
 |---|---|---|
 | 14-state machine | ✅ Built | [CoordinationState](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/domain/CoordinationStateMachine.java#32-79) has all states |
 | State transition validation | ✅ Built | [CoordinationStateMachine](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/domain/CoordinationStateMachine.java#32-79) with allowed-transition map |
-| [Coordination](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/domain/Coordination.java#20-109) entity with audit log | ✅ Built | State log with `CoordinationStateLogEntry` |
+| [Coordination](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/domain/Coordination.java#20-109) entity with agent activity | ✅ Built | State log with `CoordinationStateLogEntry` |
 | Availability fetching (A then B) | ✅ Built | `CoordinationService.initiate()` |
 | Proposal generation | ✅ Built | [ProposalGenerator](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/domain/ProposalGenerator.java#12-35) |
 | Event creation saga with compensation | ✅ Built | [EventCreationSaga](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/domain/EventCreationSaga.java#15-61) |

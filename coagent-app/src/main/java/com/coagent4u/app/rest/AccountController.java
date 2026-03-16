@@ -25,14 +25,14 @@ public class AccountController {
 
     private final UserQueryPort userQuery;
     private final DeleteUserUseCase deleteUserUseCase;
-    private final com.coagent4u.user.port.out.AuditLogQueryPort auditLogQuery;
+    private final com.coagent4u.user.port.out.AgentActivityQueryPort agentActivityQuery;
 
     public AccountController(UserQueryPort userQuery,
                               DeleteUserUseCase deleteUserUseCase,
-                              com.coagent4u.user.port.out.AuditLogQueryPort auditLogQuery) {
+                              com.coagent4u.user.port.out.AgentActivityQueryPort agentActivityQuery) {
         this.userQuery = userQuery;
         this.deleteUserUseCase = deleteUserUseCase;
-        this.auditLogQuery = auditLogQuery;
+        this.agentActivityQuery = agentActivityQuery;
     }
 
     @GetMapping("/export")
@@ -42,7 +42,7 @@ public class AccountController {
                     .orElseThrow(() -> new IllegalArgumentException("Unknown user: " + username));
 
             // Build a GDPR data export bundle
-            var auditLogs = auditLogQuery.findAllByUserId(user.getUserId());
+            var agentActivitys = agentActivityQuery.findAllByUserId(user.getUserId());
 
             Map<String, Object> exportBundle = Map.of(
                     "username", user.getUsername(),
@@ -54,7 +54,7 @@ public class AccountController {
                                     "status", sc.getStatus().name(),
                                     "connectedAt", sc.getConnectedAt().toString()))
                             .toList(),
-                    "auditLogs", auditLogs);
+                    "agentActivitys", agentActivitys);
 
             return ResponseEntity.ok(exportBundle);
         } catch (IllegalArgumentException e) {

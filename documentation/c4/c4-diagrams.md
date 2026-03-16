@@ -109,7 +109,7 @@ C4Container
 
         Container(backend, "Backend Application", "Java 21, Spring Boot 3.x, Maven", "Single deployable Modular Monolith. Coordination Engine, Personal Agents, Hexagonal Adapters, REST API. Contains all core, integration, and infrastructure modules.")
 
-        ContainerDb(db, "Database", "PostgreSQL 15+, Flyway", "Users, Agents, Coordinations, Approvals, Audit Logs. Each module owns its tables exclusively. No cross-module FK constraints.")
+        ContainerDb(db, "Database", "PostgreSQL 15+, Flyway", "Users, Agents, Coordinations, Approvals, Agent Activitys. Each module owns its tables exclusively. No cross-module FK constraints.")
     }
 
     System_Ext(slack, "Slack Platform", "Messaging platform")
@@ -148,7 +148,7 @@ All modules inside the single Backend Application, organized into three internal
 - `CoordinationModule` reaches into `agent-module` **only via outbound ports** (`AgentAvailabilityPort`, `AgentEventExecutionPort`, `AgentProfilePort`, `AgentApprovalPort`). This preserves agent sovereignty — the Coordination Engine never touches a calendar or an approval store directly.
 - `LLMPort` is consumed only by `agent-module` and only as a fallback. The annotation `(fallback only)` means the LLM result never feeds into the coordination state machine.
 - `NotificationPort` is a shared outbound port implemented by `SlackOutboundAdapter` and consumed independently by `agent-module`, `approval-module`, and `user-module`.
-- `AuditPersistencePort` is consumed **asynchronously** by `infrastructure/monitoring` — audit writes are non-blocking and never on the critical coordination path.
+- `AgentActivityPersistencePort` is consumed **asynchronously** by `infrastructure/monitoring` — audit writes are non-blocking and never on the critical coordination path.
 
 ```mermaid
 C4Component
@@ -173,7 +173,7 @@ C4Component
             Component(persist, "InfrastructurePersistence", "infrastructure/persistence", "PostgreSQLAdapter, FlywayMigration. JPA entity mappings, Spring Data repositories, schema versioning.")
             Component(secur, "InfrastructureSecurity", "infrastructure/security", "JwtAuthenticationFilter, SlackSignatureVerifier, EncryptionAdapter (AES-256), RESTAdapter, CaffeineRateLimiter.")
             Component(config, "InfrastructureConfig", "infrastructure/config", "Externalized configuration, environment profiles, secrets injection.")
-            Component(monitor, "InfrastructureMonitoring", "infrastructure/monitoring", "MetricsCollector, AuditLogger. Actuator, Micrometer, structured JSON logging, health checks.")
+            Component(monitor, "InfrastructureMonitoring", "infrastructure/monitoring", "MetricsCollector, AgentActivityger. Actuator, Micrometer, structured JSON logging, health checks.")
         }
     }
 
@@ -218,7 +218,7 @@ C4Component
     Rel(agentmod, persist, "AgentPersistencePort")
     Rel(coordmod, persist, "CoordinationPersistencePort")
     Rel(apprmod, persist, "ApprovalPersistencePort")
-    Rel(monitor, persist, "AuditPersistencePort (async)")
+    Rel(monitor, persist, "AgentActivityPersistencePort (async)")
     Rel(persist, db, "Read / Write", "JDBC / TCP")
 ```
 
@@ -774,7 +774,7 @@ The internal structure of `infrastructure/persistence` — the single PostgreSQL
 
 **Flyway Schema Management:** Each module has its own versioned Flyway migration scripts. Schema evolution, rollback, and baseline-on-first-deploy are all managed through Flyway, ensuring the database schema is always in sync with the application code and auditable in version control.
 
-**Async Audit Writes:** `AuditPersistencePort` (consumed by `infrastructure/monitoring`) is the only port where writes are explicitly asynchronous and non-blocking. Audit log writes never add latency to the critical coordination or approval paths.
+**Async AgentActivity Writes:** `AgentActivityPersistencePort` (consumed by `infrastructure/monitoring`) is the only port where writes are explicitly asynchronous and non-blocking. AgentActivity log writes never add latency to the critical coordination or approval paths.
 
 ```mermaid
 flowchart TB
@@ -786,7 +786,7 @@ flowchart TB
             APP_P["AgentPersistencePort\n«port interface»\nOwner: agent-module\nTables: agents"]
             CPP_P["CoordinationPersistencePort\n«port interface»\nOwner: coordination-module\nTables: coordinations\ncoordination_state_log"]
             APPP_P["ApprovalPersistencePort\n«port interface»\nOwner: approval-module\nTables: approvals"]
-            AUPP_P["AuditPersistencePort\n«port interface»\nOwner: monitoring\nTables: audit_logs"]
+            AUPP_P["AgentActivityPersistencePort\n«port interface»\nOwner: monitoring\nTables: agent_activities"]
         end
 
         subgraph Components_P["Components"]
@@ -806,7 +806,7 @@ flowchart TB
         AM_P["core/agent-module\nAgentPersistencePort"]
         CM_P["core/coordination-module\nCoordinationPersistencePort"]
         APM_P["core/approval-module\nApprovalPersistencePort"]
-        MON_P["infrastructure/monitoring\nAuditPersistencePort"]
+        MON_P["infrastructure/monitoring\nAgentActivityPersistencePort"]
     end
 
     subgraph ExtResource_P["External Resource"]
@@ -817,7 +817,7 @@ flowchart TB
     AM_P -->|"AgentPersistencePort"| APP_P
     CM_P -->|"CoordinationPersistencePort"| CPP_P
     APM_P -->|"ApprovalPersistencePort"| APPP_P
-    MON_P -->|"AuditPersistencePort"| AUPP_P
+    MON_P -->|"AgentActivityPersistencePort"| AUPP_P
     PSQL -->|"JDBC / TCP"| DB
     FW -->|"Schema migrations"| DB
 
@@ -906,15 +906,15 @@ flowchart TB
 
 ### What This Diagram Shows
 
-The internal structure of `infrastructure/monitoring` — the observability layer handling metrics collection and async audit logging. It answers: *"How is the system observed, and how is the full coordination lifecycle recorded for audit purposes?"*
+The internal structure of `infrastructure/monitoring` — the observability layer handling metrics collection and async agent activityging. It answers: *"How is the system observed, and how is the full coordination lifecycle recorded for audit purposes?"*
 
 ### Key Design Decisions
 
 **`MetricsCollector`:** Uses Micrometer for dimensional metrics exposed via Spring Boot Actuator endpoints (`/health`, `/info`, `/metrics`). Tracks coordination duration, approval latency, agent response times, and database connectivity. These metrics are intended for consumption by Prometheus and visualization in Grafana dashboards.
 
-**`AuditLogger` (Async Event Consumer):** Subscribes to domain events published by `core/coordination-module` (`CoordinationStateChanged`, `CoordinationCompleted`, `CoordinationFailed`). The `-.->` dashed arrow with the label `async domain events / non-blocking` indicates that audit log writes never block the coordination flow. Each log entry includes a correlation ID for full lifecycle tracing across state transitions.
+**`AgentActivityger` (Async Event Consumer):** Subscribes to domain events published by `core/coordination-module` (`CoordinationStateChanged`, `CoordinationCompleted`, `CoordinationFailed`). The `-.->` dashed arrow with the label `async domain events / non-blocking` indicates that agent activity writes never block the coordination flow. Each log entry includes a correlation ID for full lifecycle tracing across state transitions.
 
-**`AuditPersistencePort`:** The only outbound port in this module. Implemented by `PostgreSQLAdapter` in `infrastructure/persistence`, writing to the `audit_logs` table. The `queryAuditLogs()` operation supports the Web Dashboard's audit trail display and GDPR data export feature.
+**`AgentActivityPersistencePort`:** The only outbound port in this module. Implemented by `PostgreSQLAdapter` in `infrastructure/persistence`, writing to the `agent_activities` table. The `queryAgentActivitys()` operation supports the Web Dashboard's audit trail display and GDPR data export feature.
 
 ```mermaid
 flowchart TB
@@ -923,11 +923,11 @@ flowchart TB
 
         subgraph Components_MON["Components"]
             MC["MetricsCollector\n«observability component»\nMicrometer dimensional metrics\nCoordination duration\nApproval latency\nAgent response times\nSpring Boot Actuator\nHealth · Info · Metrics endpoints\nDatabase connectivity check"]
-            AL["AuditLogger\n«async event consumer»\nConsumes domain events via\nDomainEventPublisher\nStructured JSON logging\nCorrelation ID propagation\nFull coordination lifecycle tracing\nWrites to audit_logs table"]
+            AL["AgentActivityger\n«async event consumer»\nConsumes domain events via\nDomainEventPublisher\nStructured JSON logging\nCorrelation ID propagation\nFull coordination lifecycle tracing\nWrites to agent_activities table"]
         end
 
         subgraph OutboundPorts_MON["Outbound Ports"]
-            ARP["AuditPersistencePort\n«outbound port»\nappendAuditLog()\nqueryAuditLogs()"]
+            ARP["AgentActivityPersistencePort\n«outbound port»\nappendAgentActivity()\nqueryAgentActivitys()"]
         end
 
         AL --> ARP
@@ -938,11 +938,11 @@ flowchart TB
     end
 
     subgraph Implementor_MON["Driven Adapter"]
-        PG_M["PostgreSQLAdapter\nimplements AuditPersistencePort\n«infrastructure/persistence»"]
+        PG_M["PostgreSQLAdapter\nimplements AgentActivityPersistencePort\n«infrastructure/persistence»"]
     end
 
     subgraph ExtResource_MON["External Resource"]
-        DB_M["PostgreSQL 15+\naudit_logs table"]
+        DB_M["PostgreSQL 15+\nagent_activities table"]
     end
 
     CM_E -.->|"async domain events\nnon-blocking"| AL

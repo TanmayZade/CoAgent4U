@@ -1,14 +1,12 @@
 import { apiRequest } from '../api'
 
-export interface AuditLogEntry {
+export interface AgentActivityEntry {
   logId: string
-  userId: string
-  action: string
-  entityType?: string
-  entityId?: string
-  level: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR'
-  payload?: any
   correlationId?: string
+  coordinationId?: string
+  eventType: string
+  description: string
+  level: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR'
   occurredAt: string
 }
 
@@ -24,21 +22,21 @@ export interface PaginatedResponse<T> {
   hasPrevious: boolean
 }
 
-export const auditAPI = {
+export const activityAPI = {
   getLogs: async (
     username: string, 
     page: number = 0, 
     size: number = 20, 
     level?: string
-  ): Promise<PaginatedResponse<AuditLogEntry>> => {
-    let url = `/api/audit-logs?username=${encodeURIComponent(username)}&page=${page}&size=${size}`
+  ): Promise<PaginatedResponse<AgentActivityEntry>> => {
+    let url = `/api/agent-activities?username=${encodeURIComponent(username)}&page=${page}&size=${size}`
     if (level && level !== 'ALL') {
       url += `&level=${encodeURIComponent(level)}`
     }
-    return apiRequest<PaginatedResponse<AuditLogEntry>>(url)
+    return apiRequest<PaginatedResponse<AgentActivityEntry>>(url)
   },
 
   exportLogsUrl: (username: string): string => {
-    return `/api/audit-logs/export?username=${encodeURIComponent(username)}`
+    return `/api/agent-activities/export?username=${encodeURIComponent(username)}`
   }
 }

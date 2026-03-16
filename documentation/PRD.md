@@ -72,7 +72,7 @@
     - 14.1 [Authentication & Authorization](#141-authentication--authorization)
     - 14.2 [Data Encryption](#142-data-encryption)
     - 14.3 [API Security](#143-api-security)
-    - 14.4 [Audit Logging](#144-audit-logging)
+    - 14.4 [Agent Activityging](#144-audit-logging)
 15. [GDPR Compliance](#15-gdpr-compliance)
     - 15.1 [Data Minimization](#151-data-minimization)
     - 15.2 [Consent Management](#152-consent-management)
@@ -204,7 +204,7 @@ To create a scalable personal agent coordination platform that enables personal 
 - Deterministic A2A coordination engine
 - Google Calendar integration (read/write)
 - Human-in-the-loop approval workflows
-- Audit logging and data access transparency
+- AgentActivity logging and data access transparency
 
 #### 4.1.2 Use Cases
 - **Personal Tasks:**
@@ -412,7 +412,7 @@ Step 9: Event Creation
 └─ Coordination state: COMPLETED
 └─ Both users receive confirmation
 
-Step 10: Audit Logging
+Step 10: Agent Activityging
 └─ Full coordination flow logged
 └─ Approval history recorded
 └─ Timestamps captured
@@ -447,7 +447,7 @@ Step 10: Audit Logging
 
 **Postconditions:**
 - Calendar event created (if approved)
-- Audit log entry created
+- AgentActivity log entry created
 - User receives confirmation
 
 ---
@@ -1066,7 +1066,7 @@ Step 10: Audit Logging
 
 ---
 
-#### REQ-DATA-003: Audit Trail
+#### REQ-DATA-003: AgentActivity Trail
 **Priority:** P0  
 **Description:** System must maintain audit trail of agent actions.
 
@@ -1469,7 +1469,7 @@ flowchart LR
         end
 
         subgraph SA_PER["🗄️  persistence  ·  infrastructure"]
-            SA_P["PostgreSQL Adapters\nimplements all PersistencePorts\n──────────────────\n🗃️  JPA Entity Mappings\n📚  Spring Data Repositories\n✈️  Flyway Migrations\n──────────────────\nusers · slack_identities\nservice_connections · agents\ncoordinations · state_log\napprovals · audit_logs"]
+            SA_P["PostgreSQL Adapters\nimplements all PersistencePorts\n──────────────────\n🗃️  JPA Entity Mappings\n📚  Spring Data Repositories\n✈️  Flyway Migrations\n──────────────────\nusers · slack_identities\nservice_connections · agents\ncoordinations · state_log\napprovals · agent_activities"]
         end
     end
 
@@ -1481,7 +1481,7 @@ flowchart LR
         EXT_SLACK["⚡  Slack Platform\nEvents API · REST · Block Kit"]
         EXT_GCAL["📅  Google Calendar API\nREST · OAuth 2.0 · FreeBusy"]
         EXT_GROQ["🤖  Groq LLM API\nREST · Chat Completions"]
-        EXT_DB[("🗄️  PostgreSQL 15\nPrimary Datastore\nusers · agents\ncoordinations\napprovals · audit_logs")]
+        EXT_DB[("🗄️  PostgreSQL 15\nPrimary Datastore\nusers · agents\ncoordinations\napprovals · agent_activities")]
     end
 
     %%==============================================================
@@ -1495,7 +1495,7 @@ flowchart LR
         end
 
         subgraph OBS["📊  monitoring  ·  observability"]
-            OBS_N["📡  DomainEventPublisher → Audit Handler\nCoordinationStateChanged  «async»\nPersonalEventCreated  «async»\nApprovalDecisionMade  «async»\n────────────────────────\n💚  Spring Actuator  health · info\n📈  Micrometer  coordination latency\n📝  Structured JSON  correlation IDs"]
+            OBS_N["📡  DomainEventPublisher → AgentActivity Handler\nCoordinationStateChanged  «async»\nPersonalEventCreated  «async»\nApprovalDecisionMade  «async»\n────────────────────────\n💚  Spring Actuator  health · info\n📈  Micrometer  coordination latency\n📝  Structured JSON  correlation IDs"]
         end
     end
 
@@ -2257,7 +2257,7 @@ ExpirationPolicy.isExpired(approval)
 |-------|-------------------|
 | View schedule | Load `Agent` → call `CalendarPort.getEvents()` for requested range → format and return |
 | View coordination history | Query `CoordinationPersistencePort` for all coordinations involving this user's `agentId` → return summary list |
-| View agent actions | Query `AuditPersistencePort` for audit log entries associated with `userId` → return chronological list |
+| View agent actions | Query `AgentActivityPersistencePort` for agent activity entries associated with `userId` → return chronological list |
 
 #### Outbound Port Dependencies
 
@@ -2910,15 +2910,15 @@ public interface ApprovalPersistencePort {
 }
 
 // ── monitoring ───────────────────────────────────────────────────
-public interface AuditPersistencePort {
+public interface AgentActivityPersistencePort {
 
     /**
-     * Persists an audit log entry.
+     * Persists an agent activity entry.
      * Called asynchronously by monitoring module's domain event
      * handler — never called from application services directly.
      */
-    void appendAuditLog(AuditLogEntry entry);
-    List<AuditLogEntry> findByUserId(UserId userId, TimeRange range);
+    void appendAgentActivity(AgentActivityEntry entry);
+    List<AgentActivityEntry> findByUserId(UserId userId, TimeRange range);
 }
 ```
 
@@ -3070,7 +3070,7 @@ public interface DomainEventPublisher {
 | `AgentPersistencePort` | Outbound | agent-module | `PostgreSQLAdapter` | `AgentCommandService` |
 | `CoordinationPersistencePort` | Outbound | coordination-module | `PostgreSQLAdapter` | `CoordinationService` |
 | `ApprovalPersistencePort` | Outbound | approval-module | `PostgreSQLAdapter` | `ApprovalService` |
-| `AuditPersistencePort` | Outbound | monitoring | `PostgreSQLAdapter` | monitoring event handler (async) |
+| `AgentActivityPersistencePort` | Outbound | monitoring | `PostgreSQLAdapter` | monitoring event handler (async) |
 | `AgentAvailabilityPort` | Outbound (capability) | coordination-module | `AgentAvailabilityPortImpl` in agent-module | `CoordinationService` |
 | `AgentEventExecutionPort` | Outbound (capability) | coordination-module | `AgentEventExecutionPortImpl` in agent-module | `CoordinationService` (saga) |
 | `AgentProfilePort` | Outbound (capability) | coordination-module | `AgentProfilePortImpl` in agent-module | `CoordinationService` |
@@ -3177,7 +3177,7 @@ Adapters sit on the outermost ring of the hexagon — Zone 2 on the driving side
   ┌──────────────────────────┐  ┌──────────────────────────┐
   │  🔒 Security             │  │  📊 Monitoring            │
   │  JWT · OAuth2 · AES-256  │  │  Actuator · Micrometer   │
-  │  HMAC-SHA256 · RateLimit │  │  Audit · Structured Log  │
+  │  HMAC-SHA256 · RateLimit │  │  AgentActivity · Structured Log  │
   └──────────────────────────┘  └──────────────────────────┘
 ```
 
@@ -3462,7 +3462,7 @@ LLMPort.classifyIntent(LLMPrompt)
 ### 4. PostgreSQLAdapters · *persistence module*
 
 **Type:** Secondary (Driven)
-**Implements:** `UserPersistencePort`, `AgentPersistencePort`, `CoordinationPersistencePort`, `ApprovalPersistencePort`, `AuditPersistencePort`
+**Implements:** `UserPersistencePort`, `AgentPersistencePort`, `CoordinationPersistencePort`, `ApprovalPersistencePort`, `AgentActivityPersistencePort`
 **Called by:** respective application services per module
 **External dependency:** Spring Data JPA, Hibernate, PostgreSQL 15, Flyway
 
@@ -3486,7 +3486,7 @@ A single infrastructure module provides all persistence port implementations. Ea
 | `AgentPersistenceAdapter` | `AgentPersistencePort` | `agents` |
 | `CoordinationPersistenceAdapter` | `CoordinationPersistencePort` | `coordinations`, `coordination_state_log` |
 | `ApprovalPersistenceAdapter` | `ApprovalPersistencePort` | `approvals` |
-| `AuditPersistenceAdapter` | `AuditPersistencePort` | `audit_logs` |
+| `AgentActivityPersistenceAdapter` | `AgentActivityPersistencePort` | `agent_activities` |
 
 #### Domain ↔ JPA Entity Translation Pattern
 
@@ -3537,7 +3537,7 @@ The monitoring infrastructure consumes domain events published via `DomainEventP
 
 | Component | Domain Events Consumed | Responsibility |
 |-----------|----------------------|----------------|
-| `AuditEventHandler` | All `CoordinationStateChanged`, `PersonalEventCreated`, `ApprovalDecisionMade` | Writes structured audit log entries to `audit_logs` table via `AuditPersistencePort`. Async — never blocks the publishing transaction. |
+| `AgentActivityEventHandler` | All `CoordinationStateChanged`, `PersonalEventCreated`, `ApprovalDecisionMade` | Writes structured agent activity entries to `agent_activities` table via `AgentActivityPersistencePort`. Async — never blocks the publishing transaction. |
 | `MetricsEventHandler` | `CoordinationCompleted`, `CoordinationFailed`, `ApprovalExpired` | Emits dimensional Micrometer metrics: coordination duration, approval latency, failure rate, saga compensation count. Consumed by Prometheus or compatible scraper. |
 | `StructuredLogHandler` | All domain events | Writes JSON-structured log entries with correlation IDs that span the full coordination lifecycle — from `INITIATED` to `COMPLETED` or `FAILED`. |
 | `HealthIndicator` | — | Custom Spring Actuator health indicators for Slack API connectivity, Google Calendar API reachability, and database connection pool status. |
@@ -3550,7 +3550,7 @@ Application Service
         │
         in-memory event bus  (non-blocking dispatch)
         │
-        ├── AuditEventHandler.onEvent()      → AuditPersistencePort → audit_logs
+        ├── AgentActivityEventHandler.onEvent()      → AgentActivityPersistencePort → agent_activities
         ├── MetricsEventHandler.onEvent()    → Micrometer → metrics endpoint
         └── StructuredLogHandler.onEvent()   → JSON log → stdout / log aggregator
 
@@ -3596,12 +3596,12 @@ The table below is the complete wiring reference — from external system throug
 | Zone 4 | `AgentPersistenceAdapter` | `AgentPersistencePort` | Driven | agent-module |
 | Zone 4 | `CoordinationPersistenceAdapter` | `CoordinationPersistencePort` | Driven | coordination-module |
 | Zone 4 | `ApprovalPersistenceAdapter` | `ApprovalPersistencePort` | Driven | approval-module |
-| Zone 4 | `AuditPersistenceAdapter` | `AuditPersistencePort` | Driven | monitoring (async) |
+| Zone 4 | `AgentActivityPersistenceAdapter` | `AgentActivityPersistencePort` | Driven | monitoring (async) |
 | CC | `JwtValidator` | — | Cross-cutting | REST API security |
 | CC | `OAuth2PkceHandler` | — | Cross-cutting | OAuth2 flow |
 | CC | `AesTokenEncryption` | — | Cross-cutting | Token security |
 | CC | `SlackSignatureVerifier` | — | Cross-cutting | Slack security |
-| CC | `AuditEventHandler` | `AuditPersistencePort` | Async consumer | monitoring |
+| CC | `AgentActivityEventHandler` | `AgentActivityPersistencePort` | Async consumer | monitoring |
 | CC | `MetricsEventHandler` | — | Async consumer | monitoring |
 ---
 
@@ -3641,7 +3641,7 @@ The infrastructure layer maps to the **Cross-Cutting Concerns** zone at the bott
  │ JWT             │  │ Actuator        │  │ application.yml │
  │ OAuth2 PKCE     │  │ Micrometer      │  │ Env profiles    │
  │ AES-256-GCM     │  │ Structured Log  │  │ Secrets inject  │
- │ HMAC-SHA256     │  │ Audit Handler   │  │                 │
+ │ HMAC-SHA256     │  │ AgentActivity Handler   │  │                 │
  │ Rate Limiting   │  │ Health Checks   │  │                 │
  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘
           │                    │                    │
@@ -3651,7 +3651,7 @@ The infrastructure layer maps to the **Cross-Cutting Concerns** zone at the bott
           ├── SlackInboundAdapter  (HMAC-SHA256)
           ├── GoogleCalendarAdapter  (AES-256-GCM, OAuth2)
           ├── All Application Services  (via DomainEventPublisher)
-          └── Monitoring event handlers  (Audit, Metrics, Logging)
+          └── Monitoring event handlers  (AgentActivity, Metrics, Logging)
 
  ┌─────────────────────────────────────────────────────────────┐
  │  🗄️  Persistence  ·  infrastructure                         │
@@ -3662,7 +3662,7 @@ The infrastructure layer maps to the **Cross-Cutting Concerns** zone at the bott
  │                                                             │
  │  Implements: UserPersistencePort  ·  AgentPersistencePort   │
  │              CoordinationPersistencePort                    │
- │              ApprovalPersistencePort  ·  AuditPersistencePort│
+ │              ApprovalPersistencePort  ·  AgentActivityPersistencePort│
  └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -3831,7 +3831,7 @@ CREATE TABLE approvals (
 );
 
 -- ── monitoring ───────────────────────────────────────────────
-CREATE TABLE audit_logs (
+CREATE TABLE agent_activities (
     log_id          UUID PRIMARY KEY,
     user_id         UUID,
     event_type      VARCHAR(64) NOT NULL,
@@ -4029,7 +4029,7 @@ In-memory caching reduces redundant external API calls and database reads for da
 ## 5. Logging and Monitoring
 
 **Location:** `infrastructure/monitoring`
-**Components:** `AuditEventHandler`, `MetricsEventHandler`, `StructuredLogHandler`, `HealthIndicators`
+**Components:** `AgentActivityEventHandler`, `MetricsEventHandler`, `StructuredLogHandler`, `HealthIndicators`
 
 All monitoring components are **async consumers** of domain events published via `DomainEventPublisher`. They never call application services, domain services, or inbound ports. Monitoring failures never affect the coordination state machine or any domain operation.
 
@@ -4120,16 +4120,16 @@ Custom health indicators expose the availability of each critical external depen
 
 ---
 
-### 5.4 Audit Logging
+### 5.4 Agent Activityging
 
-**Component:** `AuditEventHandler`
-**Port:** `AuditPersistencePort` → `AuditPersistenceAdapter` → `audit_logs` table
+**Component:** `AgentActivityEventHandler`
+**Port:** `AgentActivityPersistencePort` → `AgentActivityPersistenceAdapter` → `agent_activities` table
 
-Provides a tamper-evident, append-only audit trail of all agent actions taken on behalf of users. Audit entries are written asynchronously from domain events — they are never written directly by application services.
+Provides a tamper-evident, append-only audit trail of all agent actions taken on behalf of users. AgentActivity entries are written asynchronously from domain events — they are never written directly by application services.
 
-#### Events Audited
+#### Events AgentActivityed
 
-| Domain Event | Audit Entry Written | Purpose |
+| Domain Event | AgentActivity Entry Written | Purpose |
 |-------------|--------------------|---------| 
 | `PersonalEventCreated` | `PERSONAL_EVENT_CREATED` with event details | User can verify what their agent created |
 | `CoordinationStateChanged` | `COORDINATION_STATE_TRANSITION` with from/to state | Full coordination timeline recoverable |
@@ -4139,7 +4139,7 @@ Provides a tamper-evident, append-only audit trail of all agent actions taken on
 | `ApprovalExpired` | `APPROVAL_EXPIRED` with expiry timestamp | Record of implicit rejection via timeout |
 | `UserDeleted` | `USER_DELETED` with deletion timestamp | Compliance record — written before cascade |
 
-#### Audit Entry Structure
+#### AgentActivity Entry Structure
 
 ```json
 {
@@ -4158,7 +4158,7 @@ Provides a tamper-evident, append-only audit trail of all agent actions taken on
 }
 ```
 
-> **Audit entries are immutable.** The `AuditPersistenceAdapter` only implements `appendAuditLog()` — there is no `updateAuditLog()` or `deleteAuditLog()` method in `AuditPersistencePort`. Immutability is enforced at the port interface level.
+> **AgentActivity entries are immutable.** The `AgentActivityPersistenceAdapter` only implements `appendAgentActivity()` — there is no `updateAgentActivity()` or `deleteAgentActivity()` method in `AgentActivityPersistencePort`. Immutability is enforced at the port interface level.
 
 ---
 
@@ -4179,9 +4179,9 @@ Application Service
         │
         Synchronous dispatch to registered listeners
         │
-        ├── @Async AuditEventHandler.onEvent(event)
+        ├── @Async AgentActivityEventHandler.onEvent(event)
         │     └── runs in separate thread pool
-        │           └── AuditPersistencePort.appendAuditLog()
+        │           └── AgentActivityPersistencePort.appendAgentActivity()
         │
         ├── @Async MetricsEventHandler.onEvent(event)
         │     └── runs in separate thread pool
@@ -4202,7 +4202,7 @@ Application Service
 | Transactionality | Events are published after the database transaction commits — `@TransactionalEventListener(phase = AFTER_COMMIT)` |
 | Persistence | Events are not persisted to a message broker in the current implementation — future migration path to Kafka or RabbitMQ via `DomainEventPublisher` adapter swap |
 
-> **`@TransactionalEventListener(phase = AFTER_COMMIT)` is critical.** Publishing the event only after the transaction commits ensures that async consumers (audit, metrics) never observe a state that was subsequently rolled back. A `CoordinationStateChanged` event in the audit log always corresponds to a real, committed state transition.
+> **`@TransactionalEventListener(phase = AFTER_COMMIT)` is critical.** Publishing the event only after the transaction commits ensures that async consumers (audit, metrics) never observe a state that was subsequently rolled back. A `CoordinationStateChanged` event in the agent activity always corresponds to a real, committed state transition.
 
 ---
 
@@ -4215,7 +4215,7 @@ Application Service
 | Domain layer has no infrastructure imports | Domain entities, aggregates, and domain services have no dependency on Spring, Hibernate, or any infrastructure class | Maven compile scope + ArchUnit |
 | Secrets never enter the domain | Configuration values and secrets are consumed only by adapter and infrastructure components — never passed into application services or domain services as parameters | Code review + ArchUnit |
 | Cache is non-authoritative | All writes bypass the cache and go directly to the authoritative store. Reads fall back to the source on cache miss or cache failure | Integration tests |
-| Audit entries are append-only | `AuditPersistencePort` exposes no update or delete operations — immutability enforced at the interface level | Port interface design |
+| AgentActivity entries are append-only | `AgentActivityPersistencePort` exposes no update or delete operations — immutability enforced at the interface level | Port interface design |
 | Event handlers are non-fatal | All `@Async` event handler methods catch exceptions internally and never re-throw. Domain operation outcomes are never affected by monitoring failures | Exception handling contract + integration tests |
 | Schema owned by Flyway | JPA `ddl-auto` is set to `validate` in all non-dev environments. The application fails fast on startup if schema does not match migrations | Spring configuration |
 | Cross-module FK constraints are explicit UUIDs | Foreign key constraints are not used for cross-module references at the database level. Module independence is preserved at the schema layer | Schema design + code review |
@@ -4237,7 +4237,7 @@ Application Service
 | `CaffeineRateLimiter` | `infrastructure/security` | `RestApiAdapter` | Token bucket 100 req/min/user |
 | `CaffeineCache` | `infrastructure/config` | `GoogleCalendarAdapter`, persistence adapters | Non-authoritative read-through cache |
 | `DomainEventPublisher` | `infrastructure/` | All application services | In-memory async event dispatch |
-| `AuditEventHandler` | `infrastructure/monitoring` | Domain event bus (async) | Append audit log entries |
+| `AgentActivityEventHandler` | `infrastructure/monitoring` | Domain event bus (async) | Append agent activity entries |
 | `MetricsEventHandler` | `infrastructure/monitoring` | Domain event bus (async) | Emit Micrometer dimensional metrics |
 | `StructuredLogHandler` | `infrastructure/monitoring` | Domain event bus (async) | Write JSON structured log entries |
 | `HealthIndicators` | `infrastructure/monitoring` | Spring Actuator | External system health probes |
@@ -4266,7 +4266,7 @@ All schema changes are managed by Flyway versioned migrations. The application i
 | `agent-module` | `agents` | `Agent` |
 | `coordination-module` | `coordinations`, `coordination_state_log` | `Coordination` |
 | `approval-module` | `approvals` | `Approval` |
-| `monitoring` (infrastructure) | `audit_logs` | — |
+| `monitoring` (infrastructure) | `agent_activities` | — |
 
 ---
 
@@ -4564,14 +4564,14 @@ PENDING
 
 ---
 
-### Table: `audit_logs`
+### Table: `agent_activities`
 
-**Module:** `monitoring` (infrastructure) · **Port:** `AuditPersistencePort`
+**Module:** `monitoring` (infrastructure) · **Port:** `AgentActivityPersistencePort`
 
-Append-only audit trail of all agent actions taken on behalf of users. Written asynchronously by `AuditEventHandler` consuming domain events from `DomainEventPublisher` — never written directly by application services. Immutable by design: `AuditPersistencePort` exposes only `appendAuditLog()` with no update or delete operations.
+Append-only audit trail of all agent actions taken on behalf of users. Written asynchronously by `AgentActivityEventHandler` consuming domain events from `DomainEventPublisher` — never written directly by application services. Immutable by design: `AgentActivityPersistencePort` exposes only `appendAgentActivity()` with no update or delete operations.
 
 ```sql
-CREATE TABLE audit_logs (
+CREATE TABLE agent_activities (
     log_id         UUID         PRIMARY KEY,
     user_id        UUID,                     -- SET NULL on user deletion
     agent_id       UUID,                     -- SET NULL on agent deletion
@@ -4581,9 +4581,9 @@ CREATE TABLE audit_logs (
     correlation_id UUID
 );
 
-CREATE INDEX idx_audit_user_id     ON audit_logs(user_id);
-CREATE INDEX idx_audit_timestamp   ON audit_logs(timestamp);
-CREATE INDEX idx_audit_correlation ON audit_logs(correlation_id);
+CREATE INDEX idx_audit_user_id     ON agent_activities(user_id);
+CREATE INDEX idx_audit_timestamp   ON agent_activities(timestamp);
+CREATE INDEX idx_audit_correlation ON agent_activities(correlation_id);
 ```
 
 | Column | Type | Constraints | Notes |
@@ -4596,7 +4596,7 @@ CREATE INDEX idx_audit_correlation ON audit_logs(correlation_id);
 | `timestamp` | TIMESTAMP | NOT NULL | |
 | `correlation_id` | UUID | nullable | Spans full coordination lifecycle for end-to-end tracing |
 
-**Audited domain events and their `action_type` values:**
+**AgentActivityed domain events and their `action_type` values:**
 
 | Domain Event | `action_type` Written | Purpose |
 |-------------|----------------------|---------|
@@ -4652,7 +4652,7 @@ Cross-module references (e.g. `coordinations.requester_agent_id → agents.agent
 JSONB columns (`proposal_data`, `action_details`) are used for value objects and audit payloads that do not require querying by individual fields. The `Coordination.proposal_data` column stores the `MeetingProposal` value object, which has no independent identity and is always read and written as a complete unit alongside its parent aggregate.
 
 ### 5. Soft Deletion
-Only the `users` table implements soft deletion via `deleted_at`. All other tables use hard deletion with `ON DELETE CASCADE` to ensure that deleting a user removes all associated data atomically. The `audit_logs` table uses `ON DELETE SET NULL` to retain audit entries for compliance even after user data is deleted.
+Only the `users` table implements soft deletion via `deleted_at`. All other tables use hard deletion with `ON DELETE CASCADE` to ensure that deleting a user removes all associated data atomically. The `agent_activities` table uses `ON DELETE SET NULL` to retain audit entries for compliance even after user data is deleted.
 
 ---
 
@@ -4685,7 +4685,7 @@ ApprovalService.processApproval()
     ↓
 CalendarPort.createEvent() → Google Calendar
     ↓
-AuditLog persisted via PersistencePort
+AgentActivity persisted via PersistencePort
     ↓
 NotificationPort.sendMessage() → Confirmation to user
 ```
@@ -4751,7 +4751,7 @@ Saga Execution:
 State → COMPLETED (if success)
 State → FAILED (if compensation executed)
     ↓
-AuditLog persisted
+AgentActivity persisted
     ↓
 NotificationPort.sendMessage() → Confirmations to both users
 ```
@@ -4774,7 +4774,7 @@ NotificationPort.sendMessage() → Confirmations to both users
 **Indexes:** Applied to frequently queried columns
 - User lookups: slack_user_id, email
 - Coordination queries: state, created_at
-- Audit logs: user_id, timestamp, correlation_id
+- Agent Activity logs: user_id, timestamp, correlation_id
 
 ---
 
@@ -4806,7 +4806,7 @@ NotificationPort.sendMessage() → Confirmations to both users
 - Retained for 90 days from coordination completion
 - Automatically purged after retention period
 
-**Audit Logs:**
+**Agent Activitys:**
 - Retained for 1 year for compliance
 - Archived after 1 year, purged after 2 years
 
@@ -5303,7 +5303,7 @@ This MVP uses a custom deterministic coordination protocol. Future iterations wi
 - State machine-based execution
 - Finite state transitions
 - Idempotent operations
-- Auditable at every step
+- AgentActivityable at every step
 - No AI/LLM involvement in MVP
 
 ---
@@ -5587,7 +5587,7 @@ This MVP uses a custom deterministic coordination protocol. Future iterations wi
 **14. Completion**
 - State → COMPLETED
 - Both users notified: "Meeting scheduled"
-- Audit log entry created
+- AgentActivity log entry created
 
 No implicit state transitions are permitted.
 All transitions must:
@@ -5884,7 +5884,7 @@ if (Math.abs(now - Long.parseLong(timestamp)) > 300) {
 
 ---
 
-### 14.4 Audit Logging
+### 14.4 Agent Activityging
 
 #### 14.4.1 Logged Events
 
@@ -5930,7 +5930,7 @@ if (Math.abs(now - Long.parseLong(timestamp)) > 300) {
 #### 14.4.3 Log Access
 
 **User Access:**
-- Users can view their own audit logs via web platform
+- Users can view their own agent activitys via web platform
 - Filterable by date range and action type
 
 **Admin Access:**
@@ -5948,7 +5948,7 @@ if (Math.abs(now - Long.parseLong(timestamp)) > 300) {
 - User profile: Slack workspace ID, user ID, email
 - Service connections: OAuth tokens
 - Coordination logs: Minimal metadata (participants, timestamps, outcomes)
-- Audit logs: Action types, timestamps
+- Agent Activity logs: Action types, timestamps
 
 **Data NOT Collected:**
 - Calendar event content (except during active coordination)
@@ -5993,7 +5993,7 @@ if (Math.abs(now - Long.parseLong(timestamp)) > 300) {
   - Connected services
   - Recent agent actions
   - Coordination history
-  - Audit logs
+  - Agent Activity logs
 
 **Export Functionality (Future):**
 - Download data in JSON format
@@ -6019,7 +6019,7 @@ if (Math.abs(now - Long.parseLong(timestamp)) > 300) {
   3. Revoke all OAuth tokens
   4. Delete agent instance
   5. Purge personal data within 30 days
-  6. Anonymize audit logs (replace user_id with "DELETED_USER")
+  6. Anonymize agent activitys (replace user_id with "DELETED_USER")
 
 ---
 
@@ -6047,7 +6047,7 @@ if (Math.abs(now - Long.parseLong(timestamp)) > 300) {
 - Encryption at rest (database)
 - Encryption in transit (HTTPS/TLS)
 - Access control (authentication/authorization)
-- Audit logging
+- AgentActivity logging
 - Regular security audits
 
 ---
@@ -6077,7 +6077,7 @@ if (Math.abs(now - Long.parseLong(timestamp)) > 300) {
 - Retained for 90 days
 - Auto-purged after retention period
 
-**Audit Logs:**
+**Agent Activitys:**
 - Retained for 1 year (compliance)
 - Archived after 1 year, purged after 2 years
 
