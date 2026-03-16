@@ -6,8 +6,14 @@ import { useUser } from "../layout"
 import { activityAPI, AgentActivityEntry } from "@/lib/api/activity"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Download, Search, Filter, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSm, Info } from "lucide-react"
+import { Download, Search, Filter, ChevronLeft, ChevronRight, ChevronDown, ChevronRight as ChevronRightSm, Info, X } from "lucide-react"
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
 
 function LevelChip({ level }: { level: AgentActivityEntry['level'] }) {
   const colors = {
@@ -84,6 +90,21 @@ export default function AgentActivityPage() {
   const [endDate, setEndDate] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
 
+  const activeFiltersCount = [
+    levelFilter !== "ALL",
+    eventTypeFilter !== "ALL",
+    startDate !== "",
+    endDate !== ""
+  ].filter(Boolean).length;
+
+  const resetFilters = () => {
+    setLevelFilter("ALL");
+    setEventTypeFilter("ALL");
+    setStartDate("");
+    setEndDate("");
+    setPage(0);
+  };
+
   const { data, isLoading } = useQuery({
     queryKey: ['activity', user?.username, page, levelFilter, eventTypeFilter, startDate, endDate],
     queryFn: () => activityAPI.getLogs(
@@ -140,62 +161,107 @@ export default function AgentActivityPage() {
               />
             </div>
             
-            {/* Filters Group */}
-            <div className="flex flex-wrap items-center justify-start xl:justify-end gap-3 w-full">
-              {/* Event Type Filter */}
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-foreground/40" />
-                <select
-                  value={eventTypeFilter}
-                  onChange={(e) => { setEventTypeFilter(e.target.value); setPage(0); }}
-                  className="px-3 py-2 bg-background/50 border border-border/50 rounded-md text-sm outline-none text-foreground"
+            <div className="flex items-center gap-3">
+              {activeFiltersCount > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={resetFilters}
+                  className="text-foreground/60 hover:text-foreground h-9 px-2 hidden sm:flex"
                 >
-                  <option value="ALL">All Events</option>
-                  <option value="INTENT_CLASSIFIED">Intent Classified</option>
-                  <option value="PROPOSAL_GENERATED">Proposal Generated</option>
-                  <option value="SLOTS_PROPOSED">Slots Proposed</option>
-                  <option value="COORDINATION_SUCCESS">Coordination Success</option>
-                  <option value="COORDINATION_FAILED">Coordination Failed</option>
-                  <option value="CALENDAR_SYNCED">Calendar Synced</option>
-                </select>
-              </div>
+                  <X className="w-4 h-4 mr-1" />
+                  Clear Filters
+                </Button>
+              )}
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="border-border/50 gap-2 h-9 text-foreground/80 font-normal">
+                    <Filter className="w-4 h-4" />
+                    Filters
+                    {activeFiltersCount > 0 && (
+                      <Badge variant="secondary" className="ml-1 h-5 rounded-sm px-1 font-normal text-xs bg-primary/10 text-primary">
+                        {activeFiltersCount}
+                      </Badge>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-[340px] p-4 bg-card border-border/50 shadow-lg mt-1 space-y-4">
+                  <div className="space-y-2">
+                    <h4 className="font-medium text-sm leading-none">Filters</h4>
+                    <p className="text-xs text-foreground/60">
+                      Refine the agent activity trail below.
+                    </p>
+                  </div>
+                  <div className="grid gap-4 pt-2">
+                    {/* Event Type */}
+                    <div className="grid gap-1.5">
+                      <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Event Type</label>
+                      <select
+                        value={eventTypeFilter}
+                        onChange={(e) => { setEventTypeFilter(e.target.value); setPage(0); }}
+                        className="w-full px-3 py-2 bg-background/50 border border-border/50 rounded-md text-sm outline-none text-foreground"
+                      >
+                        <option value="ALL">All Events</option>
+                        <option value="AgentActivated">Agent Activated</option>
+                        <option value="IntentParsed">Intent Parsed</option>
+                        <option value="UnrecognizedIntent">Unrecognized Intent</option>
+                        <option value="LLMFallbackTriggered">LLM Fallback Triggered</option>
+                        <option value="PersonalApprovalRequested">Personal Approval Requested</option>
+                        <option value="PersonalEventCreated">Personal Event Created</option>
+                        <option value="CoordinationInitiated">Coordination Initiated</option>
+                        <option value="CoordinationRequestReceived">Coordination Request Received</option>
+                        <option value="SlotsProposed">Slots Proposed</option>
+                        <option value="SlotsReceived">Slots Received</option>
+                        <option value="ApprovalDecisionMade">Approval Decision Made</option>
+                        <option value="CoordinationStateChanged">Coordination State Changed</option>
+                        <option value="CoordinationCompleted">Coordination Completed</option>
+                        <option value="CoordinationFailed">Coordination Failed</option>
+                      </select>
+                    </div>
 
-              {/* Level Filter */}
-              <div className="flex items-center gap-2">
-                <Filter className="h-4 w-4 text-foreground/40" />
-                <select
-                  value={levelFilter}
-                  onChange={(e) => { setLevelFilter(e.target.value); setPage(0); }}
-                  className="px-3 py-2 bg-background/50 border border-border/50 rounded-md text-sm outline-none text-foreground"
-                >
-                  <option value="ALL">All Levels</option>
-                  <option value="INFO">Info</option>
-                  <option value="SUCCESS">Success</option>
-                  <option value="WARNING">Warning</option>
-                  <option value="ERROR">Error</option>
-                </select>
-              </div>
+                    {/* Level */}
+                    <div className="grid gap-1.5">
+                      <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Severity Level</label>
+                      <select
+                        value={levelFilter}
+                        onChange={(e) => { setLevelFilter(e.target.value); setPage(0); }}
+                        className="w-full px-3 py-2 bg-background/50 border border-border/50 rounded-md text-sm outline-none text-foreground"
+                      >
+                        <option value="ALL">All Levels</option>
+                        <option value="INFO">Info</option>
+                        <option value="SUCCESS">Success</option>
+                        <option value="WARNING">Warning</option>
+                        <option value="ERROR">Error</option>
+                      </select>
+                    </div>
 
-              {/* Date Range Start */}
-              <div className="flex items-center gap-2">
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => { setStartDate(e.target.value); setPage(0); }}
-                  className="bg-background/50 border-border/50 text-sm"
-                />
-              </div>
-
-              {/* Date Range End */}
-              <div className="flex items-center gap-2">
-                <span className="text-foreground/40 text-sm">to</span>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => { setEndDate(e.target.value); setPage(0); }}
-                  className="bg-background/50 border-border/50 text-sm"
-                />
-              </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Date Range Start */}
+                      <div className="grid gap-1.5">
+                        <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">Start Date</label>
+                        <Input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => { setStartDate(e.target.value); setPage(0); }}
+                          className="bg-background/50 border-border/50 text-sm h-9 px-2"
+                        />
+                      </div>
+                      
+                      {/* Date Range End */}
+                      <div className="grid gap-1.5">
+                        <label className="text-xs font-semibold text-foreground/70 uppercase tracking-wider">End Date</label>
+                        <Input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => { setEndDate(e.target.value); setPage(0); }}
+                          className="bg-background/50 border-border/50 text-sm h-9 px-2"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

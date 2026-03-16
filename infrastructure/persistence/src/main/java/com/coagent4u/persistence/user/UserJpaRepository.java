@@ -15,4 +15,6 @@ public interface UserJpaRepository extends JpaRepository<UserJpaEntity, UUID> {
 
     Optional<UserJpaEntity> findBySlackIdentity_SlackUserIdAndSlackIdentity_WorkspaceId(
             String slackUserId, String workspaceId);
+
+    Optional<UserJpaEntity> findFirstBySlackIdentity_SlackUserId(String slackUserId);
 }

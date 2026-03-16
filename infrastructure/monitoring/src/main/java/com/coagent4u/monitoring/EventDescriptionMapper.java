@@ -54,7 +54,8 @@ public class EventDescriptionMapper {
         switch (event) {
             case AgentActivated e -> {
                 agentId = e.agentId().value();
-                description = "Agent activated via " + e.source() + " with message: \"" + e.rawText() + "\"";
+                String msg = resolveMentions(e.rawText());
+                description = "Agent activated via " + e.source() + " with message: \"" + msg + "\"";
                 level = "INFO";
             }
             case IntentParsed e -> {
@@ -69,7 +70,8 @@ public class EventDescriptionMapper {
             }
             case UnrecognizedIntent e -> {
                 agentId = e.agentId().value();
-                description = "Could not recognize intent for message: \"" + e.rawText() + "\"";
+                String msg = resolveMentions(e.rawText());
+                description = "Could not recognize intent for message: \"" + msg + "\"";
                 level = "ERROR";
             }
             case ScheduleViewed e -> {
@@ -208,6 +210,27 @@ public class EventDescriptionMapper {
         return userRepository.findById(userId)
                 .map(UserJpaEntity::getUsername)
                 .orElse("Unknown");
+    }
+
+    private String resolveMentions(String text) {
+        if (text == null) return null;
+        java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("slack:([A-Z0-9]+)");
+        java.util.regex.Matcher matcher = pattern.matcher(text);
+        StringBuilder sb = new StringBuilder();
+        while (matcher.find()) {
+            String slackId = matcher.group(1);
+            String displayName = userRepository.findFirstBySlackIdentity_SlackUserId(slackId)
+                    .map(u -> {
+                        if (u.getSlackIdentity() != null && u.getSlackIdentity().getDisplayName() != null) {
+                            return u.getSlackIdentity().getDisplayName();
+                        }
+                        return u.getUsername();
+                    })
+                    .orElse(slackId);
+            matcher.appendReplacement(sb, "@" + displayName);
+        }
+        matcher.appendTail(sb);
+        return sb.toString();
     }
 
     public record MappedEvent(String description, String level, UUID agentId, UUID correlationId, UUID coordinationId) {}
