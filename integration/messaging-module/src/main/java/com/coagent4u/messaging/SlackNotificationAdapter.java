@@ -277,7 +277,10 @@ public class SlackNotificationAdapter implements NotificationPort {
             ArrayNode blocks = objectMapper.createArrayNode();
 
             // Header
-            blocks.add(headerBlock("📋 Meeting Approval Request"));
+            String headerText = proposalText.contains("*Create Event:*")
+                    ? "📋 Event Creation Request"
+                    : "📋 Meeting Approval Request";
+            blocks.add(headerBlock(headerText));
 
             // Proposal details
             blocks.add(markdownSection(proposalText));
