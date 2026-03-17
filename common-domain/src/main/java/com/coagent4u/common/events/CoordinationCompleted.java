@@ -3,7 +3,7 @@ package com.coagent4u.common.events;
 import java.time.Instant;
 import java.util.Objects;
 
-import com.coagent4u.common.DomainEvent;
+import com.coagent4u.common.CoordinationAwareEvent;
 import com.coagent4u.shared.CoordinationId;
 import com.coagent4u.shared.EventId;
 
@@ -15,7 +15,7 @@ public record CoordinationCompleted(
         CoordinationId coordinationId,
         EventId eventIdA,
         EventId eventIdB,
-        Instant occurredAt) implements DomainEvent {
+        Instant occurredAt) implements CoordinationAwareEvent {
     public CoordinationCompleted {
         Objects.requireNonNull(coordinationId, "coordinationId must not be null");
         Objects.requireNonNull(eventIdA, "eventIdA must not be null");

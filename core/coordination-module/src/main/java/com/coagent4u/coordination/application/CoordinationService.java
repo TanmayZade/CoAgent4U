@@ -9,8 +9,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.coagent4u.common.DomainEventPublisher;
-import com.coagent4u.common.events.CoordinationStateChanged;
+
 import com.coagent4u.coordination.domain.AvailabilityBlock;
+import com.coagent4u.coordination.domain.AvailabilityResult;
 import com.coagent4u.coordination.domain.Coordination;
 import com.coagent4u.coordination.domain.CoordinationState;
 import com.coagent4u.coordination.domain.CoordinationStateLogEntry;
@@ -76,29 +77,39 @@ public class CoordinationService implements CoordinationProtocolPort {
     // ── Step 1–5: Initiation through Slot Generation ──
 
     @Override
-    public CoordinationId initiate(AgentId requesterAgentId, AgentId inviteeAgentId,
+    public CoordinationId initiate(CoordinationId coordId, com.coagent4u.shared.CorrelationId correlationId, AgentId requesterAgentId, AgentId inviteeAgentId,
             TimeRange lookAheadRange, int durationMinutes,
             String title, String timezone) {
 
-        CoordinationId coordId = CoordinationId.generate();
         Coordination coordination = new Coordination(coordId, requesterAgentId, inviteeAgentId);
+        coordination.setMetadata("correlationId", correlationId.value().toString());
         persistence.save(coordination);
         log.info("[CoordinationService] Coordination {} created → INITIATED", coordId);
+
+        com.coagent4u.shared.UserId requesterUserId = agentProfilePort.getProfile(requesterAgentId).userId();
+        com.coagent4u.shared.UserId inviteeUserId = agentProfilePort.getProfile(inviteeAgentId).userId();
 
         // Step 2: Check requester availability
         coordination.transition(CoordinationState.CHECKING_AVAILABILITY_A, "Checking requester availability");
         persistence.save(coordination);
         log.info("[CoordinationService] {} → CHECKING_AVAILABILITY_A", coordId);
-        List<AvailabilityBlock> freeA = agentAvailabilityPort.getAvailability(requesterAgentId, lookAheadRange);
-        log.info("[CoordinationService] Retrieved {} free blocks for requester agent {}", freeA.size(),
-                requesterAgentId);
+        AvailabilityResult availA = agentAvailabilityPort.getAvailability(requesterAgentId, lookAheadRange);
+        List<AvailabilityBlock> freeA = availA.freeBlocks();
+        log.info("[CoordinationService] Retrieved {} free blocks ({} busy slots) for requester agent {}",
+                freeA.size(), availA.busyCount(), requesterAgentId);
+        eventPublisher.publish(com.coagent4u.common.events.CalendarSourced.of(requesterAgentId, requesterUserId, correlationId, coordId, availA.busyCount()));
+        eventPublisher.publish(com.coagent4u.common.events.SlotsProposed.of(requesterAgentId, requesterUserId, correlationId, coordId, availA.busyCount()));
 
         // Step 3: Check invitee availability
         coordination.transition(CoordinationState.CHECKING_AVAILABILITY_B, "Checking invitee availability");
         persistence.save(coordination);
         log.info("[CoordinationService] {} → CHECKING_AVAILABILITY_B", coordId);
-        List<AvailabilityBlock> freeB = agentAvailabilityPort.getAvailability(inviteeAgentId, lookAheadRange);
-        log.info("[CoordinationService] Retrieved {} free blocks for invitee agent {}", freeB.size(), inviteeAgentId);
+        AvailabilityResult availB = agentAvailabilityPort.getAvailability(inviteeAgentId, lookAheadRange);
+        List<AvailabilityBlock> freeB = availB.freeBlocks();
+        log.info("[CoordinationService] Retrieved {} free blocks ({} busy slots) for invitee agent {}",
+                freeB.size(), availB.busyCount(), inviteeAgentId);
+        eventPublisher.publish(com.coagent4u.common.events.CalendarSourced.of(inviteeAgentId, inviteeUserId, correlationId, coordId, availB.busyCount()));
+        eventPublisher.publish(com.coagent4u.common.events.SlotsProposed.of(inviteeAgentId, inviteeUserId, correlationId, coordId, availB.busyCount()));
 
         // Step 4: Matching — generate office-hour slots and remove busy ones
         coordination.transition(CoordinationState.MATCHING, "Matching availability");
@@ -124,7 +135,8 @@ public class CoordinationService implements CoordinationProtocolPort {
         if (matched.isEmpty()) {
             coordination.transition(CoordinationState.FAILED, "No available slots found");
             persistence.save(coordination);
-            publishStateChange(coordination);
+            eventPublisher.publish(com.coagent4u.common.events.ConflictDetected.of(requesterAgentId, requesterUserId, correlationId, coordId, "No overlapping available slots found between profiles"));
+            eventPublisher.publish(com.coagent4u.common.events.ConflictDetected.of(inviteeAgentId, inviteeUserId, correlationId, coordId, "No overlapping available slots found between profiles"));
             log.info("[CoordinationService] {} → FAILED (no available slots)", coordId);
             return coordId;
         }
@@ -134,7 +146,8 @@ public class CoordinationService implements CoordinationProtocolPort {
         coordination.transition(CoordinationState.PROPOSAL_GENERATED,
                 "Proposal generated with " + matched.size() + " available slots");
         persistence.save(coordination);
-        publishStateChange(coordination);
+        eventPublisher.publish(com.coagent4u.common.events.SlotsReceived.of(requesterAgentId, requesterUserId, correlationId, coordId, matched.size()));
+        eventPublisher.publish(com.coagent4u.common.events.SlotsReceived.of(inviteeAgentId, inviteeUserId, correlationId, coordId, matched.size()));
         log.info("[CoordinationService] {} → PROPOSAL_GENERATED ({} slots available)", coordId, matched.size());
 
         return coordId;
@@ -187,7 +200,6 @@ public class CoordinationService implements CoordinationProtocolPort {
                 coordination.getRequesterAgentId());
 
         persistence.save(coordination);
-        publishStateChange(coordination);
     }
 
     // ── Steps 7–9: Approval Handling ──
@@ -197,12 +209,19 @@ public class CoordinationService implements CoordinationProtocolPort {
         log.info("[CoordinationService] Approval decision for {}: agent={} approved={}", coordinationId, agentId,
                 approved);
         Coordination coordination = load(coordinationId);
+        String corrIdStr = coordination.getMetadata("correlationId");
+        com.coagent4u.shared.CorrelationId correlationId = corrIdStr != null ? new com.coagent4u.shared.CorrelationId(java.util.UUID.fromString(corrIdStr)) : com.coagent4u.shared.CorrelationId.generate();
 
         if (!approved) {
-            coordination.transition(CoordinationState.REJECTED, "REJECTED_BY_AGENT:" + agentId.value());
+            String rejectReason = "REJECTED_BY_AGENT:" + agentId.value();
+            coordination.transition(CoordinationState.REJECTED, rejectReason);
             persistence.save(coordination);
-            publishStateChange(coordination);
             log.info("[CoordinationService] {} → REJECTED by agent {}", coordinationId, agentId);
+
+            com.coagent4u.shared.UserId requesterUserId = agentProfilePort.getProfile(coordination.getRequesterAgentId()).userId();
+            com.coagent4u.shared.UserId inviteeUserId = agentProfilePort.getProfile(coordination.getInviteeAgentId()).userId();
+            eventPublisher.publish(com.coagent4u.common.events.CoordinationRejected.of(coordination.getRequesterAgentId(), requesterUserId, correlationId, coordinationId, rejectReason));
+            eventPublisher.publish(com.coagent4u.common.events.CoordinationRejected.of(coordination.getInviteeAgentId(), inviteeUserId, correlationId, coordinationId, rejectReason));
             return;
         }
 
@@ -220,7 +239,6 @@ public class CoordinationService implements CoordinationProtocolPort {
                     coordination.getRequesterAgentId());
 
             persistence.save(coordination);
-            publishStateChange(coordination);
 
         } else if (currentState == CoordinationState.AWAITING_APPROVAL_A) {
             // Requester approved → both approved → execute event creation saga
@@ -229,16 +247,24 @@ public class CoordinationService implements CoordinationProtocolPort {
             log.info("[CoordinationService] {} → APPROVED_BY_BOTH", coordinationId);
 
             log.info("[CoordinationService] {} Executing event creation saga...", coordinationId);
-            boolean success = eventCreationSaga.execute(coordination, agentEventExecutionPort);
+            com.coagent4u.coordination.domain.EventCreationSaga.SagaResult result = eventCreationSaga.execute(coordination, agentEventExecutionPort);
             persistence.save(coordination);
 
-            if (success) {
+            if (result.success()) {
                 log.info("[CoordinationService] {} → COMPLETED (both events created)", coordinationId);
+
+
+                com.coagent4u.shared.UserId requesterUserId = agentProfilePort.getProfile(coordination.getRequesterAgentId()).userId();
+                com.coagent4u.shared.UserId inviteeUserId = agentProfilePort.getProfile(coordination.getInviteeAgentId()).userId();
+
+                eventPublisher.publish(com.coagent4u.common.events.CalendarEventCreated.of(coordination.getRequesterAgentId(), requesterUserId, correlationId, coordinationId, result.eventIdA()));
+                eventPublisher.publish(com.coagent4u.common.events.CalendarEventCreated.of(coordination.getInviteeAgentId(), inviteeUserId, correlationId, coordinationId, result.eventIdB()));
+                
+                eventPublisher.publish(com.coagent4u.common.events.CoordinationCompleted.of(coordinationId, result.eventIdA(), result.eventIdB()));
             } else {
                 log.error("[CoordinationService] {} → FAILED (event creation saga failed)", coordinationId);
+                eventPublisher.publish(com.coagent4u.common.events.CoordinationFailed.of(coordinationId, "Event creation saga failed"));
             }
-
-            publishStateChange(coordination);
         }
     }
 
@@ -256,8 +282,6 @@ public class CoordinationService implements CoordinationProtocolPort {
             eventCreationSaga.execute(coordination, agentEventExecutionPort);
             persistence.save(coordination);
         }
-
-        publishStateChange(coordination);
     }
 
     @Override
@@ -281,7 +305,7 @@ public class CoordinationService implements CoordinationProtocolPort {
         if (!coordination.isTerminal()) {
             coordination.transition(CoordinationState.FAILED, reason);
             persistence.save(coordination);
-            publishStateChange(coordination);
+            eventPublisher.publish(com.coagent4u.common.events.CoordinationFailed.of(coordinationId, reason));
         }
     }
 
@@ -290,16 +314,4 @@ public class CoordinationService implements CoordinationProtocolPort {
                 .orElseThrow(() -> new NoSuchElementException("Coordination not found: " + id));
     }
 
-    private void publishStateChange(Coordination c) {
-        List<CoordinationStateLogEntry> stateLog = c.getStateLog();
-        if (stateLog.size() < 2)
-            return;
-        CoordinationStateLogEntry last = stateLog.get(stateLog.size() - 1);
-        CoordinationStateLogEntry prev = stateLog.get(stateLog.size() - 2);
-        eventPublisher.publish(CoordinationStateChanged.of(
-                c.getCoordinationId(),
-                prev.toState().name(),
-                last.toState().name(),
-                last.reason()));
-    }
 }

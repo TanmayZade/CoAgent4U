@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.coagent4u.common.DomainEventPublisher;
 import com.coagent4u.coordination.domain.AvailabilityBlock;
+import com.coagent4u.coordination.domain.AvailabilityResult;
 import com.coagent4u.coordination.domain.Coordination;
 import com.coagent4u.coordination.domain.CoordinationState;
 import com.coagent4u.coordination.port.out.AgentApprovalPort;
@@ -69,9 +70,14 @@ class CoordinationServiceTest {
                 List<AvailabilityBlock> blocksB = List.of(new AvailabilityBlock(
                                 Instant.parse("2026-03-05T10:30:00Z"), Instant.parse("2026-03-05T13:00:00Z")));
 
-                when(agentAvailabilityPort.getAvailability(eq(requester), any())).thenReturn(blocksA);
-                when(agentAvailabilityPort.getAvailability(eq(invitee), any())).thenReturn(blocksB);
-                CoordinationId result = service.initiate(requester, invitee, range, 30, "Sync", "UTC");
+                when(agentAvailabilityPort.getAvailability(eq(requester), any())).thenReturn(new AvailabilityResult(blocksA, 0));
+                when(agentAvailabilityPort.getAvailability(eq(invitee), any())).thenReturn(new AvailabilityResult(blocksB, 0));
+                when(agentProfilePort.getProfile(requester)).thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(requester, com.coagent4u.shared.UserId.generate(), "Requester", "UTC"));
+                when(agentProfilePort.getProfile(invitee)).thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(invitee, com.coagent4u.shared.UserId.generate(), "Invitee", "UTC"));
+
+                CoordinationId coordId = CoordinationId.generate();
+                com.coagent4u.shared.CorrelationId correlationId = com.coagent4u.shared.CorrelationId.generate();
+                CoordinationId result = service.initiate(coordId, correlationId, requester, invitee, range, 30, "Sync", "UTC");
 
                 assertNotNull(result);
                 verify(persistence, atLeast(5)).save(any(Coordination.class));
@@ -90,10 +96,15 @@ class CoordinationServiceTest {
                 List<AvailabilityBlock> blocksB = List.of(new AvailabilityBlock(
                                 Instant.parse("2026-03-05T11:00:00Z"), Instant.parse("2026-03-05T12:00:00Z")));
 
-                when(agentAvailabilityPort.getAvailability(eq(requester), any())).thenReturn(blocksA);
-                when(agentAvailabilityPort.getAvailability(eq(invitee), any())).thenReturn(blocksB);
+                when(agentAvailabilityPort.getAvailability(eq(requester), any())).thenReturn(new AvailabilityResult(blocksA, 0));
+                when(agentAvailabilityPort.getAvailability(eq(invitee), any())).thenReturn(new AvailabilityResult(blocksB, 0));
 
-                CoordinationId result = service.initiate(requester, invitee, range, 30, "Sync", "UTC");
+                when(agentProfilePort.getProfile(requester)).thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(requester, com.coagent4u.shared.UserId.generate(), "Requester", "UTC"));
+                when(agentProfilePort.getProfile(invitee)).thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(invitee, com.coagent4u.shared.UserId.generate(), "Invitee", "UTC"));
+
+                CoordinationId coordId = CoordinationId.generate();
+                com.coagent4u.shared.CorrelationId correlationId = com.coagent4u.shared.CorrelationId.generate();
+                CoordinationId result = service.initiate(coordId, correlationId, requester, invitee, range, 30, "Sync", "UTC");
 
                 assertNotNull(result);
                 verify(agentApprovalPort, never()).requestApproval(any(), any());

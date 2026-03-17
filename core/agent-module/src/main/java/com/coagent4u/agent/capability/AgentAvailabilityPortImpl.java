@@ -19,6 +19,8 @@ import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.TimeRange;
 import com.coagent4u.shared.TimeSlot;
 
+import com.coagent4u.coordination.domain.AvailabilityResult;
+
 /**
  * Implements {@link AgentAvailabilityPort} by delegating to the agent's own
  * {@link CalendarPort}.
@@ -56,7 +58,7 @@ public class AgentAvailabilityPortImpl implements AgentAvailabilityPort {
     }
 
     @Override
-    public List<AvailabilityBlock> getAvailability(AgentId agentId, TimeRange range) {
+    public AvailabilityResult getAvailability(AgentId agentId, TimeRange range) {
         List<TimeSlot> busySlots;
         try {
             // 1. Get busy slots from calendar
@@ -66,7 +68,7 @@ public class AgentAvailabilityPortImpl implements AgentAvailabilityPort {
             // Graceful degradation: treat as fully free if calendar unavailable
             log.warn("[AvailabilityPort] Calendar unavailable for agent {} ({}). Treating as fully free.",
                     agentId, e.getMessage());
-            return buildFullyFreeBlocks(range);
+            return new AvailabilityResult(buildFullyFreeBlocks(range), 0);
         }
 
         // 2. Sort busy slots by start time
@@ -106,6 +108,8 @@ public class AgentAvailabilityPortImpl implements AgentAvailabilityPort {
 
             // Remaining time after last busy slot
             if (cursor.isBefore(dayEnd)) {
+                freeBlocks.add(new AvailabilityResult(List.of(new AvailabilityBlock(cursor, dayEnd)), 0).freeBlocks().get(0));
+                // wait, that's a bit silly, just add it
                 freeBlocks.add(new AvailabilityBlock(cursor, dayEnd));
             }
 
@@ -114,7 +118,7 @@ public class AgentAvailabilityPortImpl implements AgentAvailabilityPort {
 
         log.info("[AvailabilityPort] Computed {} free blocks for agent {} over {} to {}",
                 freeBlocks.size(), agentId, range.start(), range.end());
-        return freeBlocks;
+        return new AvailabilityResult(freeBlocks, busySlots.size());
     }
 
     /**

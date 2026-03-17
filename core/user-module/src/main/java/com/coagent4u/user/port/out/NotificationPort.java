@@ -46,6 +46,19 @@ public interface NotificationPort {
                         String requesterMention);
 
         /**
+         * Sends a read-only slot preview card to the requester.
+         *
+         * @param slackUserId      recipient's Slack user ID (requester)
+         * @param workspaceId      the Slack workspace
+         * @param slots            the slots that were proposed
+         * @param inviteeMention   the invitee's display mention
+         * @return the Slack message timestamp (ts)
+         */
+        String sendSlotPreview(SlackUserId slackUserId, WorkspaceId workspaceId,
+                        java.util.List<com.coagent4u.shared.TimeSlot> slots,
+                        String inviteeMention);
+
+        /**
          * Deletes an existing message.
          *
          * @param slackUserId the user ID (channel)

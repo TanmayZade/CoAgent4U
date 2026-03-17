@@ -14,15 +14,17 @@ import com.coagent4u.shared.EventId;
  */
 public class EventCreationSaga {
 
+    public record SagaResult(boolean success, EventId eventIdA, EventId eventIdB) {}
+
     /**
      * Executes the saga for a given coordination.
      * Mutates the coordination state directly.
      *
      * @param coordination   the coordination in APPROVED_BY_BOTH state
      * @param agentEventExec outbound port to create/delete calendar events
-     * @return true if both events were created successfully
+     * @return SagaResult containing success status and created event IDs
      */
-    public boolean execute(Coordination coordination, AgentEventExecutionPort agentEventExec) {
+    public SagaResult execute(Coordination coordination, AgentEventExecutionPort agentEventExec) {
         MeetingProposal proposal = coordination.getProposal();
         AgentId requesterAgentId = coordination.getRequesterAgentId();
         AgentId inviteeAgentId = coordination.getInviteeAgentId();
@@ -35,13 +37,14 @@ public class EventCreationSaga {
                     proposal.suggestedTime(), proposal.title());
         } catch (Exception e) {
             coordination.transition(CoordinationState.FAILED, "Failed to create event A: " + e.getMessage());
-            return false;
+            return new SagaResult(false, null, null);
         }
 
         // Step 2: Create event for invitee (Agent B)
         coordination.transition(CoordinationState.CREATING_EVENT_B, "Creating calendar event for invitee");
+        EventId eventIdB;
         try {
-            agentEventExec.createEvent(inviteeAgentId, proposal.suggestedTime(), proposal.title());
+            eventIdB = agentEventExec.createEvent(inviteeAgentId, proposal.suggestedTime(), proposal.title());
         } catch (Exception e) {
             // Compensate: delete event A
             try {
@@ -51,10 +54,10 @@ public class EventCreationSaga {
             }
             coordination.transition(CoordinationState.FAILED,
                     "Failed to create event B (compensated A): " + e.getMessage());
-            return false;
+            return new SagaResult(false, null, null);
         }
 
         coordination.transition(CoordinationState.COMPLETED, "Both calendar events created successfully");
-        return true;
+        return new SagaResult(true, eventIdA, eventIdB);
     }
 }

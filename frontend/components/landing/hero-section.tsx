@@ -12,9 +12,9 @@ const HEADLINE =
 
 export function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null)
+  const logoRef = useRef<HTMLDivElement>(null)
   const cursorRef = useRef<HTMLSpanElement>(null)
   const headlineRef = useRef<HTMLHeadingElement>(null)
-  const logoRef = useRef<HTMLDivElement>(null)
   const subheadlineRef = useRef<HTMLParagraphElement>(null)
   const cta1Ref = useRef<HTMLAnchorElement>(null)
   const cta2Ref = useRef<HTMLAnchorElement>(null)
@@ -127,7 +127,7 @@ export function HeroSection() {
             style={{ opacity: 0 }}
           >
             <Image
-              src="/images/logo.png"
+              src="/images/logo-light.png"
               alt="CoAgent4U Logo"
               width={72}
               height={72}

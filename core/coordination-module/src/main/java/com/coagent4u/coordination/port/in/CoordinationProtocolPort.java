@@ -28,7 +28,7 @@ public interface CoordinationProtocolPort {
      * @param timezone         timezone for event creation
      * @return the new CoordinationId
      */
-    CoordinationId initiate(AgentId requesterAgentId, AgentId inviteeAgentId,
+    CoordinationId initiate(CoordinationId coordinationId, com.coagent4u.shared.CorrelationId correlationId, AgentId requesterAgentId, AgentId inviteeAgentId,
             TimeRange lookAheadRange, int durationMinutes,
             String title, String timezone);
 

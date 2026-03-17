@@ -83,6 +83,14 @@ public class SlackNotificationAdapter implements NotificationPort {
         return postToSlack(payload, slackUserId.value(), workspaceId);
     }
 
+    @Override
+    public String sendSlotPreview(SlackUserId slackUserId, WorkspaceId workspaceId,
+            List<TimeSlot> slots, String inviteeMention) {
+        log.info("[SlackAdapter] Sending slot preview card to requester={}", slackUserId.value());
+        String payload = buildSlotPreviewPayload(slackUserId.value(), slots, inviteeMention);
+        return postToSlack(payload, slackUserId.value(), workspaceId);
+    }
+
     /**
      * Posts a pre-built JSON payload to Slack's chat.postMessage.
      * Made public so the interaction handler can repost status cards.
@@ -394,6 +402,69 @@ public class SlackNotificationAdapter implements NotificationPort {
 
         } catch (Exception e) {
             throw new NotificationFailureException("Failed to build slot selection payload", e);
+        }
+    }
+
+    /**
+     * Builds a read-only slot preview card for the requester.
+     */
+    private String buildSlotPreviewPayload(String channel, List<TimeSlot> slots, String inviteeMention) {
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("channel", channel);
+
+            ArrayNode attachments = objectMapper.createArrayNode();
+            ObjectNode attachment = objectMapper.createObjectNode();
+            attachment.put("color", "#745EAF");
+
+            ArrayNode blocks = objectMapper.createArrayNode();
+
+            // Header
+            blocks.add(headerBlock("📤 Proposed Slots"));
+
+            // Description
+            blocks.add(markdownSection(
+                    "I've proposed these available time slots to " + inviteeMention + ". Waiting for their selection..."));
+
+            // Divider
+            blocks.add(dividerBlock());
+
+            // Group slots by date
+            List<TimeSlot> sorted = new ArrayList<>(slots);
+            sorted.sort((a, b) -> a.start().compareTo(b.start()));
+
+            Map<String, List<TimeSlot>> byDate = new LinkedHashMap<>();
+            for (TimeSlot slot : sorted) {
+                ZonedDateTime startZdt = slot.start().atZone(IST);
+                String dateKey = startZdt.format(DATE_FMT);
+                byDate.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(slot);
+            }
+
+            for (Map.Entry<String, List<TimeSlot>> entry : byDate.entrySet()) {
+                String dateLabel = entry.getKey();
+                List<TimeSlot> dateSlots = entry.getValue();
+
+                // Date header
+                blocks.add(markdownSection("*📅 " + dateLabel + "*"));
+
+                // Render slots as plain text list
+                StringBuilder sb = new StringBuilder();
+                for (TimeSlot slot : dateSlots) {
+                    ZonedDateTime startZdt = slot.start().atZone(IST);
+                    ZonedDateTime endZdt = slot.end().atZone(IST);
+                    String timeLabel = startZdt.format(TIME_FMT) + " – " + endZdt.format(TIME_FMT);
+                    sb.append("• ").append(timeLabel).append("\n");
+                }
+                blocks.add(markdownSection(sb.toString().trim()));
+            }
+
+            attachment.set("blocks", blocks);
+            attachments.add(attachment);
+            root.set("attachments", attachments);
+            return objectMapper.writeValueAsString(root);
+
+        } catch (Exception e) {
+            throw new NotificationFailureException("Failed to build slot preview payload", e);
         }
     }
 

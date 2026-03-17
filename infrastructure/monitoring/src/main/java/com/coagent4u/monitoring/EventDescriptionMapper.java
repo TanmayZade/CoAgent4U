@@ -1,22 +1,45 @@
 package com.coagent4u.monitoring;
 
-import com.coagent4u.common.CoordinationAwareEvent;
-import com.coagent4u.common.CorrelationAwareEvent;
-import com.coagent4u.common.DomainEvent;
-import com.coagent4u.common.events.*;
-import com.coagent4u.persistence.agent.AgentJpaEntity;
-import com.coagent4u.persistence.agent.AgentJpaRepository;
-import com.coagent4u.persistence.coordination.CoordinationJpaRepository;
-import com.coagent4u.persistence.user.UserJpaRepository;
-
-import org.springframework.stereotype.Component;
-
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+
+import org.springframework.stereotype.Component;
+
+import com.coagent4u.common.CoordinationAwareEvent;
+import com.coagent4u.common.CorrelationAwareEvent;
+import com.coagent4u.common.DomainEvent;
+import com.coagent4u.common.events.AgentActivated;
+import com.coagent4u.common.events.AgentProvisioned;
+import com.coagent4u.common.events.ApprovalDecisionMade;
+import com.coagent4u.common.events.ApprovalExpired;
+import com.coagent4u.common.events.CalendarEventCreated;
+import com.coagent4u.common.events.CalendarSourced;
+import com.coagent4u.common.events.ConflictDetected;
+import com.coagent4u.common.events.CoordinationCompleted;
+import com.coagent4u.common.events.CoordinationFailed;
+import com.coagent4u.common.events.CoordinationInitiated;
+import com.coagent4u.common.events.CoordinationRejected;
+import com.coagent4u.common.events.CoordinationRequestReceived;
+import com.coagent4u.common.events.DateResolved;
+import com.coagent4u.common.events.IntentParsed;
+import com.coagent4u.common.events.LLMFallbackTriggered;
+import com.coagent4u.common.events.PersonalApprovalRequested;
+import com.coagent4u.common.events.PersonalEventCreated;
+import com.coagent4u.common.events.PersonalEventFailed;
+import com.coagent4u.common.events.ScheduleViewed;
+import com.coagent4u.common.events.SlotsProposed;
+import com.coagent4u.common.events.SlotsReceived;
+import com.coagent4u.common.events.TaskCompleted;
+import com.coagent4u.common.events.TaskFailed;
+import com.coagent4u.common.events.UnrecognizedIntent;
+import com.coagent4u.persistence.agent.AgentJpaEntity;
+import com.coagent4u.persistence.agent.AgentJpaRepository;
+import com.coagent4u.persistence.coordination.CoordinationJpaRepository;
+import com.coagent4u.persistence.user.UserJpaRepository;
 
 @Component
 public class EventDescriptionMapper {
@@ -27,9 +50,9 @@ public class EventDescriptionMapper {
     private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm")
             .withZone(ZoneId.of("Asia/Kolkata"));
 
-    public EventDescriptionMapper(UserJpaRepository userRepository, 
-                                  AgentJpaRepository agentRepository,
-                                  CoordinationJpaRepository coordinationRepository) {
+    public EventDescriptionMapper(UserJpaRepository userRepository,
+            AgentJpaRepository agentRepository,
+            CoordinationJpaRepository coordinationRepository) {
         this.userRepository = userRepository;
         this.agentRepository = agentRepository;
         this.coordinationRepository = coordinationRepository;
@@ -125,6 +148,16 @@ public class EventDescriptionMapper {
                 description = "Sourced calendar availability (" + e.eventCount() + " existing events)";
                 level = "INFO";
             }
+            case CalendarEventCreated e -> {
+                agentId = e.agentId().value();
+                description = "Calendar event created successfully";
+                level = "SUCCESS";
+            }
+            case CoordinationRejected e -> {
+                agentId = e.agentId().value();
+                description = "Coordination rejected: " + e.reason();
+                level = "WARNING";
+            }
             case ConflictDetected e -> {
                 agentId = e.agentId().value();
                 description = "Scheduling conflict detected: " + e.conflictReason();
@@ -132,7 +165,7 @@ public class EventDescriptionMapper {
             }
             case SlotsProposed e -> {
                 agentId = e.agentId().value();
-                description = "Proposed " + e.slotCount() + " available time slots";
+                description = "Proposed availability (" + e.slotCount() + " busy slots)";
                 level = "SUCCESS";
             }
             case SlotsReceived e -> {
@@ -151,6 +184,9 @@ public class EventDescriptionMapper {
                     agentId = a.get().getAgentId();
                     description = e.approvalType() + " approval decision made: " + e.decision();
                     level = "APPROVED".equals(e.decision()) ? "SUCCESS" : "WARNING";
+                    if (e.coordinationId() != null) {
+                        coordinationId = e.coordinationId().value();
+                    }
                 }
             }
             case ApprovalExpired e -> {
@@ -159,38 +195,35 @@ public class EventDescriptionMapper {
                     agentId = a.get().getAgentId();
                     description = e.approvalType() + " approval expired";
                     level = "WARNING";
+                    if (e.coordinationId() != null) {
+                        coordinationId = e.coordinationId().value();
+                    }
                 }
             }
-            case CoordinationStateChanged e -> {
-                final UUID finalCorrelationId = correlationId;
-                final UUID finalCoordinationId = coordinationId;
-                coordinationRepository.findById(e.coordinationId().value()).ifPresent(c -> {
-                    String desc = "Coordination state changed to " + e.toState() + " (" + e.reason() + ")";
-                    String lvl = "INFO";
-                    results.add(new MappedEvent(desc, lvl, c.getRequesterAgentId(), finalCorrelationId, finalCoordinationId));
-                    results.add(new MappedEvent(desc, lvl, c.getInviteeAgentId(), finalCorrelationId, finalCoordinationId));
-                });
-                return results; // Return early for multiple agent insertion
-            }
+
             case CoordinationCompleted e -> {
                 final UUID finalCorrelationId = correlationId;
-                final UUID finalCoordinationId = coordinationId;
+                final UUID finalCoordinationId = e.coordinationId().value();
                 coordinationRepository.findById(e.coordinationId().value()).ifPresent(c -> {
                     String desc = "Coordination completed successfully";
                     String lvl = "SUCCESS";
-                    results.add(new MappedEvent(desc, lvl, c.getRequesterAgentId(), finalCorrelationId, finalCoordinationId));
-                    results.add(new MappedEvent(desc, lvl, c.getInviteeAgentId(), finalCorrelationId, finalCoordinationId));
+                    results.add(new MappedEvent(desc, lvl, c.getRequesterAgentId(), finalCorrelationId,
+                            finalCoordinationId));
+                    results.add(
+                            new MappedEvent(desc, lvl, c.getInviteeAgentId(), finalCorrelationId, finalCoordinationId));
                 });
                 return results;
             }
             case CoordinationFailed e -> {
                 final UUID finalCorrelationId = correlationId;
-                final UUID finalCoordinationId = coordinationId;
+                final UUID finalCoordinationId = e.coordinationId().value();
                 coordinationRepository.findById(e.coordinationId().value()).ifPresent(c -> {
                     String desc = "Coordination failed: " + e.reason();
                     String lvl = "ERROR";
-                    results.add(new MappedEvent(desc, lvl, c.getRequesterAgentId(), finalCorrelationId, finalCoordinationId));
-                    results.add(new MappedEvent(desc, lvl, c.getInviteeAgentId(), finalCorrelationId, finalCoordinationId));
+                    results.add(new MappedEvent(desc, lvl, c.getRequesterAgentId(), finalCorrelationId,
+                            finalCoordinationId));
+                    results.add(
+                            new MappedEvent(desc, lvl, c.getInviteeAgentId(), finalCorrelationId, finalCoordinationId));
                 });
                 return results;
             }
@@ -217,7 +250,8 @@ public class EventDescriptionMapper {
     }
 
     private String resolveMentions(String text) {
-        if (text == null) return null;
+        if (text == null)
+            return null;
         java.util.regex.Pattern pattern = java.util.regex.Pattern.compile("slack:([A-Z0-9]+)");
         java.util.regex.Matcher matcher = pattern.matcher(text);
         StringBuilder sb = new StringBuilder();
@@ -237,5 +271,6 @@ public class EventDescriptionMapper {
         return sb.toString();
     }
 
-    public record MappedEvent(String description, String level, UUID agentId, UUID correlationId, UUID coordinationId) {}
+    public record MappedEvent(String description, String level, UUID agentId, UUID correlationId, UUID coordinationId) {
+    }
 }

@@ -71,6 +71,15 @@ public class MockNotificationAdapter implements NotificationPort {
     }
 
     @Override
+    public String sendSlotPreview(SlackUserId slackUserId, WorkspaceId workspaceId,
+            List<TimeSlot> slots, String inviteeMention) {
+        if (shouldFail)
+            throw new RuntimeException("Mock Slack failure");
+        log.info("[MockNotification] Slot preview sent to requester {}", slackUserId);
+        return "dummy_ts_" + System.currentTimeMillis();
+    }
+
+    @Override
     public boolean deleteMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String ts) {
         log.info("[MockNotification] Message deleted for {} in workspace {} at ts={}", slackUserId, workspaceId, ts);
         return true;

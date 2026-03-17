@@ -63,6 +63,7 @@ public class ApprovalService implements CreateApprovalUseCase, DecideApprovalUse
             eventPublisher.publish(ApprovalExpired.of(
                     approvalId, userId,
                     approval.getApprovalType().name(),
+                    approval.getCoordinationId(),
                     approval.getExpiresAt()));
             return;
         }
@@ -92,6 +93,7 @@ public class ApprovalService implements CreateApprovalUseCase, DecideApprovalUse
                     approval.getApprovalId(),
                     approval.getUserId(),
                     approval.getApprovalType().name(),
+                    approval.getCoordinationId(),
                     approval.getExpiresAt()));
         }
         return overdue.size();

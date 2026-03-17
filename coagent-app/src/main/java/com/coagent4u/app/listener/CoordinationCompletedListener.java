@@ -11,7 +11,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import com.coagent4u.agent.port.out.AgentPersistencePort;
-import com.coagent4u.common.events.CoordinationStateChanged;
+
 import com.coagent4u.coordination.domain.Coordination;
 import com.coagent4u.coordination.port.out.CoordinationPersistencePort;
 import com.coagent4u.shared.AgentId;
@@ -50,19 +50,23 @@ public class CoordinationCompletedListener {
 
     @Async
     @EventListener
-    public void onCoordinationStateChanged(CoordinationStateChanged event) {
-        String toState = event.toState();
+    public void onCoordinationCompleted(com.coagent4u.common.events.CoordinationCompleted event) {
+        handleCompleted(event.coordinationId());
+        cleanupObsoleteMessages(event.coordinationId());
+    }
 
-        if ("COMPLETED".equals(toState)) {
-            handleCompleted(event);
-            cleanupObsoleteMessages(event.coordinationId());
-        } else if ("REJECTED".equals(toState)) {
-            handleRejected(event);
-            cleanupObsoleteMessages(event.coordinationId());
-        } else if ("FAILED".equals(toState)) {
-            handleFailed(event);
-            cleanupObsoleteMessages(event.coordinationId());
-        }
+    @Async
+    @EventListener
+    public void onCoordinationRejected(com.coagent4u.common.events.CoordinationRejected event) {
+        handleRejected(event);
+        cleanupObsoleteMessages(event.coordinationId());
+    }
+
+    @Async
+    @EventListener
+    public void onCoordinationFailed(com.coagent4u.common.events.CoordinationFailed event) {
+        handleFailed(event.coordinationId(), event.reason());
+        cleanupObsoleteMessages(event.coordinationId());
     }
 
     /**
@@ -135,9 +139,9 @@ public class CoordinationCompletedListener {
         }
     }
 
-    private void handleCompleted(CoordinationStateChanged event) {
+    private void handleCompleted(com.coagent4u.shared.CoordinationId coordinationId) {
         try {
-            Coordination coordination = coordinationPersistence.findById(event.coordinationId()).orElse(null);
+            Coordination coordination = coordinationPersistence.findById(coordinationId).orElse(null);
             if (coordination == null)
                 return;
 
@@ -169,12 +173,8 @@ public class CoordinationCompletedListener {
         }
     }
 
-    private void handleRejected(CoordinationStateChanged event) {
+    private void handleRejected(com.coagent4u.common.events.CoordinationRejected event) {
         try {
-            Coordination coordination = coordinationPersistence.findById(event.coordinationId()).orElse(null);
-            if (coordination == null)
-                return;
-
             String reason = event.reason();
             String displayReason = reason;
 
@@ -193,22 +193,22 @@ public class CoordinationCompletedListener {
             String message = "🚫 *Meeting Rejected*\n\n"
                     + displayReason;
 
-            notifyAgent(coordination.getRequesterAgentId(), message);
-            notifyAgent(coordination.getInviteeAgentId(), message);
+            // Notice we only notify the agent linked to this exact event (Symmetric Flow!)
+            notifyAgent(event.agentId(), message);
 
         } catch (Exception e) {
             log.warn("[CoordinationListener] Failed to send rejection notification: {}", e.getMessage());
         }
     }
 
-    private void handleFailed(CoordinationStateChanged event) {
+    private void handleFailed(com.coagent4u.shared.CoordinationId coordinationId, String reason) {
         try {
-            Coordination coordination = coordinationPersistence.findById(event.coordinationId()).orElse(null);
+            Coordination coordination = coordinationPersistence.findById(coordinationId).orElse(null);
             if (coordination == null)
                 return;
 
             String message = "❌ *Meeting Scheduling Failed*\n\n"
-                    + event.reason();
+                    + reason;
 
             notifyAgent(coordination.getRequesterAgentId(), message);
             notifyAgent(coordination.getInviteeAgentId(), message);

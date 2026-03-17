@@ -28,7 +28,6 @@ import com.coagent4u.agent.port.out.EventProposalPersistencePort;
 import com.coagent4u.agent.port.out.LLMPort;
 import com.coagent4u.common.DomainEventPublisher;
 import com.coagent4u.common.events.AgentActivated;
-import com.coagent4u.common.events.CalendarSourced;
 import com.coagent4u.common.events.ConflictDetected;
 import com.coagent4u.common.events.CoordinationInitiated;
 import com.coagent4u.common.events.CoordinationRequestReceived;
@@ -39,8 +38,6 @@ import com.coagent4u.common.events.PersonalApprovalRequested;
 import com.coagent4u.common.events.PersonalEventCreated;
 import com.coagent4u.common.events.PersonalEventFailed;
 import com.coagent4u.common.events.ScheduleViewed;
-import com.coagent4u.common.events.SlotsProposed;
-import com.coagent4u.common.events.SlotsReceived;
 import com.coagent4u.common.events.TaskCompleted;
 import com.coagent4u.common.events.TaskFailed;
 import com.coagent4u.common.events.UnrecognizedIntent;
@@ -511,13 +508,9 @@ public class AgentCommandService
 
         TimeRange lookAhead = TimeRange.of(targetDate, targetDate);
 
-        // Initiate coordination (generates slots, matches availability →
-        // PROPOSAL_GENERATED)
-        log.info("[AgentService] Calling coordinationProtocol.initiate()");
-        com.coagent4u.shared.CoordinationId coordId = coordinationProtocol.initiate(
-                agent.getAgentId(), inviteeAgentId,
-                lookAhead, 60, "Meeting", "Asia/Kolkata");
-        log.info("[AgentService] Coordination initiated id={}", coordId);
+        // 1. Generate the ID locally and publish initial events *before* heavy processing
+        com.coagent4u.shared.CoordinationId coordId = com.coagent4u.shared.CoordinationId.generate();
+        log.info("[AgentService] Coordination ID locally generated id={}", coordId);
 
         // ── Event: CoordinationInitiated (Requester's log) ──
         eventPublisher.publish(CoordinationInitiated.of(agent.getAgentId(), agent.getUserId(), correlationId,
@@ -526,6 +519,14 @@ public class AgentCommandService
         // ── Event: CoordinationRequestReceived (Invitee's log) ──
         eventPublisher.publish(CoordinationRequestReceived.of(inviteeAgentId, targetUser.getUserId(), correlationId,
                 coordId, agent.getUserId()));
+
+        // 2. Initiate coordination (generates slots, matches availability → PROPOSAL_GENERATED)
+        log.info("[AgentService] Calling coordinationProtocol.initiate()");
+        coordinationProtocol.initiate(
+                coordId, correlationId,
+                agent.getAgentId(), inviteeAgentId,
+                lookAhead, 60, "Meeting", "Asia/Kolkata");
+        log.info("[AgentService] Coordination matching and state generation complete id={}", coordId);
 
         // Get available slots and send selection card to invitee
         java.util.List<TimeSlot> availableSlots = coordinationProtocol.getAvailableSlots(coordId);
@@ -590,21 +591,13 @@ public class AgentCommandService
         log.info("[NotificationService] Slot selection card sent to invitee @{} with {} slots",
                 targetUsername, availableSlots.size());
 
-        // ── Event: SlotsProposed (Requester's log) ──
-        eventPublisher.publish(SlotsProposed.of(agent.getAgentId(), agent.getUserId(), correlationId,
-                coordId, availableSlots.size()));
-
-        // ── Event: SlotsReceived (Invitee's log) ──
-        eventPublisher.publish(SlotsReceived.of(inviteeAgentId, targetUser.getUserId(), correlationId,
-                coordId, availableSlots.size()));
-
-        // Step 3: Notify requester that slots were sent
+        // Step 3: Send rich slot preview to requester
         if (requesterUser != null) {
-            String requesterNotifyTs = notificationPort.sendMessage(
+            String requesterNotifyTs = notificationPort.sendSlotPreview(
                     requesterUser.getSlackIdentity().slackUserId(),
                     requesterUser.getSlackIdentity().workspaceId(),
-                    "📤 Sent available time slots to " + inviteeMention
-                            + ".\nWaiting for them to select a suitable time.");
+                    availableSlots,
+                    inviteeMention);
             coordinationProtocol.updateMetadata(coordId, "requester_notification_ts", requesterNotifyTs);
         }
     }

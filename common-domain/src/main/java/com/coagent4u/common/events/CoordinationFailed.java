@@ -3,7 +3,7 @@ package com.coagent4u.common.events;
 import java.time.Instant;
 import java.util.Objects;
 
-import com.coagent4u.common.DomainEvent;
+import com.coagent4u.common.CoordinationAwareEvent;
 import com.coagent4u.shared.CoordinationId;
 
 /**
@@ -12,7 +12,7 @@ import com.coagent4u.shared.CoordinationId;
 public record CoordinationFailed(
         CoordinationId coordinationId,
         String reason,
-        Instant occurredAt) implements DomainEvent {
+        Instant occurredAt) implements CoordinationAwareEvent {
     public CoordinationFailed {
         Objects.requireNonNull(coordinationId, "coordinationId must not be null");
         Objects.requireNonNull(reason, "reason must not be null");

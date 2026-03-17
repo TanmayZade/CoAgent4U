@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.coagent4u.common.DomainEventPublisher;
 import com.coagent4u.coordination.domain.AvailabilityBlock;
+import com.coagent4u.coordination.domain.AvailabilityResult;
 import com.coagent4u.coordination.domain.Coordination;
 import com.coagent4u.coordination.domain.CoordinationState;
 import com.coagent4u.coordination.port.out.AgentApprovalPort;
@@ -87,6 +88,12 @@ class CoordinationFlowIntegrationTest {
         service = new CoordinationService(
                 persistence, availabilityPort, mockCalendar,
                 profilePort, approvalPort, eventPublisher);
+
+        // Leniently mock profiles to prevent NPE in event publishing
+        org.mockito.Mockito.lenient().when(profilePort.getProfile(requester))
+            .thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(requester, com.coagent4u.shared.UserId.generate(), "Requester", "UTC"));
+        org.mockito.Mockito.lenient().when(profilePort.getProfile(invitee))
+            .thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(invitee, com.coagent4u.shared.UserId.generate(), "Invitee", "UTC"));
     }
 
     // ── Helper: capture coordination saved to persistence ──
@@ -108,11 +115,15 @@ class CoordinationFlowIntegrationTest {
         @Test
         @DisplayName("initiate → PROPOSAL_GENERATED with slots")
         void initiate_producesSlots() {
-            when(availabilityPort.getAvailability(eq(requester), any())).thenReturn(fullDayFreeA);
-            when(availabilityPort.getAvailability(eq(invitee), any())).thenReturn(fullDayFreeB);
+            when(availabilityPort.getAvailability(eq(requester), any())).thenReturn(new AvailabilityResult(fullDayFreeA, 0));
+            when(availabilityPort.getAvailability(eq(invitee), any())).thenReturn(new AvailabilityResult(fullDayFreeB, 0));
+            when(profilePort.getProfile(requester)).thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(requester, com.coagent4u.shared.UserId.generate(), "Requester", "UTC"));
+            when(profilePort.getProfile(invitee)).thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(invitee, com.coagent4u.shared.UserId.generate(), "Invitee", "UTC"));
 
-            CoordinationId coordId = service.initiate(requester, invitee, lookAhead, 60, "Meeting", "Asia/Kolkata");
-            assertNotNull(coordId);
+            CoordinationId coordId = CoordinationId.generate();
+            com.coagent4u.shared.CorrelationId correlationId = com.coagent4u.shared.CorrelationId.generate();
+            CoordinationId returnedId = service.initiate(coordId, correlationId, requester, invitee, lookAhead, 60, "Meeting", "Asia/Kolkata");
+            assertEquals(coordId, returnedId);
 
             // Verify availability was checked for both agents
             verify(availabilityPort).getAvailability(eq(requester), any());
@@ -122,8 +133,8 @@ class CoordinationFlowIntegrationTest {
         }
 
         @Test
-        @DisplayName("selectSlot → AWAITING_APPROVAL_B + approval requested from invitee")
-        void selectSlot_transitionsToAwaitingB() {
+        @DisplayName("selectSlot → AWAITING_APPROVAL_A + approval requested from requester")
+        void selectSlot_transitionsToAwaitingA() {
             // Set up a coordination in PROPOSAL_GENERATED state
             CoordinationId coordId = CoordinationId.generate();
             Coordination coordination = new Coordination(coordId, requester, invitee);
@@ -143,25 +154,12 @@ class CoordinationFlowIntegrationTest {
 
             service.selectSlot(coordId, slot);
 
-            assertEquals(CoordinationState.AWAITING_APPROVAL_B, coordination.getState());
-            verify(approvalPort).requestApproval(eq(invitee), any());
-        }
-
-        @Test
-        @DisplayName("handleApproval invitee approved → AWAITING_APPROVAL_A → requester approval requested")
-        void inviteeApproved_transitionsToAwaitingA() {
-            CoordinationId coordId = CoordinationId.generate();
-            Coordination coordination = createCoordinationInState(coordId, CoordinationState.AWAITING_APPROVAL_B);
-
-            when(persistence.findById(coordId)).thenReturn(Optional.of(coordination));
-            when(approvalPort.requestApproval(any(), any()))
-                    .thenReturn(new ApprovalId(UUID.randomUUID()));
-
-            service.handleApproval(coordId, invitee, true);
-
+            // Invitee slot selection acts as their approval; skips B and goes straight to A
             assertEquals(CoordinationState.AWAITING_APPROVAL_A, coordination.getState());
             verify(approvalPort).requestApproval(eq(requester), any());
         }
+
+
 
         @Test
         @DisplayName("handleApproval requester approved → COMPLETED with 2 events created")
@@ -188,14 +186,18 @@ class CoordinationFlowIntegrationTest {
     class NoSlots {
 
         @Test
-        @DisplayName("initiate with no overlap → FAILED")
-        void noOverlap_transitionsToFailed() {
-            when(availabilityPort.getAvailability(eq(requester), any())).thenReturn(morningOnlyA);
-            when(availabilityPort.getAvailability(eq(invitee), any())).thenReturn(afternoonOnlyB);
+        @DisplayName("initiate → returns ID even if no slots found")
+        void initiate_noOverlap_success() {
+            when(availabilityPort.getAvailability(eq(requester), any())).thenReturn(new AvailabilityResult(morningOnlyA, 0));
+            when(availabilityPort.getAvailability(eq(invitee), any())).thenReturn(new AvailabilityResult(afternoonOnlyB, 0));
+            when(profilePort.getProfile(requester)).thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(requester, com.coagent4u.shared.UserId.generate(), "Requester", "UTC"));
+            when(profilePort.getProfile(invitee)).thenReturn(new com.coagent4u.coordination.port.out.AgentProfilePort.AgentProfile(invitee, com.coagent4u.shared.UserId.generate(), "Invitee", "UTC"));
 
-            CoordinationId coordId = service.initiate(requester, invitee, lookAhead, 60, "Meeting", "Asia/Kolkata");
+            CoordinationId coordId = CoordinationId.generate();
+            com.coagent4u.shared.CorrelationId correlationId = com.coagent4u.shared.CorrelationId.generate();
+            CoordinationId returnedId = service.initiate(coordId, correlationId, requester, invitee, lookAhead, 60, "Meeting", "Asia/Kolkata");
 
-            assertNotNull(coordId);
+            assertEquals(coordId, returnedId);
             verify(approvalPort, never()).requestApproval(any(), any());
         }
     }
@@ -212,10 +214,12 @@ class CoordinationFlowIntegrationTest {
         @DisplayName("invitee rejects → REJECTED, no events created")
         void inviteeRejects_transitionsToRejected() {
             CoordinationId coordId = CoordinationId.generate();
-            Coordination coordination = createCoordinationInState(coordId, CoordinationState.AWAITING_APPROVAL_B);
+            Coordination coordination = createCoordinationInState(coordId, CoordinationState.PROPOSAL_GENERATED);
 
             when(persistence.findById(coordId)).thenReturn(Optional.of(coordination));
 
+            // Select slot to bypass but reject at the same time -- wait, handleApproval isn't called for slot rejection anymore if we skip B. 
+            // In the new flow, "Reject" from the same prompt would just be a handleApproval on PROPOSAL_GENERATED maybe? Or we just assume this tests a direct reject.
             service.handleApproval(coordId, invitee, false);
 
             assertEquals(CoordinationState.REJECTED, coordination.getState());
@@ -304,10 +308,10 @@ class CoordinationFlowIntegrationTest {
     class DuplicateSlotSelection {
 
         @Test
-        @DisplayName("second slot selection on AWAITING_APPROVAL_B is ignored")
+        @DisplayName("second slot selection on AWAITING_APPROVAL_A is ignored")
         void duplicateSlotSelection_isIgnored() {
             CoordinationId coordId = CoordinationId.generate();
-            Coordination coordination = createCoordinationInState(coordId, CoordinationState.AWAITING_APPROVAL_B);
+            Coordination coordination = createCoordinationInState(coordId, CoordinationState.AWAITING_APPROVAL_A);
 
             when(persistence.findById(coordId)).thenReturn(Optional.of(coordination));
 
@@ -317,8 +321,8 @@ class CoordinationFlowIntegrationTest {
                     Instant.parse("2026-03-10T05:30:00Z"));
             service.selectSlot(coordId, slot);
 
-            // State should remain AWAITING_APPROVAL_B
-            assertEquals(CoordinationState.AWAITING_APPROVAL_B, coordination.getState());
+            // State should remain AWAITING_APPROVAL_A
+            assertEquals(CoordinationState.AWAITING_APPROVAL_A, coordination.getState());
             // No additional approval should have been requested
             verify(approvalPort, never()).requestApproval(any(), any());
         }
@@ -356,7 +360,7 @@ class CoordinationFlowIntegrationTest {
 
             service.selectSlot(coordId, slot);
 
-            assertEquals(CoordinationState.AWAITING_APPROVAL_B, coordination.getState());
+            assertEquals(CoordinationState.AWAITING_APPROVAL_A, coordination.getState());
 
             // Verify the proposal carries BOTH agent IDs
             var capturedProposal = approvalCaptor.getValue();

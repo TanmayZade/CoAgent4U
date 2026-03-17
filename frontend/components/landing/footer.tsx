@@ -40,7 +40,7 @@ export function Footer() {
           <div className="col-span-2">
             <Link href="/" className="inline-flex items-center gap-4 mb-6 group">
               <Image 
-                src="/images/logo.png" 
+                src="/images/logo-light.png" 
                 alt="CoAgent4U Logo" 
                 width={48} 
                 height={48}

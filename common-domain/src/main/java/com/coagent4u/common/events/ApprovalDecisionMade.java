@@ -3,7 +3,7 @@ package com.coagent4u.common.events;
 import java.time.Instant;
 import java.util.Objects;
 
-import com.coagent4u.common.DomainEvent;
+import com.coagent4u.common.CoordinationAwareEvent;
 import com.coagent4u.shared.ApprovalId;
 import com.coagent4u.shared.CoordinationId;
 import com.coagent4u.shared.UserId;
@@ -15,7 +15,7 @@ public record ApprovalDecisionMade(
         String decision, // "APPROVED" | "REJECTED"
         String approvalType, // "PERSONAL" | "COLLABORATIVE"
         CoordinationId coordinationId, // non-null for COLLABORATIVE
-        Instant occurredAt) implements DomainEvent {
+        Instant occurredAt) implements CoordinationAwareEvent {
     public ApprovalDecisionMade {
         Objects.requireNonNull(approvalId, "approvalId must not be null");
         Objects.requireNonNull(userId, "userId must not be null");

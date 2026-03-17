@@ -58,9 +58,9 @@ class EventCreationSagaTest {
         when(agentEventExec.createEvent(eq(c.getRequesterAgentId()), any(), any())).thenReturn(eventA);
         when(agentEventExec.createEvent(eq(c.getInviteeAgentId()), any(), any())).thenReturn(eventB);
 
-        boolean result = saga.execute(c, agentEventExec);
+        EventCreationSaga.SagaResult result = saga.execute(c, agentEventExec);
 
-        assertTrue(result);
+        assertTrue(result.success());
         assertEquals(CoordinationState.COMPLETED, c.getState());
         verify(agentEventExec, times(2)).createEvent(any(), any(), any());
         verify(agentEventExec, never()).deleteEvent(any(), any());
@@ -74,9 +74,9 @@ class EventCreationSagaTest {
         when(agentEventExec.createEvent(eq(c.getRequesterAgentId()), any(), any()))
                 .thenThrow(new RuntimeException("Calendar unavailable"));
 
-        boolean result = saga.execute(c, agentEventExec);
+        EventCreationSaga.SagaResult result = saga.execute(c, agentEventExec);
 
-        assertFalse(result);
+        assertFalse(result.success());
         assertEquals(CoordinationState.FAILED, c.getState());
         verify(agentEventExec, times(1)).createEvent(any(), any(), any());
         verify(agentEventExec, never()).deleteEvent(any(), any()); // No compensation needed
@@ -92,9 +92,9 @@ class EventCreationSagaTest {
         when(agentEventExec.createEvent(eq(c.getInviteeAgentId()), any(), any()))
                 .thenThrow(new RuntimeException("Invitee calendar error"));
 
-        boolean result = saga.execute(c, agentEventExec);
+        EventCreationSaga.SagaResult result = saga.execute(c, agentEventExec);
 
-        assertFalse(result);
+        assertFalse(result.success());
         assertEquals(CoordinationState.FAILED, c.getState());
         // Verify compensation: Event A was deleted
         verify(agentEventExec).deleteEvent(c.getRequesterAgentId(), eventA);
@@ -112,9 +112,9 @@ class EventCreationSagaTest {
         doThrow(new RuntimeException("Compensation failed"))
                 .when(agentEventExec).deleteEvent(any(), any());
 
-        boolean result = saga.execute(c, agentEventExec);
+        EventCreationSaga.SagaResult result = saga.execute(c, agentEventExec);
 
-        assertFalse(result);
+        assertFalse(result.success());
         assertEquals(CoordinationState.FAILED, c.getState());
     }
 }

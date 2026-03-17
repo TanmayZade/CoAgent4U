@@ -37,10 +37,6 @@ export const metadata: Metadata = {
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
         url: '/icon.svg',
         type: 'image/svg+xml',
       },
@@ -65,9 +61,10 @@ export default function RootLayout({
       <body className={`${poppins.variable} ${jetbrainsMono.variable} ${playfairDisplay.variable} font-sans antialiased bg-background text-foreground transition-colors duration-300`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
-          enableSystem
+          defaultTheme="light"
+          enableSystem={false}
           disableTransitionOnChange={false}
+          forcedTheme="light"
         >
           <QueryProvider>
             {children}
