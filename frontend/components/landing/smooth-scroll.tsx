@@ -9,11 +9,11 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <ReactLenis root options={{ 
-      lerp: 0.1, 
-      duration: 1.2, 
-      smoothWheel: true, 
-      wheelMultiplier: 0.75 // Reduces the speed of scroll steps by exactly 25% 
+    <ReactLenis root options={{
+      lerp: 0.1,
+      duration: 1.2,
+      smoothWheel: true,
+      wheelMultiplier: 0.60 // Reduces the speed of scroll steps by exactly 40% (additional 15% reduction)
     }}>
       {children}
     </ReactLenis>

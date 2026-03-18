@@ -30,6 +30,10 @@ public class CoordinationQueryService implements GetCoordinationHistoryUseCase, 
         Optional<AgentId> resolveAgentId(String username);
         /** Returns the username for the given AgentId, or "unknown". */
         String resolveUsername(AgentId agentId);
+        /** Returns the Slack display name for the given AgentId, or null. */
+        default String resolveDisplayName(AgentId agentId) { return null; }
+        /** Returns the Slack avatar URL for the given AgentId, or null. */
+        default String resolveAvatarUrl(AgentId agentId) { return null; }
     }
 
     private final CoordinationPersistencePort persistence;
@@ -88,10 +92,12 @@ public class CoordinationQueryService implements GetCoordinationHistoryUseCase, 
 
     private CoordinationSummary toSummary(Coordination c, AgentId viewerAgentId) {
         // Determine the "other" participant's username
-        AgentId otherAgentId = c.getRequesterAgentId().equals(viewerAgentId)
-                ? c.getInviteeAgentId()
-                : c.getRequesterAgentId();
+        boolean isRequester = c.getRequesterAgentId().equals(viewerAgentId);
+        AgentId otherAgentId = isRequester ? c.getInviteeAgentId() : c.getRequesterAgentId();
         String withUsername = resolver.resolveUsername(otherAgentId);
+        String withDisplayName = resolver.resolveDisplayName(otherAgentId);
+        String withAvatarUrl = resolver.resolveAvatarUrl(otherAgentId);
+        String role = isRequester ? "REQUESTER" : "INVITEE";
 
         String title = c.getProposal() != null ? c.getProposal().title() : null;
         java.time.Instant time = c.getProposal() != null ? c.getProposal().suggestedTime().start() : null;
@@ -99,6 +105,9 @@ public class CoordinationQueryService implements GetCoordinationHistoryUseCase, 
         return new CoordinationSummary(
                 c.getCoordinationId().value(),
                 withUsername,
+                withDisplayName,
+                withAvatarUrl,
+                role,
                 c.getState().name(),
                 c.getCreatedAt(),
                 title,

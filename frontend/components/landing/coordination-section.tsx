@@ -146,11 +146,11 @@ export function CoordinationSection() {
               {/* Step 1 */}
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="1">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/10 text-blue-600 font-bold text-[10px]">1</div>
-                  <User className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">1</div>
+                  <User className="w-4 h-4 text-blue-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Human Intent</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">User sends intent via natural human language.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">User Intent</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">User A requests a meeting using natural language.</p>
                 {/* Connector Arrow -> Right */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="1" data-dir="right">
                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
@@ -160,11 +160,11 @@ export function CoordinationSection() {
               {/* Step 2 */}
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="2">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/10 text-purple-600 font-bold text-[10px]">2</div>
-                  <Bot className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">2</div>
+                  <Bot className="w-4 h-4 text-purple-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Intent Parsing</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent parses the intent and checks calendar.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Parse & Retrieve</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent A parses the request and retrieves available slots.</p>
                 {/* Connector Arrow -> Right */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="2" data-dir="right">
                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
@@ -174,11 +174,11 @@ export function CoordinationSection() {
               {/* Step 3 */}
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="3">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/10 text-indigo-600 font-bold text-[10px]">3</div>
-                  <div className="w-5 h-5 rounded bg-foreground flex items-center justify-center"><span className="text-[9px] font-bold text-background">CE</span></div>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">3</div>
+                  <Bot className="w-4 h-4 text-purple-500" />
                 </div>
                 <h4 className="font-semibold text-foreground text-[13px] mb-1">Initiate Request</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Starts coordination request with engine.</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent A sends proposed slots to the Engine.</p>
                 {/* Connector Arrow -> Down */}
                 <div className="flow-arrow hidden lg:block absolute -bottom-8 left-1/2 w-[2px] h-8 bg-foreground z-[-1] -translate-x-1/2" data-index="3" data-dir="down">
                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[2px] w-2 h-2 border-b-2 border-r-2 border-foreground rotate-45" />
@@ -188,11 +188,11 @@ export function CoordinationSection() {
               {/* Step 6 */}
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="6">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-rose-500/10 text-rose-600 font-bold text-[10px]">6</div>
-                  <User className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">6</div>
+                  <User className="w-4 h-4 text-blue-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Invitee Selection</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Invitee selects a slot and Agent B passes it to the engine.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Invitee Action</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">User B selects a preferred slot or rejects the meeting.</p>
                 {/* Connector Arrow -> Down */}
                 <div className="flow-arrow hidden lg:block absolute -bottom-8 left-1/2 w-[2px] h-8 bg-foreground z-[-1] -translate-x-1/2" data-index="6" data-dir="down">
                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[2px] w-2 h-2 border-b-2 border-r-2 border-foreground rotate-45" />
@@ -202,11 +202,11 @@ export function CoordinationSection() {
               {/* Step 5 */}
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="5">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[10px]">5</div>
-                  <Bot className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">5</div>
+                  <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center"><span className="text-[9px] font-bold text-white">CE</span></div>
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Pass Availability</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine passes common availability slots back to both agents.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Propose Options</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine sends overlapping slots for User A to view and User B to select/reject via their agents.</p>
                 {/* Connector Arrow -> Left */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -left-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="5" data-dir="left">
                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[2px] w-2 h-2 border-b-2 border-l-2 border-foreground rotate-45" />
@@ -216,11 +216,11 @@ export function CoordinationSection() {
               {/* Step 4 */}
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="4">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/10 text-amber-600 font-bold text-[10px]">4</div>
-                  <div className="w-5 h-5 rounded bg-foreground flex items-center justify-center"><span className="text-[9px] font-bold text-background">CE</span></div>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">4</div>
+                  <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center"><span className="text-[9px] font-bold text-white">CE</span></div>
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Source Slots</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Coordination engine sources slots from both agents.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Find Overlaps</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine asks for free slots from Agent B and identifies mutual free time.</p>
                 {/* Connector Arrow -> Left */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -left-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="4" data-dir="left">
                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[2px] w-2 h-2 border-b-2 border-l-2 border-foreground rotate-45" />
@@ -230,11 +230,11 @@ export function CoordinationSection() {
               {/* Step 7 */}
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="7">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 font-bold text-[10px]">7</div>
-                  <div className="w-5 h-5 rounded bg-foreground flex items-center justify-center"><span className="text-[9px] font-bold text-background">CE</span></div>
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">7</div>
+                  <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center"><span className="text-[9px] font-bold text-white">CE</span></div>
                 </div>
                 <h4 className="font-semibold text-foreground text-[13px] mb-1">Relay Selection</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Coordination engine passes the selected slot to requestee (User A).</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine routes the confirmed choice back to Agent A.</p>
                 {/* Connector Arrow -> Right */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="7" data-dir="right">
                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
@@ -244,11 +244,11 @@ export function CoordinationSection() {
               {/* Step 8 */}
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="8">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-600 font-bold text-[10px]">8</div>
-                  <User className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">8</div>
+                  <User className="w-4 h-4 text-blue-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Requestee Confirmation</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Requestee confirms slot and Agent A conveys this to engine.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Final Approval</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">User A reviews the selection and provides final approval.</p>
                 {/* Connector Arrow -> Right */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="8" data-dir="right">
                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
@@ -261,8 +261,8 @@ export function CoordinationSection() {
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 text-green-700 font-bold text-[10px]">9</div>
                   <CheckCircle2 className="w-4 h-4 text-green-600" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Success & Calendar</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine shows success. Both agents add events to calendars.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Success & Sync</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine finalizes state. Both agents automatically update calendars.</p>
               </div>
             </div>
 

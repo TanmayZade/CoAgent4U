@@ -67,8 +67,8 @@ public final class MeetingProposalJsonMapper {
                             Instant.parse((String) map.get("suggestedStart")),
                             Instant.parse((String) map.get("suggestedEnd"))),
                     ((Number) map.get("durationMinutes")).intValue(),
-                    (String) map.get("title"),
-                    (String) map.get("timezone"));
+                    (String) map.getOrDefault("title", "Coordination Sync"),
+                    (String) map.getOrDefault("timezone", "UTC"));
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Failed to deserialize MeetingProposal", e);
         }

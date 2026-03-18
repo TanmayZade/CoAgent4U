@@ -111,10 +111,10 @@ export function Navbar() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-4">
-            <Button variant="ghost" size="lg" className="text-base transition-all duration-300 hover:scale-105" asChild onClick={(e) => { e.preventDefault(); toast.info("Work in progress!") }}>
+            <Button variant="ghost" size="lg" className="text-base transition-all duration-300 hover:scale-105" asChild>
               <Link href="/signin">Sign In</Link>
             </Button>
-            <Button size="lg" className="text-base rounded-full px-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" asChild onClick={(e) => { e.preventDefault(); toast.info("Work in progress!") }}>
+            <Button size="lg" className="text-base rounded-full px-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105" asChild>
               <Link href="/signin">Get Started</Link>
             </Button>
           </div>
@@ -162,10 +162,10 @@ export function Navbar() {
                 Security
               </Link>
               <div className="mobile-menu-item flex flex-col gap-3 pt-6 mt-4 border-t border-border/40">
-                <Button variant="ghost" size="lg" className="justify-start text-base" asChild onClick={(e) => { e.preventDefault(); toast.info("Work in progress!") }}>
+                <Button variant="ghost" size="lg" className="justify-start text-base" asChild>
                   <Link href="/signin">Sign In</Link>
                 </Button>
-                <Button size="lg" className="text-base rounded-full" asChild onClick={(e) => { e.preventDefault(); toast.info("Work in progress!") }}>
+                <Button size="lg" className="text-base rounded-full" asChild>
                   <Link href="/signin">Get Started</Link>
                 </Button>
               </div>

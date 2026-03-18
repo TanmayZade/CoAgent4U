@@ -66,7 +66,7 @@ class DashboardControllerTest {
         DashboardSummary summary = new DashboardSummary(
                 new DashboardSummary.AgentStatusDto("ACTIVE", true, true, Instant.now()),
                 2,
-                List.of(new CoordinationSummary(UUID.randomUUID(), "bob", "INITIATED", Instant.now(), null, null)),
+                List.of(new CoordinationSummary(UUID.randomUUID(), "bob", null, null, "REQUESTER", "INITIATED", Instant.now(), null, null)),
                 List.of());
 
         when(dashboardSummaryUseCase.getSummary("alice")).thenReturn(summary);
@@ -98,7 +98,7 @@ class DashboardControllerTest {
     @DisplayName("GET /api/coordinations returns paginated history")
     void coordinationHistory_validUser() throws Exception {
         PaginatedResponse<CoordinationSummary> response = new PaginatedResponse<>(
-                List.of(new CoordinationSummary(UUID.randomUUID(), "bob", "COMPLETED", Instant.now(), null, null)),
+                List.of(new CoordinationSummary(UUID.randomUUID(), "bob", null, null, "REQUESTER", "COMPLETED", Instant.now(), null, null)),
                 0, 10, 1, 1);
 
         when(historyUseCase.getHistory("alice", null, 0, 10)).thenReturn(response);

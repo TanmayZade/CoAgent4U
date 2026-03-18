@@ -37,8 +37,8 @@ export default function DashboardPage() {
   const showSlackGuard = !isUserLoading && user && !user.isSlackAppInstalled && !slackGuardDismissed
 
   // Determine if there is an active coordination
-  const activeCoordinations = summary?.recentCoordinations?.filter(c => 
-    !['COMPLETED', 'REJECTED', 'FAILED'].includes(c.status)
+  const activeCoordinations = summary?.recentCoordinations?.filter((c: any) => 
+    !['COMPLETED', 'REJECTED', 'FAILED'].includes(c.state)
   ) || []
   
   const mostRecentActive = activeCoordinations.length > 0 ? activeCoordinations[0] : null;
@@ -62,8 +62,8 @@ export default function DashboardPage() {
         {mostRecentActive && (
           <ActiveCoordinationBanner 
             coordinationId={mostRecentActive.coordinationId}
-            participant={mostRecentActive.contactName}
-            state={mostRecentActive.status}
+            participant={mostRecentActive.withUsername}
+            state={mostRecentActive.state}
             startedAgo="Just now" // Ideally from updatedAt
           />
         )}
@@ -114,11 +114,11 @@ export default function DashboardPage() {
                   <div key={coord.coordinationId} className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-sm">
-                        {coord.contactName.substring(0, 2).toUpperCase()}
+                        {(coord.withUsername || '?').substring(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <div className="font-medium text-foreground">
-                          Meeting with {coord.contactName}
+                          Meeting with {coord.withUsername}
                         </div>
                         <div className="text-xs text-foreground/60 font-mono mt-1">
                           {new Date(coord.createdAt).toLocaleDateString()}
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                     <div>
-                      <StatusChip state={coord.status} />
+                      <StatusChip state={coord.state} />
                     </div>
                   </div>
                 ))}

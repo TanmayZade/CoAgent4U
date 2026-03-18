@@ -9,6 +9,9 @@ import java.util.UUID;
 public record CoordinationSummary(
         UUID coordinationId,
         String withUsername,
+        String withDisplayName,
+        String withAvatarUrl,
+        String role,
         String state,
         Instant createdAt,
         String meetingTitle,

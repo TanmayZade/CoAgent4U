@@ -149,6 +149,22 @@ public class BeanWiringConfig {
                                 .map(user -> user.getUsername())
                                 .orElse("unknown");
                     }
+
+                    @Override
+                    public String resolveDisplayName(com.coagent4u.shared.AgentId agentId) {
+                        return agentPersistence.findById(agentId)
+                                .flatMap(agent -> userQuery.findById(agent.getUserId()))
+                                .map(user -> user.getSlackIdentity() != null ? user.getSlackIdentity().displayName() : null)
+                                .orElse(null);
+                    }
+
+                    @Override
+                    public String resolveAvatarUrl(com.coagent4u.shared.AgentId agentId) {
+                        return agentPersistence.findById(agentId)
+                                .flatMap(agent -> userQuery.findById(agent.getUserId()))
+                                .map(user -> user.getSlackIdentity() != null ? user.getSlackIdentity().avatarUrl() : null)
+                                .orElse(null);
+                    }
                 };
 
         return new com.coagent4u.coordination.application.CoordinationQueryService(

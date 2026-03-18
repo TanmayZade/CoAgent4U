@@ -48,8 +48,8 @@ export default function CoordinationDetailPage() {
         <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3">
-              Meeting with {data?.contactName || '...'}
-              {data && <StatusChip state={data.status} />}
+              Meeting with {data?.withUsername || '...'}
+              {data && <StatusChip state={data.state} />}
             </h1>
             <p className="text-foreground/50 font-mono text-xs mt-1">
               ID: {id}
@@ -85,10 +85,10 @@ export default function CoordinationDetailPage() {
                   <div className="absolute left-8 right-8 top-1/2 -translate-y-1/2 h-0.5 bg-border/40 z-0"></div>
 
                   {PROTOCOL_STATES.map((stateInfo, index) => {
-                    const isTerminalRejection = (data.status === 'REJECTED' || data.status === 'FAILED')
-                    const isActive = data.status === stateInfo || 
-                                    (isTerminalRejection && stateInfo === data.status)
-                    const isPast = PROTOCOL_STATES.indexOf(data.status) > index && !isTerminalRejection
+                    const isTerminalRejection = (data.state === 'REJECTED' || data.state === 'FAILED')
+                    const isActive = data.state === stateInfo || 
+                                    (isTerminalRejection && stateInfo === data.state)
+                    const isPast = PROTOCOL_STATES.indexOf(data.state) > index && !isTerminalRejection
                     const stateLog = data.stateLogs?.find((log: any) => log.toState === stateInfo)
 
                     let colorClass = "bg-muted border-border/50 text-foreground/40"
@@ -118,7 +118,7 @@ export default function CoordinationDetailPage() {
                   })}
                   
                   {/* Append Terminal Error Node dynamically if applicable */}
-                  {(data.status === 'REJECTED' || data.status === 'FAILED') && (
+                  {(data.state === 'REJECTED' || data.state === 'FAILED') && (
                      <div className="relative z-10 flex flex-col items-center ml-4">
                         <div className="absolute right-full top-1/2 -translate-y-1/2 h-0.5 bg-rose-500/40 w-8 -z-10"></div>
                         <div className={`w-4 h-4 rounded-full border-2 bg-rose-500/20 border-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)] text-rose-500 animate-pulse transition-all duration-500 flex items-center justify-center`}>
@@ -126,7 +126,7 @@ export default function CoordinationDetailPage() {
                         </div>
                         <div className="absolute top-6 w-32 text-center">
                           <p className={`text-[9px] font-mono leading-tight text-rose-500`}>
-                            {data.status}
+                            {data.state}
                           </p>
                         </div>
                      </div>
@@ -139,15 +139,15 @@ export default function CoordinationDetailPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Proposal Context */}
-            {data.proposalTime && (
+            {data.meetingTime && (
               <div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm">
                 <h3 className="text-lg font-semibold tracking-tight mb-4 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-primary" />
                   Proposed Schedule
                 </h3>
                 <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
-                  <p className="text-foreground text-lg mb-1">{new Date(data.proposalTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p className="text-primary font-mono text-xl">{new Date(data.proposalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-foreground text-lg mb-1">{new Date(data.meetingTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="text-primary font-mono text-xl">{new Date(data.meetingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             )}
@@ -168,9 +168,9 @@ export default function CoordinationDetailPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                  <span className="text-sm font-medium">{data.contactName}</span>
+                  <span className="text-sm font-medium">{data.withUsername}</span>
                   <div className="flex items-center gap-2 text-xs">
-                     {data.status === 'AWAITING_APPROVAL_B' ? (
+                     {data.state === 'AWAITING_APPROVAL_B' ? (
                         <span className="text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium animate-pulse">Pending...</span>
                      ) : (
                         <>
