@@ -41,13 +41,31 @@ public class CoordinationQueryService implements GetCoordinationHistoryUseCase, 
     }
 
     @Override
-    public PaginatedResponse<CoordinationSummary> getHistory(String username, int page, int size) {
+    public PaginatedResponse<CoordinationSummary> getHistory(String username, String status, int page, int size) {
         AgentId agentId = resolver.resolveAgentId(username)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown user: " + username));
 
         int offset = page * size;
-        List<Coordination> coordinations = persistence.findByAgentId(agentId, offset, size);
-        long total = persistence.countByAgentId(agentId);
+        
+        List<Coordination> coordinations;
+        long total;
+        
+        if (status == null || status.equalsIgnoreCase("ALL")) {
+            coordinations = persistence.findByAgentId(agentId, offset, size);
+            total = persistence.countByAgentId(agentId);
+        } else if (status.equalsIgnoreCase("COMPLETED")) {
+            List<com.coagent4u.coordination.domain.CoordinationState> states = List.of(com.coagent4u.coordination.domain.CoordinationState.COMPLETED);
+            coordinations = persistence.findByAgentIdAndStates(agentId, states, offset, size);
+            total = persistence.countByAgentIdAndStates(agentId, states);
+        } else if (status.equalsIgnoreCase("PENDING")) {
+            List<com.coagent4u.coordination.domain.CoordinationState> states = java.util.Arrays.stream(com.coagent4u.coordination.domain.CoordinationState.values())
+                    .filter(s -> !s.isTerminal())
+                    .toList();
+            coordinations = persistence.findByAgentIdAndStates(agentId, states, offset, size);
+            total = persistence.countByAgentIdAndStates(agentId, states);
+        } else {
+            throw new IllegalArgumentException("Invalid status filter: " + status);
+        }
 
         List<CoordinationSummary> summaries = coordinations.stream()
                 .map(c -> toSummary(c, agentId))
@@ -75,11 +93,16 @@ public class CoordinationQueryService implements GetCoordinationHistoryUseCase, 
                 : c.getRequesterAgentId();
         String withUsername = resolver.resolveUsername(otherAgentId);
 
+        String title = c.getProposal() != null ? c.getProposal().title() : null;
+        java.time.Instant time = c.getProposal() != null ? c.getProposal().suggestedTime().start() : null;
+
         return new CoordinationSummary(
                 c.getCoordinationId().value(),
                 withUsername,
                 c.getState().name(),
-                c.getCreatedAt());
+                c.getCreatedAt(),
+                title,
+                time);
     }
 
     private CoordinationDetail toDetail(Coordination c) {

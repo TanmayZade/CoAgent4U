@@ -71,7 +71,7 @@ export function ApprovalSystem() {
 
   return (
     <section className="py-24 lg:py-32 bg-muted/30">
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-7xl px-6">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           {/* Left: Content */}
           <div ref={contentRef}>

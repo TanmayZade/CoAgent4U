@@ -41,10 +41,11 @@ public class CoordinationController {
     @GetMapping
     public ResponseEntity<?> getHistory(
             @RequestParam String username,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         try {
-            PaginatedResponse<CoordinationSummary> response = historyUseCase.getHistory(username, page, size);
+            PaginatedResponse<CoordinationSummary> response = historyUseCase.getHistory(username, status, page, size);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             log.warn("[CoordinationController] Bad request: {}", e.getMessage());

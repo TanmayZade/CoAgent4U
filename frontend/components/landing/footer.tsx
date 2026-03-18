@@ -34,7 +34,7 @@ export function Footer() {
 
   return (
     <footer ref={footerRef} className="border-t border-border/40 bg-muted/20">
-      <div className="mx-auto max-w-6xl px-6 py-16 lg:py-20">
+      <div className="mx-auto max-w-7xl px-6 py-16 lg:py-20">
         <div ref={linksRef} className="grid grid-cols-2 md:grid-cols-5 gap-10 lg:gap-16 mb-16">
           {/* Logo & Description */}
           <div className="col-span-2">

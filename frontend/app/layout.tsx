@@ -1,25 +1,27 @@
-import type { Metadata, Viewport } from 'next'
-import { Poppins, JetBrains_Mono, Playfair_Display } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
-import { ThemeProvider } from '@/components/theme-provider'
 import { QueryProvider } from '@/components/query-provider'
+import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/sonner'
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
+import type { Metadata, Viewport } from 'next'
+import { JetBrains_Mono, Playfair_Display, Poppins } from 'next/font/google'
 import './globals.css'
 
-const poppins = Poppins({ 
+const poppins = Poppins({
   subsets: ["latin"],
   weight: ['300', '400', '500', '600', '700'],
   variable: '--font-sans',
   display: 'swap',
 })
 
-const jetbrainsMono = JetBrains_Mono({ 
+const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: '--font-mono',
   display: 'swap',
 })
 
 // The Seasons-style elegant serif font for brand name
-const playfairDisplay = Playfair_Display({ 
+const playfairDisplay = Playfair_Display({
   subsets: ["latin"],
   weight: ['400', '500', '600'],
   variable: '--font-serif',
@@ -33,15 +35,15 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: '/icon-light-32x32.png',
+        url: '/images/logo-light.png',
         media: '(prefers-color-scheme: light)',
       },
       {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
+        url: '/images/logo-dark.png',
+        media: '(prefers-color-scheme: dark)',
       },
     ],
-    apple: '/apple-icon.png',
+    apple: '/images/logo-light.png',
   },
 }
 
@@ -64,13 +66,14 @@ export default function RootLayout({
           defaultTheme="light"
           enableSystem={false}
           disableTransitionOnChange={false}
-          forcedTheme="light"
         >
           <QueryProvider>
             {children}
           </QueryProvider>
         </ThemeProvider>
         <Analytics />
+        <SpeedInsights />
+        <Toaster />
       </body>
     </html>
   )

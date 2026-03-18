@@ -7,5 +7,5 @@ import com.coagent4u.shared.PaginatedResponse;
  * Inbound port for coordination history queries.
  */
 public interface GetCoordinationHistoryUseCase {
-    PaginatedResponse<CoordinationSummary> getHistory(String username, int page, int size);
+    PaginatedResponse<CoordinationSummary> getHistory(String username, String status, int page, int size);
 }

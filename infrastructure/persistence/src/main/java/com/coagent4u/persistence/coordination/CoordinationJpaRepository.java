@@ -17,6 +17,12 @@ public interface CoordinationJpaRepository extends JpaRepository<CoordinationJpa
 
     long countByRequesterAgentIdOrInviteeAgentId(UUID requesterAgentId, UUID inviteeAgentId);
 
+    @org.springframework.data.jpa.repository.Query("SELECT c FROM CoordinationJpaEntity c WHERE (c.requesterAgentId = :agentId OR c.inviteeAgentId = :agentId) AND c.state IN :states ORDER BY c.createdAt DESC")
+    Page<CoordinationJpaEntity> findByAgentIdAndStates(@org.springframework.data.repository.query.Param("agentId") UUID agentId, @org.springframework.data.repository.query.Param("states") List<String> states, Pageable pageable);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COUNT(c) FROM CoordinationJpaEntity c WHERE (c.requesterAgentId = :agentId OR c.inviteeAgentId = :agentId) AND c.state IN :states")
+    long countByAgentIdAndStates(@org.springframework.data.repository.query.Param("agentId") UUID agentId, @org.springframework.data.repository.query.Param("states") List<String> states);
+
     default List<CoordinationJpaEntity> findTopNByAgentId(UUID agentId, int n) {
         return findByRequesterAgentIdOrInviteeAgentIdOrderByCreatedAtDesc(
                 agentId, agentId, PageRequest.of(0, n)).getContent();

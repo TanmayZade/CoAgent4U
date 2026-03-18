@@ -19,6 +19,10 @@ public interface CoordinationPersistencePort {
 
     long countByAgentId(com.coagent4u.shared.AgentId agentId);
 
+    java.util.List<Coordination> findByAgentIdAndStates(com.coagent4u.shared.AgentId agentId, java.util.List<com.coagent4u.coordination.domain.CoordinationState> states, int offset, int limit);
+
+    long countByAgentIdAndStates(com.coagent4u.shared.AgentId agentId, java.util.List<com.coagent4u.coordination.domain.CoordinationState> states);
+
     java.util.List<Coordination> findRecentByAgentId(com.coagent4u.shared.AgentId agentId, int limit);
 
     void appendStateLog(CoordinationStateLogEntry entry);

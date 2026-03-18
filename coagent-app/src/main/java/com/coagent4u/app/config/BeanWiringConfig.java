@@ -170,7 +170,7 @@ public class BeanWiringConfig {
                                 .flatMap(agent -> userQuery.findById(agent.getUserId()))
                                 .map(user -> user.getUsername())
                                 .orElse("unknown"),
-                        0, limit).content();
+                        null, 0, limit).content();
 
         return new com.coagent4u.agent.application.DashboardService(
                 userQuery, agentPersistence,

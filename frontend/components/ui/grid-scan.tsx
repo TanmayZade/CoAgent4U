@@ -137,12 +137,12 @@ export function GridScan({
           }}
         />
 
-        {/* Center Fade Overlay - Creates the dark tunnel center */}
+        {/* Center Fade Overlay - Blends cleanly into the background */}
         <div
           style={{
             position: 'absolute',
             inset: 0,
-            background: 'radial-gradient(ellipse at center, rgba(0,0,0,0.9) 0%, transparent 70%)',
+            background: 'radial-gradient(ellipse at center, var(--background) 0%, transparent 70%)',
             pointerEvents: 'none',
           }}
         />
@@ -167,7 +167,7 @@ export function GridScan({
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.8) 100%)',
+          background: 'radial-gradient(ellipse at center, transparent 30%, var(--background) 100%)',
           pointerEvents: 'none',
         }}
       />

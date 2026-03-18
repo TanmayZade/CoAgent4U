@@ -55,7 +55,7 @@ class CoordinationQueryServiceTest {
         when(persistence.findByAgentId(agentId, 0, 10)).thenReturn(List.of(coord));
         when(persistence.countByAgentId(agentId)).thenReturn(1L);
 
-        PaginatedResponse<CoordinationSummary> result = service.getHistory(username, 0, 10);
+        PaginatedResponse<CoordinationSummary> result = service.getHistory(username, null, 0, 10);
 
         assertEquals(1, result.content().size());
         assertEquals("bob", result.content().get(0).withUsername());
@@ -71,7 +71,7 @@ class CoordinationQueryServiceTest {
         when(resolver.resolveAgentId("unknown")).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () ->
-                service.getHistory("unknown", 0, 10));
+                service.getHistory("unknown", null, 0, 10));
     }
 
     @Test
@@ -84,7 +84,7 @@ class CoordinationQueryServiceTest {
         when(persistence.findByAgentId(agentId, 0, 10)).thenReturn(List.of());
         when(persistence.countByAgentId(agentId)).thenReturn(0L);
 
-        PaginatedResponse<CoordinationSummary> result = service.getHistory(username, 0, 10);
+        PaginatedResponse<CoordinationSummary> result = service.getHistory(username, null, 0, 10);
 
         assertTrue(result.content().isEmpty());
         assertEquals(0, result.totalElements());

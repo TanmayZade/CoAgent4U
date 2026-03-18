@@ -14,9 +14,12 @@ export function CoordinationSection() {
   const headerRef = useRef<HTMLDivElement>(null)
   const flowRef = useRef<HTMLDivElement>(null)
   const stepsRef = useRef<HTMLDivElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const ctx = gsap.context(() => {
+      if (!sectionRef.current) return;
+
       // Header animation
       gsap.fromTo(
         headerRef.current,
@@ -34,70 +37,80 @@ export function CoordinationSection() {
         }
       )
 
-      // Flow items stagger animation
-      const flowItems = flowRef.current?.querySelectorAll(".flow-item")
-      if (flowItems) {
-        gsap.fromTo(
-          flowItems,
-          { opacity: 0, y: 30, scale: 0.9 },
-          { 
-            opacity: 1, 
-            y: 0, 
-            scale: 1,
-            duration: 0.6, 
-            stagger: 0.1,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: flowRef.current,
-              start: "top 80%",
-              toggleActions: "play none none reverse",
-            }
-          }
-        )
+      // Unified sequential timeline for grid items and arrows
+      const tl = gsap.timeline({ paused: true });
+
+      // Elevate the entire container automatically during the step sequence
+      if (containerRef.current) {
+        tl.call(() => {
+          containerRef.current?.classList.add("is-elevated")
+        }, undefined, 0)
       }
 
-      // Arrows animation
-      const arrows = flowRef.current?.querySelectorAll(".flow-arrow")
-      if (arrows) {
-        gsap.fromTo(
-          arrows,
-          { opacity: 0, x: -10 },
-          { 
-            opacity: 1, 
-            x: 0,
-            duration: 0.4, 
-            stagger: 0.1,
-            delay: 0.5,
-            ease: "power2.out",
-            scrollTrigger: {
-              trigger: flowRef.current,
-              start: "top 80%",
-              toggleActions: "play none none reverse",
+      // Loop logically from 1 to 9 to strictly sequence Card -> Arrow -> Card -> Arrow
+      for (let i = 1; i <= 9; i++) {
+        const item = flowRef.current?.querySelector(`.flow-item[data-index="${i}"]`);
+        const arrow = flowRef.current?.querySelector(`.flow-arrow[data-index="${i}"]`);
+
+        // 1. Reveal the card
+        if (item) {
+          tl.fromTo(
+            item,
+            { opacity: 0, y: 30, scale: 0.95 },
+            { 
+              opacity: 1, 
+              y: 0, 
+              scale: 1,
+              duration: 0.8, // Fluid auto-play speed
+              ease: "back.out(1.2)",
             }
+          );
+        }
+
+        // 2. Draw the corresponding arrow
+        if (arrow) {
+          const dir = arrow.getAttribute("data-dir") || "right";
+          
+          let fromVars: Record<string, any> = { opacity: 0 };
+          let toVars: Record<string, any> = { 
+            opacity: 1, 
+            duration: 0.5, // Fluid auto-play speed
+            ease: "power2.inOut",
+          };
+
+          if (dir === "right") {
+            fromVars.scaleX = 0;
+            fromVars.transformOrigin = "left center";
+            toVars.scaleX = 1;
+          } else if (dir === "left") {
+            fromVars.scaleX = 0;
+            fromVars.transformOrigin = "right center";
+            toVars.scaleX = 1;
+          } else if (dir === "down") {
+            fromVars.scaleY = 0;
+            fromVars.transformOrigin = "top center";
+            toVars.scaleY = 1;
           }
-        )
+
+          tl.fromTo(arrow, fromVars, toVars);
+        }
       }
 
-      // Steps stagger animation
-      const stepCards = stepsRef.current?.querySelectorAll(".step-card")
-      if (stepCards) {
-        gsap.fromTo(
-          stepCards,
-          { opacity: 0, y: 30 },
-          { 
-            opacity: 1, 
-            y: 0,
-            duration: 0.6, 
-            stagger: 0.15,
-            ease: "power3.out",
-            scrollTrigger: {
-              trigger: stepsRef.current,
-              start: "top 85%",
-              toggleActions: "play none none reverse",
-            }
-          }
-        )
+      // Return the container to its flat resting state after the sequence finishes
+      if (containerRef.current) {
+        tl.call(() => {
+          containerRef.current?.classList.remove("is-elevated")
+        })
       }
+
+      // Auto-play timeline cleanly when scrolled into view. No pinning, no scrubbing, no rewinding!
+      ScrollTrigger.create({
+        trigger: sectionRef.current,
+        start: "top 60%", // Start early enough so it's playing when user sees it
+        animation: tl,
+        toggleActions: "play none none none", // Fire once globally!
+      });
+
     }, sectionRef)
 
     return () => ctx.revert()
@@ -105,9 +118,9 @@ export function CoordinationSection() {
 
   return (
     <section ref={sectionRef} id="how-it-works" className="py-24 lg:py-32 bg-muted/30">
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-7xl px-6">
         {/* Section header */}
-        <div ref={headerRef} className="max-w-2xl mx-auto text-center mb-16">
+        <div ref={headerRef} className="max-w-2xl mx-auto text-center mb-8">
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
             Agent Coordination Visualization
           </p>
@@ -120,92 +133,140 @@ export function CoordinationSection() {
         </div>
 
         {/* Coordination flow visual */}
-        <div className="max-w-4xl mx-auto">
-          <div className="rounded-2xl border border-border/60 bg-card p-6 lg:p-10 card-hover">
+        <div className="max-w-[75rem] mx-auto">
+          <div ref={containerRef} className="rounded-xl border border-border/60 bg-card p-6 lg:p-8 transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] hover:border-foreground/20 [&.is-elevated]:scale-[1.02] [&.is-elevated]:shadow-[0_20px_40px_rgba(0,0,0,0.08)] [&.is-elevated]:border-foreground/20">
             {/* Mental model text */}
-            <p className="text-center text-sm text-muted-foreground mb-8">
+            <p className="text-center text-xs text-muted-foreground mb-6">
               Human → Personal Agent → Agent Coordination Network → Coordinated Outcome
             </p>
 
-            {/* Flow diagram */}
-            <div ref={flowRef} className="flex flex-col lg:flex-row items-center justify-between gap-6 lg:gap-4">
-              {/* User A */}
-              <div className="flow-item flex flex-col items-center text-center group cursor-pointer">
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3 border border-border transition-all duration-300 group-hover:scale-110 group-hover:border-foreground/50">
-                  <User className="w-7 h-7 text-foreground" />
+            {/* Flow diagram - 9 Steps Grid */}
+            <div ref={flowRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 lg:gap-y-8 gap-x-12 relative max-w-5xl mx-auto">
+              
+              {/* Step 1 */}
+              <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="1">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/10 text-blue-600 font-bold text-[10px]">1</div>
+                  <User className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <span className="text-sm font-medium text-foreground">User A</span>
-                <span className="text-xs text-muted-foreground">Invokes agent</span>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Human Intent</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">User sends intent via natural human language.</p>
+                {/* Connector Arrow -> Right */}
+                <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="1" data-dir="right">
+                   <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
+                </div>
               </div>
 
-              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-foreground" />
-
-              {/* Agent A */}
-              <div className="flow-item flex flex-col items-center text-center group cursor-pointer">
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3 border border-border transition-all duration-300 group-hover:scale-110 group-hover:border-foreground/50">
-                  <Bot className="w-7 h-7 text-foreground transition-colors duration-300 group-hover:text-foreground" />
+              {/* Step 2 */}
+              <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-purple-500/10 text-purple-600 font-bold text-[10px]">2</div>
+                  <Bot className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <span className="text-sm font-medium text-foreground">Agent A</span>
-                <span className="text-xs text-muted-foreground">Parses intent</span>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Intent Parsing</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent parses the intent and checks calendar.</p>
+                {/* Connector Arrow -> Right */}
+                <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="2" data-dir="right">
+                   <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
+                </div>
               </div>
 
-              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-foreground" />
-
-              {/* Coordination Engine */}
-              <div className="flow-item flex flex-col items-center text-center group cursor-pointer">
-                <div className="w-16 h-16 rounded-2xl bg-foreground flex items-center justify-center mb-3 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-foreground/20">
-                  <span className="text-background font-bold text-lg">CE</span>
+              {/* Step 3 */}
+              <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="3">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500/10 text-indigo-600 font-bold text-[10px]">3</div>
+                  <div className="w-5 h-5 rounded bg-foreground flex items-center justify-center"><span className="text-[9px] font-bold text-background">CE</span></div>
                 </div>
-                <span className="text-sm font-medium text-foreground">Coordination</span>
-                <span className="text-xs text-muted-foreground">Engine</span>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Initiate Request</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Starts coordination request with engine.</p>
+                {/* Connector Arrow -> Down */}
+                <div className="flow-arrow hidden lg:block absolute -bottom-8 left-1/2 w-[2px] h-8 bg-foreground z-[-1] -translate-x-1/2" data-index="3" data-dir="down">
+                   <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[2px] w-2 h-2 border-b-2 border-r-2 border-foreground rotate-45" />
+                </div>
               </div>
 
-              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-foreground" />
-
-              {/* Agent B */}
-              <div className="flow-item flex flex-col items-center text-center group cursor-pointer">
-                <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3 border border-border transition-all duration-300 group-hover:scale-110 group-hover:border-foreground/50">
-                  <Bot className="w-7 h-7 text-foreground transition-colors duration-300 group-hover:text-foreground" />
+              {/* Step 6 */}
+              <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-rose-500/10 text-rose-600 font-bold text-[10px]">6</div>
+                  <User className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <span className="text-sm font-medium text-foreground">Agent B</span>
-                <span className="text-xs text-muted-foreground">Checks availability</span>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Invitee Selection</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Invitee selects a slot and Agent B passes it to the engine.</p>
+                {/* Connector Arrow -> Down */}
+                <div className="flow-arrow hidden lg:block absolute -bottom-8 left-1/2 w-[2px] h-8 bg-foreground z-[-1] -translate-x-1/2" data-index="6" data-dir="down">
+                   <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[2px] w-2 h-2 border-b-2 border-r-2 border-foreground rotate-45" />
+                </div>
               </div>
 
-              <ArrowRight className="flow-arrow w-5 h-5 text-muted-foreground/50 rotate-90 lg:rotate-0 transition-colors duration-300 hover:text-foreground" />
-
-              {/* User B */}
-              <div className="flow-item flex flex-col items-center text-center group cursor-pointer">
-                <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mb-3 transition-all duration-300 group-hover:scale-110 group-hover:bg-green-500/20">
-                  <CheckCircle2 className="w-7 h-7 text-green-600" />
+              {/* Step 5 */}
+              <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="5">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-600 font-bold text-[10px]">5</div>
+                  <Bot className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <span className="text-sm font-medium text-foreground">User B</span>
-                <span className="text-xs text-muted-foreground">Approves first</span>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Pass Availability</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine passes common availability slots back to both agents.</p>
+                {/* Connector Arrow -> Left */}
+                <div className="flow-arrow hidden lg:block absolute top-1/2 -left-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="5" data-dir="left">
+                   <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[2px] w-2 h-2 border-b-2 border-l-2 border-foreground rotate-45" />
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-500/10 text-amber-600 font-bold text-[10px]">4</div>
+                  <div className="w-5 h-5 rounded bg-foreground flex items-center justify-center"><span className="text-[9px] font-bold text-background">CE</span></div>
+                </div>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Source Slots</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Coordination engine sources slots from both agents.</p>
+                {/* Connector Arrow -> Left */}
+                <div className="flow-arrow hidden lg:block absolute top-1/2 -left-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="4" data-dir="left">
+                   <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[2px] w-2 h-2 border-b-2 border-l-2 border-foreground rotate-45" />
+                </div>
+              </div>
+
+              {/* Step 7 */}
+              <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="7">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-orange-500/10 text-orange-600 font-bold text-[10px]">7</div>
+                  <div className="w-5 h-5 rounded bg-foreground flex items-center justify-center"><span className="text-[9px] font-bold text-background">CE</span></div>
+                </div>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Relay Selection</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Coordination engine passes the selected slot to requestee (User A).</p>
+                {/* Connector Arrow -> Right */}
+                <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="7" data-dir="right">
+                   <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
+                </div>
+              </div>
+
+              {/* Step 8 */}
+              <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="8">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-cyan-500/10 text-cyan-600 font-bold text-[10px]">8</div>
+                  <User className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Requestee Confirmation</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Requestee confirms slot and Agent A conveys this to engine.</p>
+                {/* Connector Arrow -> Right */}
+                <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="8" data-dir="right">
+                   <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
+                </div>
+              </div>
+
+              {/* Step 9 */}
+              <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors border-green-500/30 bg-green-500/5 relative isolate" data-index="9">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 text-green-700 font-bold text-[10px]">9</div>
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                </div>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Success & Calendar</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine shows success. Both agents add events to calendars.</p>
               </div>
             </div>
 
-            {/* Description */}
-            <div ref={stepsRef} className="mt-10 pt-8 border-t border-border/60">
-              <div className="grid sm:grid-cols-3 gap-6">
-                <div className="step-card p-4 rounded-xl transition-all duration-300 hover:bg-muted/30">
-                  <p className="text-sm font-medium text-foreground mb-1">Step 1: Intent & Availability</p>
-                  <p className="text-sm text-muted-foreground">
-                    Agent A parses the request and checks User A&apos;s calendar for available time slots.
-                  </p>
-                </div>
-                <div className="step-card p-4 rounded-xl transition-all duration-300 hover:bg-muted/30">
-                  <p className="text-sm font-medium text-foreground mb-1">Step 2: Deterministic Matching</p>
-                  <p className="text-sm text-muted-foreground">
-                    Coordination Engine queries Agent B and performs deterministic matching to find common availability.
-                  </p>
-                </div>
-                <div className="step-card p-4 rounded-xl transition-all duration-300 hover:bg-muted/30">
-                  <p className="text-sm font-medium text-foreground mb-1">Step 3: Human Approval</p>
-                  <p className="text-sm text-muted-foreground">
-                    User B approves slot proposals first, then User A confirms. Events created in both calendars.
-                  </p>
-                </div>
-              </div>
-            </div>
+            {/* Description Removed since steps are detailed in the grid above */}
           </div>
         </div>
       </div>

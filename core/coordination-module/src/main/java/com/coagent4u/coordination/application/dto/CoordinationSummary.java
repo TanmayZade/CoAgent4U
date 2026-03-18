@@ -10,5 +10,7 @@ public record CoordinationSummary(
         UUID coordinationId,
         String withUsername,
         String state,
-        Instant createdAt
+        Instant createdAt,
+        String meetingTitle,
+        Instant meetingTime
 ) {}

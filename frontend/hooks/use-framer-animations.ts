@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import { useInView } from "framer-motion"
+import { useInView, Variants } from "framer-motion"
 
 /**
  * Custom hook for scroll-triggered animations with Framer Motion
@@ -20,7 +20,7 @@ export function useScrollAnimation() {
 /**
  * Container animation variants for fade-in and slide-up
  */
-export const containerVariants = {
+export const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -34,7 +34,7 @@ export const containerVariants = {
 /**
  * Item animation variants for staggered children
  */
-export const itemVariants = {
+export const itemVariants: Variants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
@@ -49,7 +49,7 @@ export const itemVariants = {
 /**
  * Fade and slide up animation
  */
-export const fadeSlideUpVariants = {
+export const fadeSlideUpVariants: Variants = {
   hidden: { 
     opacity: 0, 
     y: 40 
@@ -67,7 +67,7 @@ export const fadeSlideUpVariants = {
 /**
  * Staggered fade in for multiple items
  */
-export const staggerContainerVariants = {
+export const staggerContainerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
     opacity: 1,
@@ -81,7 +81,7 @@ export const staggerContainerVariants = {
 /**
  * Subtle scale animation on scroll
  */
-export const scaleUpVariants = {
+export const scaleUpVariants: Variants = {
   hidden: { 
     opacity: 0, 
     scale: 0.95,

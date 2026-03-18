@@ -37,7 +37,7 @@ export function PlatformBenefits() {
 
   return (
     <section className="py-24 lg:py-32" ref={sectionRef}>
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-7xl px-6">
         {/* Section header */}
         <motion.div 
           className="max-w-2xl mx-auto text-center mb-16"

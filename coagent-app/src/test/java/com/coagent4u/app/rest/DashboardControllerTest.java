@@ -66,7 +66,7 @@ class DashboardControllerTest {
         DashboardSummary summary = new DashboardSummary(
                 new DashboardSummary.AgentStatusDto("ACTIVE", true, true, Instant.now()),
                 2,
-                List.of(new CoordinationSummary(UUID.randomUUID(), "bob", "INITIATED", Instant.now())),
+                List.of(new CoordinationSummary(UUID.randomUUID(), "bob", "INITIATED", Instant.now(), null, null)),
                 List.of());
 
         when(dashboardSummaryUseCase.getSummary("alice")).thenReturn(summary);
@@ -98,10 +98,10 @@ class DashboardControllerTest {
     @DisplayName("GET /api/coordinations returns paginated history")
     void coordinationHistory_validUser() throws Exception {
         PaginatedResponse<CoordinationSummary> response = new PaginatedResponse<>(
-                List.of(new CoordinationSummary(UUID.randomUUID(), "bob", "COMPLETED", Instant.now())),
+                List.of(new CoordinationSummary(UUID.randomUUID(), "bob", "COMPLETED", Instant.now(), null, null)),
                 0, 10, 1, 1);
 
-        when(historyUseCase.getHistory("alice", 0, 10)).thenReturn(response);
+        when(historyUseCase.getHistory("alice", null, 0, 10)).thenReturn(response);
 
         coordinationMvc.perform(get("/api/coordinations")
                         .param("username", "alice")
@@ -118,7 +118,7 @@ class DashboardControllerTest {
     @Test
     @DisplayName("GET /api/coordinations returns 400 for unknown user")
     void coordinationHistory_unknownUser() throws Exception {
-        when(historyUseCase.getHistory("unknown", 0, 10))
+        when(historyUseCase.getHistory("unknown", null, 0, 10))
                 .thenThrow(new IllegalArgumentException("Unknown user: unknown"));
 
         coordinationMvc.perform(get("/api/coordinations")

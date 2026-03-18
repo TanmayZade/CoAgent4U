@@ -75,6 +75,22 @@ public class CoordinationPersistenceAdapter implements CoordinationPersistencePo
     }
 
     @Override
+    public List<Coordination> findByAgentIdAndStates(AgentId agentId, List<CoordinationState> states, int offset, int limit) {
+        List<String> stateStrings = states.stream().map(Enum::name).toList();
+        org.springframework.data.domain.Page<CoordinationJpaEntity> page =
+                repository.findByAgentIdAndStates(
+                        agentId.value(), stateStrings,
+                        org.springframework.data.domain.PageRequest.of(offset / Math.max(limit, 1), limit));
+        return page.getContent().stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    public long countByAgentIdAndStates(AgentId agentId, List<CoordinationState> states) {
+        List<String> stateStrings = states.stream().map(Enum::name).toList();
+        return repository.countByAgentIdAndStates(agentId.value(), stateStrings);
+    }
+
+    @Override
     public List<Coordination> findRecentByAgentId(AgentId agentId, int limit) {
         return repository.findTopNByAgentId(agentId.value(), limit)
                 .stream().map(this::toDomain).toList();
