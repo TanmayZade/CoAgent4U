@@ -28,6 +28,9 @@ import com.coagent4u.user.application.UserManagementService;
 import com.coagent4u.user.port.out.NotificationPort;
 import com.coagent4u.user.port.out.UserPersistencePort;
 import com.coagent4u.user.port.out.UserQueryPort;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Central Spring configuration that wires domain services and capability
@@ -127,46 +130,116 @@ public class BeanWiringConfig {
     // ── Dashboard Query Services ─────────────────────────────────
 
     @Bean
+    public Cache<String, com.coagent4u.shared.AgentId> agentIdCache() {
+        return Caffeine.newBuilder()
+                .expireAfterWrite(10, TimeUnit.MINUTES)
+                .maximumSize(1000)
+                .build();
+    }
+
+    @Bean
+    public Cache<com.coagent4u.shared.AgentId, com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile> agentProfileCache() {
+        return Caffeine.newBuilder()
+                .expireAfterWrite(10, TimeUnit.MINUTES)
+                .maximumSize(1000)
+                .build();
+    }
+
+    @Bean
+    com.coagent4u.coordination.application.CoordinationQueryService.UserAgentResolver userAgentResolver(
+            AgentPersistencePort agentPersistence,
+            UserQueryPort userQuery,
+            Cache<String, com.coagent4u.shared.AgentId> agentIdCache,
+            Cache<com.coagent4u.shared.AgentId, com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile> profileCache) {
+        // Bridge: resolves username ↔ AgentId without coupling modules
+        return new com.coagent4u.coordination.application.CoordinationQueryService.UserAgentResolver() {
+            @Override
+            public java.util.Optional<com.coagent4u.shared.AgentId> resolveAgentId(String username) {
+                com.coagent4u.shared.AgentId cached = agentIdCache.getIfPresent(username);
+                if (cached != null) return java.util.Optional.of(cached);
+
+                java.util.Optional<com.coagent4u.shared.AgentId> resolved = userQuery.findByUsername(username)
+                        .flatMap(user -> agentPersistence.findByUserId(user.getUserId()))
+                        .map(agent -> agent.getAgentId());
+                
+                resolved.ifPresent(id -> agentIdCache.put(username, id));
+                return resolved;
+            }
+
+            @Override
+            public com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile resolveProfile(com.coagent4u.shared.AgentId agentId) {
+                return profileCache.get(agentId, id -> agentPersistence.findById(id)
+                        .flatMap(agent -> userQuery.findById(agent.getUserId()))
+                        .map(user -> new com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile(
+                                user.getUsername(),
+                                user.getSlackIdentity() != null ? user.getSlackIdentity().displayName() : null,
+                                user.getSlackIdentity() != null ? user.getSlackIdentity().avatarUrl() : null
+                        ))
+                        .orElse(new com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile("unknown", null, null)));
+            }
+
+            @Override
+            public java.util.Map<com.coagent4u.shared.AgentId, com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile> resolveProfiles(java.util.Collection<com.coagent4u.shared.AgentId> agentIds) {
+                if (agentIds.isEmpty()) return java.util.Map.of();
+
+                java.util.Map<com.coagent4u.shared.AgentId, com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile> result = new java.util.HashMap<>();
+                java.util.List<com.coagent4u.shared.AgentId> toFetch = new java.util.ArrayList<>();
+
+                for (com.coagent4u.shared.AgentId id : agentIds) {
+                    com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile cached = profileCache.getIfPresent(id);
+                    if (cached != null) {
+                        result.put(id, cached);
+                    } else {
+                        toFetch.add(id);
+                    }
+                }
+
+                if (!toFetch.isEmpty()) {
+                    // Fetch all agents
+                    java.util.List<com.coagent4u.agent.domain.Agent> agents = agentPersistence.findAllById(toFetch);
+                    java.util.Map<com.coagent4u.shared.UserId, com.coagent4u.shared.AgentId> userToAgentMap = agents.stream()
+                            .collect(java.util.stream.Collectors.toMap(com.coagent4u.agent.domain.Agent::getUserId, com.coagent4u.agent.domain.Agent::getAgentId));
+
+                    // Fetch all users
+                    java.util.List<com.coagent4u.user.domain.User> users = userQuery.findAllById(userToAgentMap.keySet());
+
+                    // Map users back to profiles and put in cache
+                    for (com.coagent4u.user.domain.User user : users) {
+                        com.coagent4u.shared.AgentId aid = userToAgentMap.get(user.getUserId());
+                        com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile p = new com.coagent4u.coordination.application.CoordinationQueryService.AgentProfile(
+                                user.getUsername(),
+                                user.getSlackIdentity() != null ? user.getSlackIdentity().displayName() : null,
+                                user.getSlackIdentity() != null ? user.getSlackIdentity().avatarUrl() : null
+                        );
+                        result.put(aid, p);
+                        profileCache.put(aid, p);
+                    }
+                }
+
+                return result;
+            }
+
+            @Override
+            public String resolveUsername(com.coagent4u.shared.AgentId agentId) {
+                return resolveProfile(agentId).username();
+            }
+
+            @Override
+            public String resolveDisplayName(com.coagent4u.shared.AgentId agentId) {
+                return resolveProfile(agentId).displayName();
+            }
+
+            @Override
+            public String resolveAvatarUrl(com.coagent4u.shared.AgentId agentId) {
+                return resolveProfile(agentId).avatarUrl();
+            }
+        };
+    }
+
+    @Bean
     com.coagent4u.coordination.application.CoordinationQueryService coordinationQueryService(
             CoordinationPersistencePort coordinationPersistence,
-            AgentPersistencePort agentPersistence,
-            UserQueryPort userQuery) {
-
-        // Bridge: resolves username ↔ AgentId without coupling modules
-        com.coagent4u.coordination.application.CoordinationQueryService.UserAgentResolver resolver =
-                new com.coagent4u.coordination.application.CoordinationQueryService.UserAgentResolver() {
-                    @Override
-                    public java.util.Optional<com.coagent4u.shared.AgentId> resolveAgentId(String username) {
-                        return userQuery.findByUsername(username)
-                                .flatMap(user -> agentPersistence.findByUserId(user.getUserId()))
-                                .map(agent -> agent.getAgentId());
-                    }
-
-                    @Override
-                    public String resolveUsername(com.coagent4u.shared.AgentId agentId) {
-                        return agentPersistence.findById(agentId)
-                                .flatMap(agent -> userQuery.findById(agent.getUserId()))
-                                .map(user -> user.getUsername())
-                                .orElse("unknown");
-                    }
-
-                    @Override
-                    public String resolveDisplayName(com.coagent4u.shared.AgentId agentId) {
-                        return agentPersistence.findById(agentId)
-                                .flatMap(agent -> userQuery.findById(agent.getUserId()))
-                                .map(user -> user.getSlackIdentity() != null ? user.getSlackIdentity().displayName() : null)
-                                .orElse(null);
-                    }
-
-                    @Override
-                    public String resolveAvatarUrl(com.coagent4u.shared.AgentId agentId) {
-                        return agentPersistence.findById(agentId)
-                                .flatMap(agent -> userQuery.findById(agent.getUserId()))
-                                .map(user -> user.getSlackIdentity() != null ? user.getSlackIdentity().avatarUrl() : null)
-                                .orElse(null);
-                    }
-                };
-
+            com.coagent4u.coordination.application.CoordinationQueryService.UserAgentResolver resolver) {
         return new com.coagent4u.coordination.application.CoordinationQueryService(
                 coordinationPersistence, resolver);
     }

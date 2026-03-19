@@ -25,6 +25,7 @@ import com.coagent4u.coordination.port.out.AgentApprovalPort;
 import com.coagent4u.coordination.port.out.AgentAvailabilityPort;
 import com.coagent4u.coordination.port.out.AgentEventExecutionPort;
 import com.coagent4u.coordination.port.out.AgentProfilePort;
+import com.coagent4u.coordination.port.out.ApprovalRequestResult;
 import com.coagent4u.coordination.port.out.CoordinationPersistencePort;
 import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.CoordinationId;
@@ -195,9 +196,13 @@ public class CoordinationService implements CoordinationProtocolPort {
         persistence.save(coordination);
         log.info("[CoordinationService] {} → AWAITING_APPROVAL_A (invitee approved via slot selection)", coordinationId);
 
-        var approvalId = agentApprovalPort.requestApproval(coordination.getRequesterAgentId(), proposal);
-        log.info("[ApprovalService] Approval created id={} for requester agent {}", approvalId,
+        ApprovalRequestResult result = agentApprovalPort.requestApproval(coordination.getRequesterAgentId(), proposal);
+        log.info("[ApprovalService] Approval created id={} for requester agent {}", result.approvalId(),
                 coordination.getRequesterAgentId());
+
+        if (result.messageTs() != null) {
+            coordination.setMetadata("requester_approval_ts", result.messageTs());
+        }
 
         persistence.save(coordination);
     }
@@ -233,10 +238,14 @@ public class CoordinationService implements CoordinationProtocolPort {
             persistence.save(coordination);
             log.info("[CoordinationService] {} → AWAITING_APPROVAL_A (invitee approved)", coordinationId);
 
-            var approvalId = agentApprovalPort.requestApproval(
+            ApprovalRequestResult result = agentApprovalPort.requestApproval(
                     coordination.getRequesterAgentId(), coordination.getProposal());
-            log.info("[ApprovalService] Approval created id={} for requester agent {}", approvalId,
+            log.info("[ApprovalService] Approval created id={} for requester agent {}", result.approvalId(),
                     coordination.getRequesterAgentId());
+
+            if (result.messageTs() != null) {
+                coordination.setMetadata("requester_approval_ts", result.messageTs());
+            }
 
             persistence.save(coordination);
 

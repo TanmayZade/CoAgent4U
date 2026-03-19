@@ -10,7 +10,12 @@ import java.util.UUID;
 public record CoordinationDetail(
         UUID coordinationId,
         String requesterUsername,
+        String requesterDisplayName,
+        String requesterAvatarUrl,
         String inviteeUsername,
+        String inviteeDisplayName,
+        String inviteeAvatarUrl,
+        String role,
         String state,
         MeetingProposalDto proposal,
         Instant createdAt,

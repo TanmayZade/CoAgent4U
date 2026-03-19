@@ -13,6 +13,7 @@ import com.coagent4u.approval.domain.ApprovalType;
 import com.coagent4u.approval.port.in.CreateApprovalUseCase;
 import com.coagent4u.coordination.domain.MeetingProposal;
 import com.coagent4u.coordination.port.out.AgentApprovalPort;
+import com.coagent4u.coordination.port.out.ApprovalRequestResult;
 import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.ApprovalId;
 import com.coagent4u.shared.CoordinationId;
@@ -52,7 +53,7 @@ public class AgentApprovalPortImpl implements AgentApprovalPort {
         }
 
         @Override
-        public ApprovalId requestApproval(AgentId agentId, MeetingProposal proposal) {
+        public ApprovalRequestResult requestApproval(AgentId agentId, MeetingProposal proposal) {
                 var agent = agentPersistence.findById(agentId)
                                 .orElseThrow(() -> new java.util.NoSuchElementException("Agent not found: " + agentId));
 
@@ -69,22 +70,22 @@ public class AgentApprovalPortImpl implements AgentApprovalPort {
                 );
 
                 // Send Slack approval card to the user
-                sendApprovalCard(agent.getUserId(), agentId, proposal, approvalId);
+                String ts = sendApprovalCard(agent.getUserId(), agentId, proposal, approvalId);
 
-                return approvalId;
+                return new ApprovalRequestResult(approvalId, ts);
         }
 
         /**
          * Sends a Slack approval card with meeting details and the counterparty's
          * mention.
          */
-        private void sendApprovalCard(com.coagent4u.shared.UserId userId, AgentId thisAgentId,
+        private String sendApprovalCard(com.coagent4u.shared.UserId userId, AgentId thisAgentId,
                         MeetingProposal proposal, ApprovalId approvalId) {
                 try {
                         User user = userPersistence.findById(userId).orElse(null);
                         if (user == null) {
                                 log.warn("[AgentApprovalPort] No user found for userId={}", userId);
-                                return;
+                                return null;
                         }
 
                         // Determine who the "other party" is (requester or invitee)
@@ -107,18 +108,17 @@ public class AgentApprovalPortImpl implements AgentApprovalPort {
                                         + "🕐 " + startTime + " – " + endTime + "\n\n"
                                         + "Approve or reject this meeting time.";
 
-                        notificationPort.sendApprovalRequest(
+                        return notificationPort.sendApprovalRequest(
                                         user.getSlackIdentity().slackUserId(),
                                         user.getSlackIdentity().workspaceId(),
                                         proposalText,
                                         approvalId.value().toString(),
                                         proposal.coordinationIdStr());
 
-                        log.info("[AgentApprovalPort] Approval card sent to user={} for coordination={}",
-                                        userId, proposal.proposalId());
                 } catch (Exception e) {
                         log.warn("[AgentApprovalPort] Failed to send approval card: {}", e.getMessage());
                 }
+                return null;
         }
 
         /**

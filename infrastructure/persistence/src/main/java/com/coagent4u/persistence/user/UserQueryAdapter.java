@@ -35,4 +35,10 @@ public class UserQueryAdapter implements UserQueryPort {
     public boolean existsById(UserId userId) {
         return repository.existsById(userId.value());
     }
+
+    @Override
+    public java.util.List<User> findAllById(java.util.Collection<UserId> userIds) {
+        java.util.List<java.util.UUID> ids = userIds.stream().map(UserId::value).toList();
+        return repository.findAllById(ids).stream().map(UserMapper::toDomain).toList();
+    }
 }

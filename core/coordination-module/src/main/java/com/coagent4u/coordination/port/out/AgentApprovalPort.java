@@ -9,5 +9,5 @@ import com.coagent4u.shared.ApprovalId;
  * Implemented by agent-module's {@code AgentApprovalPortImpl}.
  */
 public interface AgentApprovalPort {
-    ApprovalId requestApproval(AgentId agentId, MeetingProposal proposal);
+    ApprovalRequestResult requestApproval(AgentId agentId, MeetingProposal proposal);
 }

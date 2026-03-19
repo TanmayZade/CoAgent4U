@@ -17,4 +17,5 @@ public interface UserQueryPort {
     Optional<User> findByUsername(String username);
 
     boolean existsById(UserId userId);
+    java.util.List<User> findAllById(java.util.Collection<UserId> userIds);
 }

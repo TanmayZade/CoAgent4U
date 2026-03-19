@@ -13,6 +13,42 @@ export interface PaginatedResponse<T> {
   hasPrevious: boolean
 }
 
+export interface StateLogEntryDto {
+  fromState: string | null
+  toState: string
+  reason: string | null
+  transitionedAt: string
+}
+
+export interface MeetingProposalDto {
+  title: string
+  startTime: string
+  endTime: string
+  durationMinutes: number
+  timeZone: string
+}
+
+export interface CoordinationDetailDto {
+  coordinationId: string
+  requesterUsername: string
+  requesterDisplayName: string | null
+  requesterAvatarUrl: string | null
+  inviteeUsername: string
+  inviteeDisplayName: string | null
+  inviteeAvatarUrl: string | null
+  role: 'REQUESTER' | 'INVITEE'
+  state: string
+  proposal: MeetingProposalDto | null
+  createdAt: string
+  completedAt: string | null
+  stateLog: StateLogEntryDto[]
+}
+
+export interface TimeSlotDto {
+  start: string
+  end: string
+}
+
 export const coordinationsAPI = {
   getHistory: async (
     username: string, 
@@ -27,7 +63,30 @@ export const coordinationsAPI = {
     return apiRequest<PaginatedResponse<CoordinationSummaryDto>>(url)
   },
 
-  getDetail: async (id: string, username: string): Promise<any> => {
-    return apiRequest<any>(`/api/coordinations/${encodeURIComponent(id)}?username=${encodeURIComponent(username)}`)
+  getDetail: async (id: string, username: string): Promise<CoordinationDetailDto> => {
+    return apiRequest<CoordinationDetailDto>(`/api/coordinations/${encodeURIComponent(id)}?username=${encodeURIComponent(username)}`)
+  },
+
+  cancel: async (id: string, username: string): Promise<{ status: string }> => {
+    return apiRequest<{ status: string }>(`/api/coordinations/${encodeURIComponent(id)}/cancel?username=${encodeURIComponent(username)}`, {
+      method: 'POST'
+    })
+  },
+
+  approve: async (id: string, username: string, approved: boolean): Promise<{ status: string }> => {
+    return apiRequest<{ status: string }>(`/api/coordinations/${encodeURIComponent(id)}/approve?username=${encodeURIComponent(username)}&approved=${approved}`, {
+      method: 'POST'
+    })
+  },
+
+  getSlots: async (id: string, username: string): Promise<TimeSlotDto[]> => {
+    return apiRequest<TimeSlotDto[]>(`/api/coordinations/${encodeURIComponent(id)}/slots?username=${encodeURIComponent(username)}`)
+  },
+
+  selectSlot: async (id: string, username: string, slot: TimeSlotDto): Promise<{ status: string }> => {
+    return apiRequest<{ status: string }>(
+      `/api/coordinations/${encodeURIComponent(id)}/select-slot?username=${encodeURIComponent(username)}&start=${encodeURIComponent(slot.start)}&end=${encodeURIComponent(slot.end)}`,
+      { method: 'POST' }
+    )
   }
 }

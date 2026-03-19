@@ -2,6 +2,7 @@ package com.coagent4u.coordination.application;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
 
 import java.util.List;
 import java.util.Optional;
@@ -49,7 +50,8 @@ class CoordinationQueryServiceTest {
         AgentId otherAgentId = AgentId.generate();
 
         when(resolver.resolveAgentId(username)).thenReturn(Optional.of(agentId));
-        when(resolver.resolveUsername(otherAgentId)).thenReturn("bob");
+        CoordinationQueryService.AgentProfile bobProfile = new CoordinationQueryService.AgentProfile("bob", "Bob", null);
+        when(resolver.resolveProfiles(any())).thenReturn(java.util.Map.of(otherAgentId, bobProfile, agentId, new CoordinationQueryService.AgentProfile("alice", "Alice", null)));
 
         Coordination coord = new Coordination(CoordinationId.generate(), agentId, otherAgentId);
         when(persistence.findByAgentId(agentId, 0, 10)).thenReturn(List.of(coord));
@@ -101,8 +103,9 @@ class CoordinationQueryServiceTest {
         Coordination coord = new Coordination(coordId, requester, invitee);
 
         when(resolver.resolveAgentId("alice")).thenReturn(Optional.of(requester));
-        when(resolver.resolveUsername(requester)).thenReturn("alice");
-        when(resolver.resolveUsername(invitee)).thenReturn("bob");
+        when(resolver.resolveProfile(requester)).thenReturn(new CoordinationQueryService.AgentProfile("alice", "Alice", null));
+        when(resolver.resolveProfile(invitee)).thenReturn(new CoordinationQueryService.AgentProfile("bob", "Bob", null));
+        // resolveProfiles not used in getDetail
         when(persistence.findById(coordId)).thenReturn(Optional.of(coord));
 
         Optional<CoordinationDetail> result = service.getDetail(coordId, "alice");

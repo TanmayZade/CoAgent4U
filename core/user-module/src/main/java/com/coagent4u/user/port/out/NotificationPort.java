@@ -59,6 +59,17 @@ public interface NotificationPort {
                         String inviteeMention);
 
         /**
+         * Sends a formatted status card with a colored sidebar.
+         *
+         * @param slackUserId recipient's Slack user ID
+         * @param workspaceId the Slack workspace
+         * @param statusText  the markdown text to display
+         * @param color       hex color for the sidebar (e.g. "#3AA3E3")
+         * @return the Slack message timestamp (ts)
+         */
+        String sendStatusCard(SlackUserId slackUserId, WorkspaceId workspaceId, String statusText, String color);
+
+        /**
          * Deletes an existing message.
          *
          * @param slackUserId the user ID (channel)

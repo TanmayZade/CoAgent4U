@@ -1,6 +1,5 @@
 package com.coagent4u.app.rest;
 
-import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -47,6 +46,15 @@ class DashboardControllerTest {
     @Mock
     private GetCoordinationDetailUseCase detailUseCase;
 
+    @Mock
+    private com.coagent4u.coordination.port.in.CoordinationProtocolPort protocolPort;
+
+    @Mock
+    private com.coagent4u.coordination.application.CoordinationQueryService.UserAgentResolver userAgentResolver;
+
+    @Mock
+    private com.coagent4u.user.port.out.NotificationPort notificationPort;
+
     private MockMvc dashboardMvc;
     private MockMvc coordinationMvc;
 
@@ -55,7 +63,7 @@ class DashboardControllerTest {
         dashboardMvc = MockMvcBuilders.standaloneSetup(
                 new DashboardController(dashboardSummaryUseCase, pendingApprovalsUseCase)).build();
         coordinationMvc = MockMvcBuilders.standaloneSetup(
-                new CoordinationController(historyUseCase, detailUseCase)).build();
+                new CoordinationController(historyUseCase, detailUseCase, protocolPort, userAgentResolver, notificationPort)).build();
     }
 
     // ── Dashboard Tests ──
@@ -134,7 +142,7 @@ class DashboardControllerTest {
     void coordinationDetail_authorized() throws Exception {
         UUID coordId = UUID.randomUUID();
         CoordinationDetail detail = new CoordinationDetail(
-                coordId, "alice", "bob", "COMPLETED", null,
+                coordId, "alice", null, null, "bob", null, null, "REQUESTER", "COMPLETED", null,
                 Instant.now(), Instant.now(),
                 List.of(new CoordinationDetail.StateLogEntryDto(null, "INITIATED", "Start", Instant.now())));
 

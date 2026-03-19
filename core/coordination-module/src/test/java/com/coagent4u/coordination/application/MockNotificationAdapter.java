@@ -71,6 +71,13 @@ public class MockNotificationAdapter implements NotificationPort {
     }
 
     @Override
+    public String sendStatusCard(SlackUserId slackUserId, WorkspaceId workspaceId, String statusText, String color) {
+        if (shouldFail)
+            throw new RuntimeException("Mock Slack failure");
+        return "mock_ts_" + System.currentTimeMillis();
+    }
+
+    @Override
     public boolean deleteMessage(SlackUserId slackUserId, WorkspaceId workspaceId, String ts) {
         return true;
     }

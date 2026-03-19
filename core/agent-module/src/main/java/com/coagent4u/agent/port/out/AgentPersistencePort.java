@@ -16,4 +16,5 @@ public interface AgentPersistencePort {
     Optional<Agent> findById(AgentId agentId);
 
     Optional<Agent> findByUserId(UserId userId);
+    java.util.List<Agent> findAllById(java.util.Collection<AgentId> agentIds);
 }

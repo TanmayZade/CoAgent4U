@@ -117,6 +117,12 @@ public class CoordinationCompletedListener {
                 if (finalStatusTs != null) {
                     deleteForAgent(coordination.getRequesterAgentId(), finalStatusTs);
                 }
+
+                // Delete the active approval request card (the one with buttons)
+                String approvalTs = coordination.getMetadata("requester_approval_ts");
+                if (approvalTs != null) {
+                    deleteForAgent(coordination.getRequesterAgentId(), approvalTs);
+                }
             });
         } catch (Exception e) {
             log.warn("[CoordinationListener] Cleanup failed for {}: {}", coordId, e.getMessage());

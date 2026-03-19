@@ -91,6 +91,12 @@ public class SlackNotificationAdapter implements NotificationPort {
         return postToSlack(payload, slackUserId.value(), workspaceId);
     }
 
+    @Override
+    public String sendStatusCard(SlackUserId slackUserId, WorkspaceId workspaceId, String statusText, String color) {
+        String payload = buildStatusCardPayload(slackUserId.value(), statusText, color);
+        return postToSlack(payload, slackUserId.value(), workspaceId);
+    }
+
     /**
      * Posts a pre-built JSON payload to Slack's chat.postMessage.
      * Made public so the interaction handler can repost status cards.
@@ -241,14 +247,14 @@ public class SlackNotificationAdapter implements NotificationPort {
     /**
      * Builds a plain text Block Kit message with colored sidebar.
      */
-    private String buildBlockKitPayload(String channel, String text) {
+    private String buildStatusCardPayload(String channel, String text, String color) {
         try {
             ObjectNode root = objectMapper.createObjectNode();
             root.put("channel", channel);
 
             ArrayNode attachments = objectMapper.createArrayNode();
             ObjectNode attachment = objectMapper.createObjectNode();
-            attachment.put("color", "#745EAF");
+            attachment.put("color", color);
 
             ArrayNode blocks = objectMapper.createArrayNode();
 
@@ -266,8 +272,15 @@ public class SlackNotificationAdapter implements NotificationPort {
             return objectMapper.writeValueAsString(root);
 
         } catch (Exception e) {
-            throw new NotificationFailureException("Failed to build Block Kit payload", e);
+            throw new NotificationFailureException("Failed to build status card payload", e);
         }
+    }
+
+    /**
+     * Builds a plain text Block Kit message with colored sidebar.
+     */
+    private String buildBlockKitPayload(String channel, String text) {
+        return buildStatusCardPayload(channel, text, "#745EAF");
     }
 
     /**

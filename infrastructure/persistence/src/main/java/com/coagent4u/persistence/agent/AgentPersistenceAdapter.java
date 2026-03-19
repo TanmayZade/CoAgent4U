@@ -35,4 +35,10 @@ public class AgentPersistenceAdapter implements AgentPersistencePort {
         return repository.findByUserId(userId.value())
                 .stream().findFirst().map(AgentMapper::toDomain);
     }
+
+    @Override
+    public java.util.List<Agent> findAllById(java.util.Collection<AgentId> agentIds) {
+        java.util.List<java.util.UUID> ids = agentIds.stream().map(AgentId::value).toList();
+        return repository.findAllById(ids).stream().map(AgentMapper::toDomain).toList();
+    }
 }

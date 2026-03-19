@@ -564,6 +564,8 @@ public class AgentCommandService
         if (requesterUser != null) {
             coordinationProtocol.updateMetadata(coordId, "requester_slack_id",
                     requesterUser.getSlackIdentity().slackUserId().value());
+            coordinationProtocol.updateMetadata(coordId, "workspace_id",
+                    requesterUser.getSlackIdentity().workspaceId().value());
         }
         coordinationProtocol.updateMetadata(coordId, "invitee_slack_id",
                 targetUser.getSlackIdentity().slackUserId().value());

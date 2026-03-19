@@ -26,6 +26,7 @@ import com.coagent4u.coordination.domain.CoordinationState;
 import com.coagent4u.coordination.port.out.AgentApprovalPort;
 import com.coagent4u.coordination.port.out.AgentAvailabilityPort;
 import com.coagent4u.coordination.port.out.AgentProfilePort;
+import com.coagent4u.coordination.port.out.ApprovalRequestResult;
 import com.coagent4u.coordination.port.out.CoordinationPersistencePort;
 import com.coagent4u.shared.AgentId;
 import com.coagent4u.shared.ApprovalId;
@@ -150,7 +151,7 @@ class CoordinationFlowIntegrationTest {
 
             when(persistence.findById(coordId)).thenReturn(Optional.of(coordination));
             when(approvalPort.requestApproval(any(), any()))
-                    .thenReturn(new ApprovalId(UUID.randomUUID()));
+                    .thenReturn(new ApprovalRequestResult(new ApprovalId(UUID.randomUUID()), "ts-123"));
 
             service.selectSlot(coordId, slot);
 
@@ -356,7 +357,7 @@ class CoordinationFlowIntegrationTest {
             var approvalCaptor = org.mockito.ArgumentCaptor.forClass(
                     com.coagent4u.coordination.domain.MeetingProposal.class);
             when(approvalPort.requestApproval(any(), approvalCaptor.capture()))
-                    .thenReturn(new ApprovalId(UUID.randomUUID()));
+                    .thenReturn(new ApprovalRequestResult(new ApprovalId(UUID.randomUUID()), "ts-123"));
 
             service.selectSlot(coordId, slot);
 
