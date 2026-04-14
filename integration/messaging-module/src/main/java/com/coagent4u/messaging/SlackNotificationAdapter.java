@@ -75,6 +75,15 @@ public class SlackNotificationAdapter implements NotificationPort {
     }
 
     @Override
+    public String sendConflictResolutionRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String proposalText, String approvalId, String existingEventDetails) {
+        log.info("[SlackAdapter] Sending conflict resolution card to user={} for approval={}",
+                slackUserId.value(), approvalId);
+        String payload = buildConflictResolutionPayload(slackUserId.value(), proposalText, approvalId, existingEventDetails);
+        return postToSlack(payload, slackUserId.value(), workspaceId);
+    }
+
+    @Override
     public String sendSlotSelection(SlackUserId slackUserId, WorkspaceId workspaceId,
             String coordinationId, List<TimeSlot> slots, String requesterMention) {
         log.info("[SlackAdapter] Sending slot selection card to user={} for coordination={}",
@@ -284,6 +293,59 @@ public class SlackNotificationAdapter implements NotificationPort {
     }
 
     /**
+     * Builds an interactive Block Kit payload with Cancel / Delete & Add / Keep Both buttons.
+     */
+    private String buildConflictResolutionPayload(String channel, String proposalText, String approvalId, String existingEventDetails) {
+        try {
+            ObjectNode root = objectMapper.createObjectNode();
+            root.put("channel", channel);
+
+            ArrayNode attachments = objectMapper.createArrayNode();
+            ObjectNode attachment = objectMapper.createObjectNode();
+            attachment.put("color", "#E01E5A"); // Slack Red/Danger color
+
+            ArrayNode blocks = objectMapper.createArrayNode();
+
+            // Header
+            blocks.add(headerBlock("⚠️ Time Slot Conflict Detected"));
+
+            // Conflict details
+            blocks.add(markdownSection("Your proposed event conflicts with an existing entry:\n" + existingEventDetails));
+
+            // Divider
+            blocks.add(dividerBlock());
+
+            // Proposal details
+            blocks.add(markdownSection("*New Event Proposal:*\n" + proposalText));
+
+            // Divider
+            blocks.add(dividerBlock());
+
+            // Action buttons
+            ObjectNode actions = objectMapper.createObjectNode();
+            actions.put("type", "actions");
+            actions.put("block_id", "conflict_" + approvalId);
+
+            ArrayNode elements = objectMapper.createArrayNode();
+            // Value is just approvalId
+            String btnValue = approvalId;
+            elements.add(buttonElement("Delete & Add", "conflict_replace", btnValue, "primary"));
+            elements.add(buttonElement("Keep Both", "conflict_keep_both", btnValue, null));
+            elements.add(buttonElement("Cancel", "conflict_cancel", btnValue, "danger"));
+            actions.set("elements", elements);
+            blocks.add(actions);
+
+            attachment.set("blocks", blocks);
+            attachments.add(attachment);
+            root.set("attachments", attachments);
+            return objectMapper.writeValueAsString(root);
+
+        } catch (Exception e) {
+            throw new NotificationFailureException("Failed to build conflict resolution payload", e);
+        }
+    }
+
+    /**
      * Builds an interactive Block Kit payload with Approve / Reject buttons.
      */
     private String buildApprovalPayload(String channel, String proposalText, String approvalId, String coordinationId) {
@@ -453,6 +515,7 @@ public class SlackNotificationAdapter implements NotificationPort {
                 byDate.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(slot);
             }
 
+            int previewIdx = 0;
             for (Map.Entry<String, List<TimeSlot>> entry : byDate.entrySet()) {
                 String dateLabel = entry.getKey();
                 List<TimeSlot> dateSlots = entry.getValue();
@@ -460,15 +523,23 @@ public class SlackNotificationAdapter implements NotificationPort {
                 // Date header
                 blocks.add(markdownSection("*📅 " + dateLabel + "*"));
 
-                // Render slots as plain text list
-                StringBuilder sb = new StringBuilder();
+                // Render as actions-block buttons so they match the invitee pill style.
+                // Clicks fire a lightweight POST that the handler silently discards (no-op).
+                ObjectNode actionsBlock = objectMapper.createObjectNode();
+                actionsBlock.put("type", "actions");
+                ArrayNode elements = objectMapper.createArrayNode();
+
                 for (TimeSlot slot : dateSlots) {
                     ZonedDateTime startZdt = slot.start().atZone(IST);
                     ZonedDateTime endZdt = slot.end().atZone(IST);
                     String timeLabel = startZdt.format(TIME_FMT) + " – " + endZdt.format(TIME_FMT);
-                    sb.append("• ").append(timeLabel).append("\n");
+                    String value = slot.start().toEpochMilli() + "_" + slot.end().toEpochMilli();
+                    elements.add(buttonElement(timeLabel, "preview_slot_" + previewIdx, value, null));
+                    previewIdx++;
                 }
-                blocks.add(markdownSection(sb.toString().trim()));
+
+                actionsBlock.set("elements", elements);
+                blocks.add(actionsBlock);
             }
 
             attachment.set("blocks", blocks);

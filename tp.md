@@ -29,3 +29,8 @@ Invoke-RestMethod -Uri http://localhost:8080/api/sandbox/parse-intent -Method PO
 # This will show 'SKIPPED' for Tier 1 and attempt LLM (returning 'FAILED_OR_DISABLED' unless you add a Groq API key)
 $body = @{ text = "I am bored, tell me a joke" } | ConvertTo-Json
 Invoke-RestMethod -Uri http://localhost:8080/api/sandbox/parse-intent -Method POST -Body $body -ContentType "application/json"
+
+
+https://github.com/v-3/google-calendar
+
+https://github.com/nspady/google-calendar-mcp

@@ -34,6 +34,9 @@ public class CoordinationJpaEntity {
     @Column(name = "state", nullable = false, length = 32)
     private String state;
 
+    @Column(name = "duration_minutes", nullable = false)
+    private int durationMinutes;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "proposal", columnDefinition = "JSONB")
     private String proposalJson;
@@ -110,6 +113,14 @@ public class CoordinationJpaEntity {
 
     public void setState(String state) {
         this.state = state;
+    }
+
+    public int getDurationMinutes() {
+        return durationMinutes;
+    }
+
+    public void setDurationMinutes(int durationMinutes) {
+        this.durationMinutes = durationMinutes;
     }
 
     public String getProposalJson() {

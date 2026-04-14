@@ -32,13 +32,15 @@ public class Coordination {
     private Instant updatedAt;
     private Instant completedAt;
     private List<TimeSlot> availableSlots = new ArrayList<>();
+    private final int durationMinutes;
     private TimeSlot selectedSlot;
     private final java.util.Map<String, String> metadata = new java.util.HashMap<>();
-
-    public Coordination(CoordinationId coordinationId, AgentId requesterAgentId, AgentId inviteeAgentId) {
+ 
+    public Coordination(CoordinationId coordinationId, AgentId requesterAgentId, AgentId inviteeAgentId, int durationMinutes) {
         this.coordinationId = Objects.requireNonNull(coordinationId);
         this.requesterAgentId = Objects.requireNonNull(requesterAgentId);
         this.inviteeAgentId = Objects.requireNonNull(inviteeAgentId);
+        this.durationMinutes = durationMinutes;
         this.state = CoordinationState.INITIATED;
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
@@ -135,6 +137,10 @@ public class Coordination {
 
     public List<CoordinationStateLogEntry> getStateLog() {
         return Collections.unmodifiableList(stateLog);
+    }
+
+    public int getDurationMinutes() {
+        return durationMinutes;
     }
 
     public Instant getCreatedAt() {

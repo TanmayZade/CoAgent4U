@@ -3,6 +3,7 @@ package com.coagent4u.coordination.application;
 import java.util.List;
 import java.util.Optional;
 
+import com.coagent4u.coordination.application.dto.CoordinationActivityPoint;
 import com.coagent4u.coordination.application.dto.CoordinationDetail;
 import com.coagent4u.coordination.application.dto.CoordinationSummary;
 import com.coagent4u.coordination.domain.Coordination;
@@ -113,6 +114,11 @@ public class CoordinationQueryService implements GetCoordinationHistoryUseCase, 
                 .filter(c -> c.getRequesterAgentId().equals(viewerAgentId)
                         || c.getInviteeAgentId().equals(viewerAgentId))
                 .map(c -> toDetail(c, viewerAgentId));
+    }
+
+    public List<CoordinationActivityPoint> getActivityStats(AgentId agentId, int lastDays) {
+        java.time.Instant since = java.time.Instant.now().minus(lastDays, java.time.temporal.ChronoUnit.DAYS);
+        return persistence.findActivityStats(agentId, since);
     }
 
     private CoordinationSummary toSummary(Coordination c, AgentId viewerAgentId, java.util.Map<AgentId, AgentProfile> profiles) {

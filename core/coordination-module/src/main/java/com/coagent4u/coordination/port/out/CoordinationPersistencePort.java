@@ -1,6 +1,10 @@
 package com.coagent4u.coordination.port.out;
 
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+
+import com.coagent4u.coordination.application.dto.CoordinationActivityPoint;
 
 import com.coagent4u.coordination.domain.Coordination;
 import com.coagent4u.coordination.domain.CoordinationStateLogEntry;
@@ -26,4 +30,6 @@ public interface CoordinationPersistencePort {
     java.util.List<Coordination> findRecentByAgentId(com.coagent4u.shared.AgentId agentId, int limit);
 
     void appendStateLog(CoordinationStateLogEntry entry);
+
+    List<CoordinationActivityPoint> findActivityStats(com.coagent4u.shared.AgentId agentId, Instant since);
 }

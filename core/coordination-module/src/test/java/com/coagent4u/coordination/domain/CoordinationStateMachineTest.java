@@ -82,7 +82,7 @@ class CoordinationTest {
 
     @Test
     void creation_setsInitiatedState() {
-        Coordination c = new Coordination(CoordinationId.generate(), AgentId.generate(), AgentId.generate());
+        Coordination c = new Coordination(CoordinationId.generate(), AgentId.generate(), AgentId.generate(), 60);
         assertEquals(CoordinationState.INITIATED, c.getState());
         assertFalse(c.isTerminal());
         assertEquals(1, c.getStateLog().size()); // initial log entry
@@ -90,7 +90,7 @@ class CoordinationTest {
 
     @Test
     void transition_logsStateChange() {
-        Coordination c = new Coordination(CoordinationId.generate(), AgentId.generate(), AgentId.generate());
+        Coordination c = new Coordination(CoordinationId.generate(), AgentId.generate(), AgentId.generate(), 60);
         c.transition(CoordinationState.CHECKING_AVAILABILITY_A, "Checking A");
         assertEquals(CoordinationState.CHECKING_AVAILABILITY_A, c.getState());
         assertEquals(2, c.getStateLog().size());
@@ -98,7 +98,7 @@ class CoordinationTest {
 
     @Test
     void transition_toTerminal_setsCompletedAt() {
-        Coordination c = new Coordination(CoordinationId.generate(), AgentId.generate(), AgentId.generate());
+        Coordination c = new Coordination(CoordinationId.generate(), AgentId.generate(), AgentId.generate(), 60);
         c.transition(CoordinationState.FAILED, "Error occurred");
         assertTrue(c.isTerminal());
         assertNotNull(c.getCompletedAt());
@@ -106,7 +106,7 @@ class CoordinationTest {
 
     @Test
     void transition_invalidTransition_throws() {
-        Coordination c = new Coordination(CoordinationId.generate(), AgentId.generate(), AgentId.generate());
+        Coordination c = new Coordination(CoordinationId.generate(), AgentId.generate(), AgentId.generate(), 60);
         assertThrows(IllegalStateException.class,
                 () -> c.transition(CoordinationState.COMPLETED, "Skip"));
     }

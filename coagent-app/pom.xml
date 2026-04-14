@@ -56,6 +56,10 @@
             <groupId>com.coagent4u</groupId>
             <artifactId>llm-module</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.coagent4u</groupId>
+            <artifactId>a2a-module</artifactId>
+        </dependency>
 
         <!-- Infrastructure modules -->
         <dependency>

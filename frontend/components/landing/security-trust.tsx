@@ -1,6 +1,6 @@
 "use client"
 
-import { KeyRound, Calendar, Shield, FileText } from "lucide-react"
+import { KeyRound, Plug, Shield, FileText } from "lucide-react"
 import { useScrollReveal, useStaggerReveal } from "@/hooks/use-gsap-animations"
 import { useEffect, useRef } from "react"
 import gsap from "gsap"
@@ -13,23 +13,23 @@ if (typeof window !== "undefined") {
 const securityFeatures = [
   {
     icon: KeyRound,
-    title: "OAuth2 Authentication",
-    description: "Enterprise-grade security with industry-standard OAuth2 protocol. Your credentials are never stored.",
+    title: "OAuth2 per Agent",
+    description: "Each agent's Google access is scoped via OAuth2. Tokens stored encrypted in PostgreSQL via the Java bridge, never in files.",
   },
   {
-    icon: Calendar,
-    title: "Google Calendar Integration",
-    description: "Secure two-way sync with Google Calendar using official APIs. Read and write with proper scopes.",
+    icon: Plug,
+    title: "MCP Tool Isolation",
+    description: "MCP servers run in-process with separate tool clients. Each tool call is scoped to the authenticated agent — no cross-agent data leaks.",
   },
   {
     icon: Shield,
-    title: "Secure by Design",
-    description: "Built with security-first architecture. All data encrypted in transit and at rest.",
+    title: "AES-256 Encryption",
+    description: "All agent memory and OAuth tokens encrypted at rest using AES-256. Conversation context is encrypted before writing to the database.",
   },
   {
     icon: FileText,
-    title: "Complete Agent Activity Logs",
-    description: "Every action is timestamped and logged. Full transparency into what your agent does and when.",
+    title: "Full Activity Logging",
+    description: "Every tool call, A2A interaction, and LLM plan is logged via the Java bridge. Full transparency into what your agent does and when.",
   },
 ]
 
@@ -99,19 +99,23 @@ export function SecurityTrust() {
                   <Shield className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">Security Status</p>
+                  <p className="text-sm font-medium text-foreground">Agent Security Status</p>
                   <p className="text-xs text-green-600">All systems secure</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <div className="status-item flex items-center justify-between py-3 border-b border-border/40 transition-all duration-300 hover:bg-muted/20 hover:px-2 rounded">
-                  <span className="text-sm text-muted-foreground">OAuth Integration</span>
+                  <span className="text-sm text-muted-foreground">OAuth2 Integration</span>
                   <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-600 transition-transform duration-200 hover:scale-105">Connected</span>
                 </div>
                 <div className="status-item flex items-center justify-between py-3 border-b border-border/40 transition-all duration-300 hover:bg-muted/20 hover:px-2 rounded">
-                  <span className="text-sm text-muted-foreground">Google Calendar</span>
-                  <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-600 transition-transform duration-200 hover:scale-105">Synced</span>
+                  <span className="text-sm text-muted-foreground">MCP Tool Servers</span>
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-600 transition-transform duration-200 hover:scale-105">3 Active (32 tools)</span>
+                </div>
+                <div className="status-item flex items-center justify-between py-3 border-b border-border/40 transition-all duration-300 hover:bg-muted/20 hover:px-2 rounded">
+                  <span className="text-sm text-muted-foreground">A2A Protocol</span>
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-500/10 text-green-600 transition-transform duration-200 hover:scale-105">Initialized</span>
                 </div>
                 <div className="status-item flex items-center justify-between py-3 border-b border-border/40 transition-all duration-300 hover:bg-muted/20 hover:px-2 rounded">
                   <span className="text-sm text-muted-foreground">Data Encryption</span>
@@ -125,7 +129,7 @@ export function SecurityTrust() {
 
               <div className="mt-6 pt-6 border-t border-border/40">
                 <p className="text-xs text-muted-foreground">
-                  Last security audit: March 10, 2026
+                  LLM Model: Groq Llama 3.3 70B · Agent Runtime: FastAPI + FastMCP
                 </p>
               </div>
             </div>
@@ -137,10 +141,10 @@ export function SecurityTrust() {
               Security & Trust
             </p>
             <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
-              Enterprise-grade security
+              Privacy-centric by design
             </h2>
             <p className="text-muted-foreground text-lg mb-10">
-              Your data security is our priority. CoAgent4U is built with the highest security standards.
+              Your personal agent handles sensitive data — calendar events, task lists, meeting details. Every layer is built with security first.
             </p>
 
             <div ref={featuresRef} className="grid sm:grid-cols-2 gap-6">

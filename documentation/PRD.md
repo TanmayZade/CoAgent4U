@@ -6121,24 +6121,33 @@ if (Math.abs(now - Long.parseLong(timestamp)) > 300) {
 
 ---
 
-### 16.2 Frontend Technologies
+### 16.2 Python Agent Runtime (Intelligence Engine)
+
+**Language & Runtime:**
+- Python 3.11+
+- FastAPI
+
+**Agent Ecosystem:**
+- LiteLLM (Model-Agnostic LLM Routing)
+- FastMCP (Model Context Protocol Integration)
+- Redis (Conversational Memory State)
+- Microsoft Presidio (PII redaction & Privacy Guardian)
+
+---
+
+### 16.3 Frontend Technologies
 
 **Framework:**
-- React 18
+- Next.js 16
+- React 19
 - TypeScript
 
 **UI Library:**
-- Shadcn/UI (Tailwind-based components)
-
-**State Management:**
-- React Context API
-- React Query (Server state)
+- Shadcn/UI & Radix UI
+- Tailwind CSS v4
 
 **Build Tool:**
-- Vite
-
-**Routing:**
-- React Router v6
+- Turbopack / Vite
 
 ---
 

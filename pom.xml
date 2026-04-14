@@ -45,6 +45,7 @@
         <module>integration/calendar-module</module>
         <module>integration/messaging-module</module>
         <module>integration/llm-module</module>
+        <module>integration/a2a-module</module>
 
         <!-- Infrastructure -->
         <module>infrastructure/persistence</module>
@@ -143,6 +144,11 @@
                 <artifactId>wiremock-standalone</artifactId>
                 <version>${wiremock.version}</version>
                 <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.coagent4u</groupId>
+                <artifactId>a2a-module</artifactId>
+                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

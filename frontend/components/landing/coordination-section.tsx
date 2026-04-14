@@ -1,6 +1,6 @@
 "use client"
 
-import { ArrowRight, Bot, CheckCircle2, User } from "lucide-react"
+import { ArrowRight, Bot, CheckCircle2, Plug, User } from "lucide-react"
 import { useEffect, useRef } from "react"
 import gsap from "gsap"
 import { ScrollTrigger } from "gsap/ScrollTrigger"
@@ -117,18 +117,18 @@ export function CoordinationSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} id="how-it-works" className="py-24 lg:py-32 bg-muted/30">
+    <section ref={sectionRef} id="architecture" className="py-24 lg:py-32 bg-muted/30">
       <div className="mx-auto max-w-7xl px-6">
         {/* Section header */}
         <div ref={headerRef} className="max-w-2xl mx-auto text-center mb-8">
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            Agent Coordination Visualization
+            MCP + A2A Architecture
           </p>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
-            Agents coordinate so you don&apos;t have to
+            How MCP tools and A2A coordination work together
           </h2>
           <p className="text-muted-foreground text-lg">
-            Personal agents collaborate through a coordination network, eliminating manual back-and-forth communication.
+            Your personal agent uses MCP to access your tools and A2A to collaborate with other agents — all orchestrated by an LLM planner.
           </p>
         </div>
 
@@ -137,7 +137,7 @@ export function CoordinationSection() {
           <div ref={containerRef} className="rounded-xl border border-border/60 bg-card p-6 lg:p-8 transition-all duration-500 hover:scale-[1.02] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] hover:border-foreground/20 [&.is-elevated]:scale-[1.02] [&.is-elevated]:shadow-[0_20px_40px_rgba(0,0,0,0.08)] [&.is-elevated]:border-foreground/20">
             {/* Mental model text */}
             <p className="text-center text-xs text-muted-foreground mb-6">
-              Human → Personal Agent → Agent Coordination Network → Coordinated Outcome
+              User Message → LLM Planner → MCP Tool Calls → A2A Negotiation → Human Approval → Execution
             </p>
 
             {/* Flow diagram - 9 Steps Grid */}
@@ -149,8 +149,8 @@ export function CoordinationSection() {
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">1</div>
                   <User className="w-4 h-4 text-blue-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">User Intent</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">User A requests a meeting using natural language.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">User Message</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">User sends a natural language request via Slack or direct HTTP (e.g. &quot;schedule a meeting with Sarah&quot;).</p>
                 {/* Connector Arrow -> Right */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="1" data-dir="right">
                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
@@ -163,8 +163,8 @@ export function CoordinationSection() {
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">2</div>
                   <Bot className="w-4 h-4 text-purple-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Parse & Retrieve</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent A parses the request and retrieves available slots.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">LLM Plans Tool Calls</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Groq LLM receives 32 MCP tool schemas and decides which tools to call based on user intent.</p>
                 {/* Connector Arrow -> Right */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="2" data-dir="right">
                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
@@ -175,10 +175,10 @@ export function CoordinationSection() {
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="3">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">3</div>
-                  <Bot className="w-4 h-4 text-purple-500" />
+                  <Plug className="w-4 h-4 text-emerald-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Initiate Request</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent A sends proposed slots to the Engine.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">MCP Tool Execution</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent executes planned tools via MCP clients — reading calendar, checking availability, creating events.</p>
                 {/* Connector Arrow -> Down */}
                 <div className="flow-arrow hidden lg:block absolute -bottom-8 left-1/2 w-[2px] h-8 bg-foreground z-[-1] -translate-x-1/2" data-index="3" data-dir="down">
                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[2px] w-2 h-2 border-b-2 border-r-2 border-foreground rotate-45" />
@@ -191,8 +191,8 @@ export function CoordinationSection() {
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">6</div>
                   <User className="w-4 h-4 text-blue-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Invitee Action</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">User B selects a preferred slot or rejects the meeting.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Invitee Selection</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Invitee&apos;s agent presents available slots via Slack. The invitee selects a preferred time.</p>
                 {/* Connector Arrow -> Down */}
                 <div className="flow-arrow hidden lg:block absolute -bottom-8 left-1/2 w-[2px] h-8 bg-foreground z-[-1] -translate-x-1/2" data-index="6" data-dir="down">
                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[2px] w-2 h-2 border-b-2 border-r-2 border-foreground rotate-45" />
@@ -203,10 +203,10 @@ export function CoordinationSection() {
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="5">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">5</div>
-                  <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center"><span className="text-[9px] font-bold text-white">CE</span></div>
+                  <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center"><span className="text-[9px] font-bold text-white">A2A</span></div>
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Propose Options</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine sends overlapping slots for User A to view and User B to select/reject via their agents.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">A2A Slot Proposal</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent A sends proposed slots to Agent B via A2A protocol. Both agents&apos; availability is compared.</p>
                 {/* Connector Arrow -> Left */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -left-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="5" data-dir="left">
                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[2px] w-2 h-2 border-b-2 border-l-2 border-foreground rotate-45" />
@@ -217,10 +217,10 @@ export function CoordinationSection() {
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="4">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">4</div>
-                  <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center"><span className="text-[9px] font-bold text-white">CE</span></div>
+                  <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center"><span className="text-[9px] font-bold text-white">A2A</span></div>
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Find Overlaps</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine asks for free slots from Agent B and identifies mutual free time.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">A2A Initiation</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent initiates A2A session with invitee&apos;s agent to negotiate meeting times across both calendars.</p>
                 {/* Connector Arrow -> Left */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -left-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="4" data-dir="left">
                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-[2px] w-2 h-2 border-b-2 border-l-2 border-foreground rotate-45" />
@@ -231,10 +231,10 @@ export function CoordinationSection() {
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="7">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">7</div>
-                  <div className="w-5 h-5 rounded bg-zinc-800 flex items-center justify-center"><span className="text-[9px] font-bold text-white">CE</span></div>
+                  <User className="w-4 h-4 text-amber-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Relay Selection</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine routes the confirmed choice back to Agent A.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Human Approval</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Requester reviews the selected slot and explicitly approves or rejects the meeting via Slack.</p>
                 {/* Connector Arrow -> Right */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="7" data-dir="right">
                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
@@ -245,10 +245,10 @@ export function CoordinationSection() {
               <div className="flow-item flex flex-col p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-muted/50 transition-colors relative isolate" data-index="8">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-background text-foreground border shadow-sm font-bold text-[10px]">8</div>
-                  <User className="w-4 h-4 text-blue-500" />
+                  <Plug className="w-4 h-4 text-emerald-500" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Final Approval</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">User A reviews the selection and provides final approval.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">MCP Calendar Create</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Agent calls MCP calendar tools to create the event on both Google Calendars via OAuth.</p>
                 {/* Connector Arrow -> Right */}
                 <div className="flow-arrow hidden lg:block absolute top-1/2 -right-12 w-12 h-[2px] bg-foreground z-[-1] -translate-y-1/2" data-index="8" data-dir="right">
                    <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[2px] w-2 h-2 border-t-2 border-r-2 border-foreground rotate-45" />
@@ -261,8 +261,8 @@ export function CoordinationSection() {
                   <div className="flex items-center justify-center w-6 h-6 rounded-full bg-green-500/20 text-green-700 font-bold text-[10px]">9</div>
                   <CheckCircle2 className="w-4 h-4 text-green-600" />
                 </div>
-                <h4 className="font-semibold text-foreground text-[13px] mb-1">Success & Sync</h4>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">Engine finalizes state. Both agents automatically update calendars.</p>
+                <h4 className="font-semibold text-foreground text-[13px] mb-1">Confirmed & Synced</h4>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">Meeting confirmed. Both agents sync calendars via MCP. LLM summarizes outcome to both users.</p>
               </div>
             </div>
 

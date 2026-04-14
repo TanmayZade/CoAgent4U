@@ -81,8 +81,8 @@ public class IntegrationController {
                 + "?client_id=" + properties.getGoogle().getClientId()
                 + "&redirect_uri=" + properties.getGoogle().getRedirectUri()
                 + "&response_type=code"
-                + "&scope=https://www.googleapis.com/auth/calendar.events"
-                + "+https://www.googleapis.com/auth/calendar.readonly"
+                + "&scope=https://www.googleapis.com/auth/calendar"
+                + "+https://www.googleapis.com/auth/tasks"
                 + "&access_type=offline"
                 + "&prompt=consent"
                 + "&state=" + stateToken;

@@ -11,7 +11,7 @@ This architecture is derived from:
 - **PRD** — Sections 4.1 (Scope), 5.2 (User Journeys), 6.1–6.7 (Functional Requirements), UC-001 through UC-004
 - **API Surface** — [API_DOCUMENTATION.md](file:///e:/CoAgent4U/frontend/API_DOCUMENTATION.md) (all authenticated endpoints)
 - **Domain Model** — 4 modules: `user-module`, `agent-module`, `coordination-module`, `approval-module`
-- **Existing Frontend** — Next.js app with routes for `/dashboard`, `/dashboard/activity`, `/dashboard/calendar`, `/dashboard/coordinations`, `/dashboard/data`
+- **Existing Frontend** — Next.js 16 (React 19) app with Tailwind CSS v4 and Radix UI. Routes for `/dashboard`, `/dashboard/activity`, `/dashboard/calendar`, `/dashboard/coordinations`, `/dashboard/data`
 
 ---
 

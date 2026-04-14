@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.coagent4u.agent.port.in.CreatePersonalEventUseCase;
 import com.coagent4u.approval.domain.ApprovalStatus;
 import com.coagent4u.approval.port.in.DecideApprovalUseCase;
 import com.coagent4u.coordination.port.in.CoordinationProtocolPort;
@@ -68,11 +69,13 @@ public class SlackInteractionHandler {
     private final UserPersistencePort userPersistencePort;
     private final ObjectMapper objectMapper;
     private final Executor taskExecutor;
+    private final CreatePersonalEventUseCase createPersonalEventUseCase;
     private final SlackNotificationAdapter slackAdapter;
 
     public SlackInteractionHandler(
             SlackSignatureVerifier signatureVerifier,
             DecideApprovalUseCase decideApprovalUseCase,
+            CreatePersonalEventUseCase createPersonalEventUseCase,
             CoordinationProtocolPort coordinationProtocol,
             UserPersistencePort userPersistencePort,
             ObjectMapper objectMapper,
@@ -80,6 +83,7 @@ public class SlackInteractionHandler {
             SlackNotificationAdapter slackAdapter) {
         this.signatureVerifier = signatureVerifier;
         this.decideApprovalUseCase = decideApprovalUseCase;
+        this.createPersonalEventUseCase = createPersonalEventUseCase;
         this.coordinationProtocol = coordinationProtocol;
         this.userPersistencePort = userPersistencePort;
         this.objectMapper = objectMapper;
@@ -155,9 +159,17 @@ public class SlackInteractionHandler {
                 taskExecutor.execute(() -> handleApproval(
                         slackUserId, teamId, actionValue, true, channel, messageTs, payload));
 
-            } else if ("reject_action".equals(actionId)) {
+            } else if (actionId.startsWith("reject_action")) {
                 taskExecutor.execute(() -> handleApproval(
                         slackUserId, teamId, actionValue, false, channel, messageTs, payload));
+
+            } else if (actionId.startsWith("conflict_")) {
+                taskExecutor.execute(() -> handleConflictResolution(
+                        slackUserId, teamId, actionId, actionValue, channel, messageTs));
+
+            } else if (actionId.startsWith("preview_slot_")) {
+                // Requestee view-only pill — silently discard, no processing needed
+                log.debug("[InteractionHandler] Discarding no-op preview_slot action for user={}", slackUserId);
 
             } else {
                 log.warn("[InteractionHandler] Unknown action_id={}", actionId);
@@ -443,5 +455,40 @@ public class SlackInteractionHandler {
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    // ── Background: Conflict Resolution ────────────────────────
+
+    private void handleConflictResolution(String slackUserId, String teamId, String actionId,
+            String val, String channel, String messageTs) {
+        try {
+            // Immediate deletion of conflict card
+            slackAdapter.deleteMessage(slackUserId, new WorkspaceId(teamId), messageTs);
+            log.info("[InteractionHandler] Conflict resolution chosen: {}. Deleting card.", actionId);
+
+            Optional<User> userOpt = userPersistencePort.findBySlackUserId(
+                    new SlackUserId(slackUserId), new WorkspaceId(teamId));
+
+            if (userOpt.isEmpty()) {
+                log.warn("[InteractionHandler] No registered user for Slack interaction from user={}", slackUserId);
+                return;
+            }
+
+            com.coagent4u.shared.UserId userId = userOpt.get().getUserId();
+            ApprovalId approvalId = new ApprovalId(UUID.fromString(val));
+
+            String resolution = "CANCEL";
+            if ("conflict_replace".equals(actionId)) {
+                resolution = "DELETE_AND_REPLACE";
+            } else if ("conflict_keep_both".equals(actionId)) {
+                resolution = "KEEP_BOTH";
+            }
+
+            createPersonalEventUseCase.resolveConflict(approvalId, userId, resolution);
+            log.info("[InteractionHandler] Conflict resolution {} sent to domain for approval={}", resolution, val);
+
+        } catch (Exception e) {
+            log.warn("[InteractionHandler] Conflict resolution failed: {}", e.getMessage());
+        }
     }
 }

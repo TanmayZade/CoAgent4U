@@ -8,7 +8,7 @@ import { useScrollReveal, useStaggerReveal } from "@/hooks/use-gsap-animations"
 const footerLinks = {
   product: [
     { href: "#capabilities", label: "Capabilities" },
-    { href: "#how-it-works", label: "How It Works" },
+    { href: "#architecture", label: "Architecture" },
     { href: "#use-cases", label: "Use Cases" },
     { href: "#security", label: "Security" },
   ],
@@ -52,7 +52,7 @@ export function Footer() {
               </span>
             </Link>
             <p className="text-base text-muted-foreground max-w-sm leading-relaxed">
-              Your personal agent that coordinates your time. Deterministic, human-in-the-loop scheduling.
+              Your personal AI agent powered by MCP and A2A. Privacy-centric, human-in-the-loop scheduling and productivity management.
             </p>
           </div>
 

@@ -72,7 +72,12 @@ export function Sidebar({ user, isLoading }: { user: UserData | null, isLoading:
           <img 
             src="/images/logo-light.png" 
             alt="CoAgent4U" 
-            className="h-8 w-auto" 
+            className="h-8 w-auto dark:hidden" 
+          />
+          <img 
+            src="/images/logo-dark.png" 
+            alt="CoAgent4U" 
+            className="h-8 w-auto hidden dark:block" 
           />
           <span className="text-lg font-semibold text-foreground tracking-tight">CoAgent4U</span>
         </Link>

@@ -1,0 +1,871 @@
+# Implementation Plan: MCP + A2A/CAP on CoAgent4U
+
+> **Goal:** Evolve the existing CoAgent4U codebase into a privacy-centric personal agent platform with MCP for resource management and CoAgent Protocol (CAP) for agent-to-agent collaboration.
+
+> **Scope:** Personal agent + collaborative tasks only. No Agent Store.
+
+> **Codebase:** Java 21, Spring Boot 3.4, Maven multi-module, hexagonal architecture.
+
+---
+
+## Phase 1: MCP Integration (Weeks 1–2)
+
+> **Goal:** Agent accesses user resources (calendar, drive, email) via the MCP protocol instead of direct adapter calls. This makes the agent extensible — any new resource = a new MCP server, no agent code changes.
+
+### Why MCP First?
+
+MCP is the foundation. Once the agent talks MCP, adding Google Drive, Gmail, or any future resource is just spinning up another MCP server. The agent runtime doesn't change.
+
+```
+BEFORE (current):
+  AgentCommandService → CalendarPort → GoogleCalendarAdapter → Google API
+
+AFTER (with MCP):
+  AgentRuntime → MCP Client → [Calendar MCP Server] → GoogleCalendarAdapter → Google API
+                             → [Drive MCP Server]    → GoogleDriveAdapter   → Drive API
+                             → [Email MCP Server]    → GmailAdapter         → Gmail API
+```
+
+---
+
+### 1.1 Maven Dependencies
+
+#### [MODIFY] [pom.xml](file:///e:/CoAgent4U/pom.xml) (root)
+
+Add Spring AI MCP BOM and version property:
+
+```xml
+<properties>
+    <!-- existing properties... -->
+    <spring-ai.version>1.0.0</spring-ai.version>
+</properties>
+
+<dependencyManagement>
+    <dependencies>
+        <!-- existing dependencies... -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-bom</artifactId>
+            <version>${spring-ai.version}</version>
+            <type>pom</type>
+            <scope>import</scope>
+        </dependency>
+    </dependencies>
+</dependencyManagement>
+```
+
+#### [NEW] New module entry in root pom.xml
+
+```xml
+<modules>
+    <!-- existing modules... -->
+    <module>integration/mcp-module</module>
+</modules>
+```
+
+---
+
+### 1.2 Create MCP Module
+
+#### [NEW] `integration/mcp-module/`
+
+```
+integration/mcp-module/
+├── pom.xml
+└── src/main/java/com/coagent4u/mcp/
+    ├── server/
+    │   ├── CalendarMcpServer.java      # Wraps GoogleCalendarAdapter as MCP tools
+    │   ├── DriveMcpServer.java         # Future: Google Drive (stub for now)
+    │   └── EmailMcpServer.java         # Future: Gmail (stub for now)
+    ├── client/
+    │   ├── McpToolRouter.java          # Routes agent tool calls to correct MCP server
+    │   └── McpClientConfig.java        # Spring configuration for MCP clients
+    └── tools/
+        ├── CalendarTools.java          # @Tool annotated methods for calendar operations
+        ├── DriveTools.java             # Stub
+        └── EmailTools.java             # Stub
+```
+
+#### [NEW] `integration/mcp-module/pom.xml`
+
+```xml
+<dependencies>
+    <!-- Spring AI MCP Server -->
+    <dependency>
+        <groupId>org.springframework.ai</groupId>
+        <artifactId>spring-ai-starter-mcp-server-webmvc</artifactId>
+    </dependency>
+    <!-- Spring AI MCP Client -->
+    <dependency>
+        <groupId>org.springframework.ai</groupId>
+        <artifactId>spring-ai-starter-mcp-client</artifactId>
+    </dependency>
+    <!-- Internal: reuse existing calendar adapter -->
+    <dependency>
+        <groupId>com.coagent4u</groupId>
+        <artifactId>calendar-module</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.coagent4u</groupId>
+        <artifactId>shared-kernel</artifactId>
+    </dependency>
+</dependencies>
+```
+
+---
+
+### 1.3 Calendar MCP Server (wraps existing adapter)
+
+#### [NEW] `CalendarTools.java`
+
+This is the key file — it wraps your existing [CalendarPort](file:///e:/CoAgent4U/core/agent-module/src/main/java/com/coagent4u/agent/port/out/CalendarPort.java) methods as MCP-discoverable tools using Spring AI's `@Tool` annotation:
+
+```java
+package com.coagent4u.mcp.tools;
+
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.stereotype.Component;
+import com.coagent4u.agent.port.out.CalendarPort;
+// ...
+
+@Component
+public class CalendarTools {
+
+    private final CalendarPort calendarPort;
+
+    public CalendarTools(CalendarPort calendarPort) {
+        this.calendarPort = calendarPort;
+    }
+
+    @Tool(description = "List calendar events for a date range")
+    public List<CalendarEvent> listEvents(
+            @ToolParam(description = "Agent ID") String agentId,
+            @ToolParam(description = "Start date (yyyy-MM-dd)") String startDate,
+            @ToolParam(description = "End date (yyyy-MM-dd)") String endDate) {
+        // Convert params → domain types, delegate to existing CalendarPort
+        AgentId aid = new AgentId(UUID.fromString(agentId));
+        TimeRange range = TimeRange.of(LocalDate.parse(startDate), LocalDate.parse(endDate));
+        return calendarPort.getCalendarEvents(aid, range);
+    }
+
+    @Tool(description = "Check free/busy slots for a date range")
+    public List<TimeSlot> checkAvailability(
+            @ToolParam(description = "Agent ID") String agentId,
+            @ToolParam(description = "Start date") String startDate,
+            @ToolParam(description = "End date") String endDate) {
+        // Delegates to existing CalendarPort.getFreeBusy()
+    }
+
+    @Tool(description = "Create a calendar event")
+    public String createEvent(
+            @ToolParam(description = "Agent ID") String agentId,
+            @ToolParam(description = "Event title") String title,
+            @ToolParam(description = "Start time (ISO-8601)") String startTime,
+            @ToolParam(description = "End time (ISO-8601)") String endTime) {
+        // Delegates to existing CalendarPort.createEvent()
+    }
+
+    @Tool(description = "Delete a calendar event")
+    public String deleteEvent(
+            @ToolParam(description = "Agent ID") String agentId,
+            @ToolParam(description = "Event ID") String eventId) {
+        // Delegates to existing CalendarPort.deleteEvent()
+    }
+}
+```
+
+> [!TIP]
+> **Zero duplication.** `CalendarTools` is a thin wrapper. All real logic stays in `GoogleCalendarAdapter`. The MCP layer just makes it discoverable as tools.
+
+---
+
+### 1.4 MCP Client in Agent Module
+
+#### [NEW] `core/agent-module/.../port/out/McpToolPort.java`
+
+New outbound port for the agent to call MCP tools:
+
+```java
+package com.coagent4u.agent.port.out;
+
+/**
+ * Outbound port — agent calls MCP tools to access user resources.
+ * Implemented by McpToolRouter in mcp-module.
+ */
+public interface McpToolPort {
+    /**
+     * Execute an MCP tool by name with the given parameters.
+     * @return tool execution result as a structured object
+     */
+    ToolResult executeTool(AgentId agentId, String toolName, Map<String, Object> params);
+
+    /**
+     * List all available MCP tools for a given agent.
+     */
+    List<ToolDescriptor> listAvailableTools(AgentId agentId);
+}
+```
+
+#### [MODIFY] [AgentCommandService.java](file:///e:/CoAgent4U/core/agent-module/src/main/java/com/coagent4u/agent/application/AgentCommandService.java)
+
+Add `McpToolPort` as a constructor dependency. Initially, the existing direct `CalendarPort` calls remain — MCP becomes a parallel path that the agent runtime (Phase 2) will use for LLM-driven tool calling.
+
+```java
+// Add to constructor:
+private final McpToolPort mcpToolPort;  // NEW
+
+// Existing CalendarPort stays — used for deterministic flows
+// McpToolPort used for LLM-driven dynamic tool selection
+```
+
+---
+
+### 1.5 Phase 1 Verification
+
+| Test | How |
+|------|-----|
+| MCP server exposes calendar tools | Start app → call `GET /mcp/tools` → see `listEvents`, `checkAvailability`, `createEvent`, `deleteEvent` |
+| MCP client can call calendar tools | Unit test: `mcpToolPort.executeTool(agentId, "listEvents", params)` returns events |
+| Existing Slack flow still works | `@CoAgent show my schedule` → responds correctly (unchanged path) |
+| MCP Inspector validation | Connect MCP Inspector to the server, verify tool schemas are correct |
+
+---
+
+## Phase 2: Agent Runtime Evolution (Weeks 3–4)
+
+> **Goal:** Transform the agent from a single-command handler into an intelligent runtime that can plan multi-step tasks using MCP tools.
+
+### 2.1 Agent Runtime Architecture
+
+```
+CURRENT:
+  Slack Message → IntentParser → switch(intent) → hardcoded handler → response
+
+NEW:
+  Slack Message → AgentRuntime
+                      │
+                      ├── 1. Parse intent (existing IntentParser)
+                      ├── 2. Plan (LLM decides which MCP tools to call)  
+                      ├── 3. Execute (call MCP tools via McpToolPort)
+                      ├── 4. Review (privacy check before responding)
+                      └── 5. Respond (via NotificationPort)
+```
+
+### 2.2 Files to Create/Modify
+
+#### [NEW] `core/agent-module/.../runtime/AgentRuntime.java`
+
+The core agent loop — replaces the current switch-based routing in `AgentCommandService`:
+
+```java
+package com.coagent4u.agent.runtime;
+
+/**
+ * The agent runtime: takes a user message and executes a plan.
+ * 
+ * For DETERMINISTIC intents (ADD_EVENT, VIEW_SCHEDULE, SCHEDULE_WITH):
+ *   → Routes to existing hardcoded handlers (no change from current behavior)
+ * 
+ * For DYNAMIC intents (everything else):
+ *   → LLM plans which MCP tools to call
+ *   → Executes tools via McpToolPort
+ *   → Privacy Guardian reviews output
+ *   → Responds to user
+ */
+public class AgentRuntime {
+
+    private final AgentCommandService commandService;  // keeps deterministic paths
+    private final McpToolPort mcpToolPort;              // MCP tool execution
+    private final LLMPort llmPort;                     // LLM for planning
+    private final PrivacyGuardianPort privacyGuardian; // output review
+    private final AgentMemoryPort memoryPort;          // conversation context
+
+    public AgentResponse handleMessage(AgentId agentId, String rawText) {
+        // 1. Load conversation context
+        AgentContext context = memoryPort.loadContext(agentId);
+        
+        // 2. Parse intent (existing 2-tier parser)
+        ParsedIntent intent = intentParser.parse(rawText);
+        
+        // 3. Route: deterministic vs dynamic
+        if (intent.isDeterministic()) {
+            // Delegates to existing AgentCommandService logic
+            return commandService.routeIntent(agent, intent, correlationId);
+        }
+        
+        // 4. LLM Planning: "Which tools do I need to call?"
+        ToolPlan plan = llmPort.planToolCalls(context, rawText, mcpToolPort.listAvailableTools(agentId));
+        
+        // 5. Execute each tool in the plan
+        List<ToolResult> results = plan.steps().stream()
+            .map(step -> mcpToolPort.executeTool(agentId, step.toolName(), step.params()))
+            .toList();
+        
+        // 6. Privacy review
+        privacyGuardian.reviewOutput(results);
+        
+        // 7. LLM generates human response from tool results
+        String response = llmPort.generateResponse(context, rawText, results);
+        
+        // 8. Save context
+        memoryPort.saveContext(agentId, context.withNewExchange(rawText, response));
+        
+        return new AgentResponse(response, results);
+    }
+}
+```
+
+> [!IMPORTANT]
+> **Key design decision:** Deterministic intents (ADD_EVENT, VIEW_SCHEDULE, SCHEDULE_WITH) keep the existing exact code paths. The new LLM-driven path is additive — used only for intents the current parser can't handle. This means **zero regression risk**.
+
+---
+
+#### [NEW] `core/agent-module/.../port/out/AgentMemoryPort.java`
+
+```java
+package com.coagent4u.agent.port.out;
+
+/**
+ * Agent memory — stores conversation history and learned preferences.
+ * Implemented in persistence module.
+ */
+public interface AgentMemoryPort {
+    AgentContext loadContext(AgentId agentId);
+    void saveContext(AgentId agentId, AgentContext context);
+    void clearContext(AgentId agentId);  // GDPR: right to erasure
+}
+```
+
+#### [NEW] `core/agent-module/.../domain/AgentContext.java`
+
+```java
+package com.coagent4u.agent.domain;
+
+/**
+ * Conversation context for the agent runtime.
+ * Stores recent exchanges, user preferences, and active tasks.
+ * Encrypted at rest via AES-256 (existing AesTokenEncryption).
+ */
+public record AgentContext(
+    AgentId agentId,
+    List<Exchange> recentExchanges,  // last N messages
+    Map<String, String> preferences, // learned user preferences
+    List<ActiveTask> activeTasks     // in-progress multi-step tasks
+) {
+    public AgentContext withNewExchange(String userMessage, String agentResponse) {
+        // Add exchange, trim to max window size
+    }
+}
+```
+
+#### [MODIFY] `LLMPort.java` — Add tool planning method
+
+```java
+// Add to existing LLMPort interface:
+
+/**
+ * Given conversation context and available tools, plan which tools to call.
+ */
+ToolPlan planToolCalls(AgentContext context, String userMessage, List<ToolDescriptor> availableTools);
+
+/**
+ * Generate a natural language response from tool execution results.
+ */
+String generateResponse(AgentContext context, String userMessage, List<ToolResult> results);
+```
+
+---
+
+### 2.3 Database Migration
+
+#### [NEW] `infrastructure/persistence/src/main/resources/db/migration/V8__create_agent_memory.sql`
+
+```sql
+CREATE TABLE agent_memory (
+    agent_id        UUID PRIMARY KEY REFERENCES agents(id),
+    context_data    BYTEA NOT NULL,          -- Encrypted JSON (AES-256)
+    preferences     JSONB DEFAULT '{}',      -- Learned preferences
+    last_updated    TIMESTAMP NOT NULL DEFAULT now(),
+    exchange_count  INTEGER DEFAULT 0
+);
+
+CREATE INDEX idx_agent_memory_updated ON agent_memory(last_updated);
+```
+
+---
+
+### 2.4 Phase 2 Verification
+
+| Test | How |
+|------|-----|
+| Deterministic intents still work exactly as before | Run existing test suite — zero regression |
+| Agent can plan multi-tool tasks | Send "What meetings do I have tomorrow and who's in them?" → agent calls `listEvents` tool via MCP → responds with formatted answer |
+| Memory persists across messages | Send two messages in sequence, second message references first → agent context maintained |
+| Context is encrypted at rest | Check DB: `agent_memory.context_data` is binary blob, not readable JSON |
+
+---
+
+## Phase 3: Privacy Module (Week 5)
+
+> **Goal:** Before any data leaves the agent (to another agent, to an LLM, to the user), it passes through the Privacy Guardian for PII detection, data minimization, and audit logging.
+
+### 3.1 Module Structure
+
+#### [NEW] `core/privacy-module/`
+
+```
+core/privacy-module/
+├── pom.xml                    # Depends: shared-kernel, common-domain
+└── src/main/java/com/coagent4u/privacy/
+    ├── domain/
+    │   ├── PrivacyGuardian.java        # Core: PII detection + masking
+    │   ├── DataMinimizer.java          # Reduce data to minimum needed
+    │   ├── SharingLevel.java           # Enum: MINIMAL, STANDARD, DETAILED, FULL
+    │   ├── PiiCategory.java            # Enum: EMAIL, PHONE, NAME, ADDRESS, MEDICAL, FINANCIAL
+    │   ├── PiiDetector.java            # Regex + pattern-based PII finder
+    │   ├── MaskedData.java             # Value object: original data + masked version
+    │   └── PrivacyPolicy.java          # Per-user privacy rules
+    ├── port/
+    │   ├── in/
+    │   │   ├── ReviewDataUseCase.java          # Review outbound data before sharing
+    │   │   ├── GetTransparencyFeedUseCase.java # User views their audit trail  
+    │   │   └── ManagePrivacyRulesUseCase.java  # User configures sharing rules
+    │   └── out/
+    │       ├── PrivacyPersistencePort.java     # Store privacy rules
+    │       └── TransparencyLogPort.java        # Write to transparency feed
+    └── application/
+        └── PrivacyService.java         # Implements all inbound ports
+```
+
+#### [NEW] Module entry in root pom.xml
+
+```xml
+<module>core/privacy-module</module>
+```
+
+---
+
+### 3.2 Core Privacy Classes
+
+#### [NEW] `PrivacyGuardian.java`
+
+```java
+package com.coagent4u.privacy.domain;
+
+/**
+ * The Privacy Guardian — central gatekeeper for all data flows.
+ * 
+ * Every piece of data that leaves the agent passes through here:
+ * - Agent → Another agent (A2A/CAP)
+ * - Agent → LLM (cloud model)
+ * - Agent → User response (in case of sensitive context)
+ */
+public class PrivacyGuardian {
+
+    private final PiiDetector piiDetector;
+
+    /**
+     * Review data before it's shared externally.
+     * Returns MaskedData with PII redacted based on sharing level.
+     */
+    public MaskedData review(Object data, SharingLevel level, String purpose) {
+        List<PiiCategory> detected = piiDetector.detect(data);
+        
+        return switch (level) {
+            case MINIMAL  -> maskAll(data, detected);           // "Busy 3-4 PM"
+            case STANDARD -> maskSensitive(data, detected);     // "Busy 3-4 PM (1 event)"
+            case DETAILED -> maskPii(data, detected);           // "Meeting with Dr..." → "Meeting"
+            case FULL     -> MaskedData.unmasked(data);         // Everything (trusted only)
+        };
+    }
+}
+```
+
+#### [NEW] `PiiDetector.java`
+
+```java
+package com.coagent4u.privacy.domain;
+
+/**
+ * Detects PII in text and structured data using regex patterns.
+ * 
+ * Categories detected:
+ * - Email addresses
+ * - Phone numbers  
+ * - Medical terms (appointment, doctor, hospital)
+ * - Financial terms (salary, bank, account)
+ * - Personal names (from calendar event titles)
+ * - Addresses
+ */
+public class PiiDetector {
+    
+    private static final Map<PiiCategory, Pattern> PATTERNS = Map.of(
+        PiiCategory.EMAIL,     Pattern.compile("[\\w.+-]+@[\\w-]+\\.[\\w.]+"),
+        PiiCategory.PHONE,     Pattern.compile("\\+?\\d{10,13}"),
+        PiiCategory.MEDICAL,   Pattern.compile("(?i)(doctor|hospital|clinic|appointment|therapy|prescription)"),
+        PiiCategory.FINANCIAL, Pattern.compile("(?i)(salary|bank|account|payment|invoice)")
+    );
+
+    public List<PiiCategory> detect(Object data) {
+        String text = serialize(data);
+        return PATTERNS.entrySet().stream()
+            .filter(e -> e.getValue().matcher(text).find())
+            .map(Map.Entry::getKey)
+            .toList();
+    }
+}
+```
+
+---
+
+### 3.3 Transparency Feed
+
+#### [MODIFY] [monitoring module](file:///e:/CoAgent4U/infrastructure/monitoring) — Enrich audit logging
+
+Current `AgentActivityEventHandler` logs events internally. Extend it to write user-visible transparency entries:
+
+```java
+// NEW fields in agent_activities table:
+//   - data_accessed: JSONB    (what resources were read)
+//   - data_shared:   JSONB    (what was sent externally)
+//   - pii_detected:  JSONB    (PII categories found)
+//   - sharing_level: VARCHAR  (MINIMAL/STANDARD/DETAILED/FULL)
+//   - visible_to_user: BOOLEAN (true = shows in transparency feed)
+```
+
+#### [NEW] Database migration `V9__add_transparency_fields.sql`
+
+```sql
+ALTER TABLE agent_activities 
+    ADD COLUMN data_accessed    JSONB DEFAULT '[]',
+    ADD COLUMN data_shared      JSONB DEFAULT '[]',
+    ADD COLUMN pii_detected     JSONB DEFAULT '[]',
+    ADD COLUMN sharing_level    VARCHAR(20),
+    ADD COLUMN visible_to_user  BOOLEAN DEFAULT true;
+
+CREATE TABLE privacy_rules (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id         UUID NOT NULL,
+    rule_type       VARCHAR(50) NOT NULL,     -- 'per_contact', 'per_resource', 'global'
+    target          VARCHAR(255),              -- contact ID or resource type
+    sharing_level   VARCHAR(20) NOT NULL,      -- MINIMAL, STANDARD, DETAILED, FULL
+    auto_approve    BOOLEAN DEFAULT false,
+    created_at      TIMESTAMP NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_privacy_rules_user ON privacy_rules(user_id);
+```
+
+---
+
+### 3.4 Phase 3 Verification
+
+| Test | How |
+|------|-----|
+| PII detection works | Unit test: `piiDetector.detect("Meeting with Dr. Sharma at 3 PM")` → `[MEDICAL, NAME]` |
+| Data minimization produces correct output per level | Unit test: same calendar event → 4 different outputs for each SharingLevel |
+| Transparency feed is written | Send a command → check `agent_activities` table → `visible_to_user = true`, `data_accessed` is populated |
+| Privacy rules are persisted | API: set sharing level for a contact → read back → confirmed |
+
+---
+
+## Phase 4: CoAgent Protocol — CAP (Weeks 6–8)
+
+> **Goal:** Extend the existing A2A module into the CoAgent Protocol (CAP) — A2A + consent engine + data minimization + interaction receipts.
+
+### 4.1 CAP Architecture on Existing A2A
+
+```
+CURRENT A2A:
+  A2AAdapter dispatches 3 JSON-RPC methods:
+    - propose_governance_session
+    - select_governance_consensus  
+    - terminate_session
+
+NEW CAP (extends A2A):
+  CAPAdapter dispatches A2A + privacy-aware methods:
+    - declare_intent           ← NEW: requester declares what data it needs
+    - negotiate_consent        ← NEW: receiver checks permission rules
+    - exchange_data            ← NEW: send data with minimization headers
+    - acknowledge_receipt      ← NEW: both sides log the interaction
+    - revoke_access            ← NEW: user revokes another agent's access
+    - (existing A2A methods remain for backward compatibility)
+```
+
+---
+
+### 4.2 Contact & Trust Model
+
+#### [MODIFY] `core/user-module/`
+
+#### [NEW] `core/user-module/.../domain/Contact.java`
+
+```java
+package com.coagent4u.user.domain;
+
+/**
+ * A contact represents a relationship between two users.
+ * Trust level determines default sharing behavior.
+ */
+public class Contact {
+    
+    public enum TrustLevel {
+        UNKNOWN,     // First-time interaction — always prompt user
+        COLLEAGUE,   // Same workspace — auto-approve availability checks
+        FRIEND,      // Trusted — auto-approve most requests
+        BLOCKED      // Never share anything
+    }
+
+    private final UserId ownerId;
+    private final UserId contactId;
+    private TrustLevel trustLevel;
+    private SharingLevel defaultSharingLevel;
+    private boolean autoApproveAvailability;
+    private Instant createdAt;
+    private Instant updatedAt;
+}
+```
+
+#### [NEW] Database migration `V10__create_contacts.sql`
+
+```sql
+CREATE TABLE contacts (
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id            UUID NOT NULL,
+    contact_id          UUID NOT NULL,
+    trust_level         VARCHAR(20) NOT NULL DEFAULT 'UNKNOWN',
+    sharing_level       VARCHAR(20) NOT NULL DEFAULT 'MINIMAL',
+    auto_approve_avail  BOOLEAN DEFAULT false,
+    created_at          TIMESTAMP NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMP NOT NULL DEFAULT now(),
+    UNIQUE (owner_id, contact_id)
+);
+
+CREATE INDEX idx_contacts_owner ON contacts(owner_id);
+```
+
+---
+
+### 4.3 CAP Protocol Messages
+
+#### [NEW] `integration/a2a-module/.../protocol/`
+
+```
+integration/a2a-module/src/main/java/com/coagent4u/a2a/
+├── adapter/in/rpc/
+│   ├── A2AAdapter.java           # EXISTING — keep for backward compat
+│   └── CAPAdapter.java           # NEW — extends A2A with privacy methods
+├── protocol/
+│   ├── IntentDeclaration.java     # NEW — what data the requester needs
+│   ├── ConsentResponse.java       # NEW — approved/denied with sharing level
+│   ├── DataExchange.java          # NEW — data payload with minimization headers
+│   ├── InteractionReceipt.java    # NEW — logged by both agents
+│   └── CAPMessageType.java       # NEW — enum of all CAP message types
+└── consent/
+    ├── ConsentEngine.java         # NEW — checks user's rules + prompts if needed
+    └── ConsentRule.java           # NEW — auto-approve rules per contact/resource
+```
+
+#### [NEW] `IntentDeclaration.java`
+
+```java
+package com.coagent4u.a2a.protocol;
+
+/**
+ * Step 1 of CAP: The requesting agent declares its intent.
+ * 
+ * This is sent BEFORE any data is exchanged.
+ * The receiving agent's ConsentEngine evaluates this against user's rules.
+ */
+public record IntentDeclaration(
+    String requestId,           // Unique ID for this interaction
+    String fromAgent,           // Requesting agent's ID
+    String toAgent,             // Target agent's ID  
+    String intent,              // What: "check_availability", "schedule_meeting"
+    String purpose,             // Why: "Schedule a team dinner"
+    List<String> dataNeeded,    // What data: ["calendar_free_slots"]
+    String requestedLevel,      // Desired sharing level: MINIMAL, STANDARD, etc.
+    String signature,           // Cryptographic signature (using existing AesTokenEncryption)
+    Instant timestamp
+) {}
+```
+
+#### [NEW] `ConsentEngine.java`
+
+```java
+package com.coagent4u.a2a.consent;
+
+/**
+ * Evaluates an IntentDeclaration against the user's permission rules.
+ * 
+ * Decision flow:
+ * 1. Is the requester BLOCKED? → DENY
+ * 2. Does the intent match an auto-approve rule? → AUTO_APPROVE
+ * 3. Otherwise → PROMPT_USER (sends Slack approval request via existing ApprovalPort)
+ */
+public class ConsentEngine {
+
+    private final ContactPersistencePort contactPort;
+    private final PrivacyRulePersistencePort rulesPort;
+    private final ApprovalPort approvalPort;        // REUSE existing approval module!
+
+    public ConsentResponse evaluate(IntentDeclaration intent, UserId targetUserId) {
+        // 1. Check blocked list
+        Contact contact = contactPort.findByOwnerAndContact(targetUserId, intent.fromAgent());
+        if (contact != null && contact.getTrustLevel() == TrustLevel.BLOCKED) {
+            return ConsentResponse.denied("Blocked");
+        }
+
+        // 2. Check auto-approve rules
+        if (contact != null && contact.isAutoApproveFor(intent.intent())) {
+            SharingLevel level = contact.getDefaultSharingLevel();
+            return ConsentResponse.autoApproved(level);
+        }
+
+        // 3. Prompt user via Slack (reuses existing approval workflow!)
+        ApprovalId approvalId = approvalPort.requestConsentApproval(
+            targetUserId, intent.fromAgent(), intent.purpose(), intent.dataNeeded());
+        return ConsentResponse.pendingApproval(approvalId);
+    }
+}
+```
+
+> [!TIP]
+> **The ConsentEngine reuses your existing `approval-module`!** The same Slack interactive buttons that handle meeting approvals now handle data-sharing consent. Zero new UI work.
+
+---
+
+### 4.4 Extend A2A Adapter
+
+#### [MODIFY] [A2AAdapter.java](file:///e:/CoAgent4U/integration/a2a-module/src/main/java/com/coagent4u/a2a/adapter/in/rpc/A2AAdapter.java)
+
+Add CAP methods to the existing dispatch:
+
+```java
+// Add to existing switch in dispatch():
+case "cap.declare_intent"      -> handleDeclareIntent(request);
+case "cap.consent_response"    -> handleConsentResponse(request);
+case "cap.exchange_data"       -> handleDataExchange(request);
+case "cap.acknowledge_receipt" -> handleAcknowledgeReceipt(request);
+case "cap.revoke_access"       -> handleRevokeAccess(request);
+```
+
+---
+
+### 4.5 Integrate CAP into Coordination Flow
+
+#### [MODIFY] [CoordinationService.java](file:///e:/CoAgent4U/core/coordination-module/src/main/java/com/coagent4u/coordination/application/CoordinationService.java)
+
+The existing `initiate()` method currently fetches availability directly. With CAP, it first sends an Intent Declaration and waits for consent:
+
+```java
+// BEFORE (current):
+//   initiate() → getAvailability(inviteeAgent) → match → propose
+
+// AFTER (with CAP):
+//   initiate() → declareIntent(inviteeAgent, "check_availability")
+//             → ConsentEngine evaluates
+//             → IF approved: getAvailability() with data minimization
+//             → match → propose
+//             → InteractionReceipt logged for both users
+```
+
+The state machine gains two new intermediate states:
+
+```java
+// Add to CoordinationState enum:
+AWAITING_CONSENT_B,     // After intent declaration, before availability fetch
+CONSENT_DENIED          // Terminal: invitee's rules denied the request
+```
+
+---
+
+### 4.6 Interaction Receipts
+
+#### [NEW] `InteractionReceipt.java`
+
+```java
+package com.coagent4u.a2a.protocol;
+
+/**
+ * After every CAP interaction, both agents log a receipt.
+ * This is visible to the user in their Transparency Dashboard.
+ */
+public record InteractionReceipt(
+    String interactionId,
+    String fromAgent,
+    String toAgent,
+    String intent,
+    String dataShared,      // What was actually shared (post-minimization)
+    SharingLevel level,     // What sharing level was used
+    Instant timestamp,
+    String outcome          // "completed", "denied", "revoked"
+) {}
+```
+
+These receipts are written to the `agent_activities` table via the existing monitoring module.
+
+---
+
+### 4.7 Phase 4 Verification
+
+| Test | How |
+|------|-----|
+| Intent Declaration sent before availability check | Log: `[CAP] Intent declared: check_availability from agentA to agentB` |
+| Consent auto-approved for friends | Set trust_level=FRIEND → coordination proceeds without Slack prompt |
+| Consent prompts for unknown contacts | Set trust_level=UNKNOWN → Slack message: "AgentA wants to check your availability. Allow?" |
+| Blocked contacts are denied | Set trust_level=BLOCKED → coordination immediately terminated |
+| Data minimization applied | MINIMAL sharing → invitee sees only "Busy/Free", not event titles |
+| Interaction receipts logged both sides | Check `agent_activities` for both requester and invitee entries |
+| Existing A2A flows not broken | Run all existing coordination tests → pass |
+
+---
+
+## Summary: All Changes
+
+### New Modules
+
+| Module | Path | Purpose |
+|--------|------|---------|
+| `mcp-module` | `integration/mcp-module/` | MCP servers + client for tool-based resource access |
+| `privacy-module` | `core/privacy-module/` | PII detection, data minimization, transparency |
+
+### Modified Modules
+
+| Module | Changes |
+|--------|---------|
+| `agent-module` | Add `AgentRuntime`, `AgentContext`, `McpToolPort`, `AgentMemoryPort`. Refactor `AgentCommandService` to delegate to runtime for dynamic intents |
+| `a2a-module` | Add CAP protocol classes (`IntentDeclaration`, `ConsentEngine`, `InteractionReceipt`). Extend `A2AAdapter` with CAP dispatch methods |
+| `user-module` | Add `Contact` entity with `TrustLevel` |
+| `approval-module` | Add consent approval type (reuse existing approval workflow for CAP consent) |
+| `coordination-module` | Add `AWAITING_CONSENT_B` and `CONSENT_DENIED` states. Add data minimization to availability sharing |
+| `llm-module` | Add `planToolCalls()` and `generateResponse()` to `GroqLLMAdapter` |
+| `persistence` | New tables: `agent_memory`, `privacy_rules`, `contacts`. Alter: `agent_activities` |
+| `monitoring` | Enrich audit events with transparency fields |
+| `shared-kernel` | Add `SharingLevel`, `TrustLevel`, `ToolDescriptor`, `ToolResult` value objects |
+
+### Database Migrations
+
+| Migration | Tables |
+|-----------|--------|
+| `V8__create_agent_memory.sql` | `agent_memory` |
+| `V9__add_transparency_fields.sql` | Alter `agent_activities`, new `privacy_rules` |
+| `V10__create_contacts.sql` | `contacts` |
+
+---
+
+## Open Questions
+
+> [!WARNING]
+> ### Must Decide Before Starting
+
+1. **Spring AI version:** The MCP starters require Spring AI 1.0+. Your current pom.xml doesn't include Spring AI. Should I add `spring-ai-bom` version `1.0.0` (stable) or `1.1.0-SNAPSHOT` (latest)?
+
+2. **MCP transport:** For the MVP, should the MCP servers run **in-process** (same JVM, fastest, simplest) or as **separate HTTP services** (more realistic, supports future microservice extraction)? I recommend in-process for now.
+
+3. **Agent memory window size:** How many conversation exchanges should the agent remember? Recommendation: last 20 exchanges (configurable), encrypted at rest.
+
+4. **LLM for tool planning:** Your current `GroqLLMAdapter` uses Groq. For tool-calling/planning, should we: (A) Keep Groq for everything, (B) Add OpenAI/Claude for planning (better tool-calling), (C) Make it configurable per user?
+
+5. **CAP consent UX:** When an unknown agent asks for data, should the Slack prompt show: (A) Simple approve/deny button, or (B) Approve with sharing level selection (Minimal/Standard/Full)?

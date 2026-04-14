@@ -70,6 +70,19 @@ public interface NotificationPort {
         String sendStatusCard(SlackUserId slackUserId, WorkspaceId workspaceId, String statusText, String color);
 
         /**
+         * Sends a specialized conflict resolution card with [Cancel], [Delete & Add], and [Keep Both] buttons.
+         *
+         * @param slackUserId         recipient's Slack user ID
+         * @param workspaceId         the Slack workspace
+         * @param proposalText        human-readable proposal details
+         * @param approvalId          the approval ID to embed in button actions
+         * @param existingEventDetails details of the conflicting event(s)
+         * @return the Slack message timestamp (ts)
+         */
+        String sendConflictResolutionRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
+                        String proposalText, String approvalId, String existingEventDetails);
+
+        /**
          * Deletes an existing message.
          *
          * @param slackUserId the user ID (channel)

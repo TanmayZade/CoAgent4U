@@ -2,7 +2,9 @@ import { apiRequest } from '../api'
 
 export interface AgentStatus {
   status: 'ACTIVE' | 'INACTIVE' | 'ERROR'
-  lastActivity: string
+  slackConnected: boolean
+  googleCalendarConnected: boolean
+  lastActivityAt: string
 }
 
 export interface ConnectedService {
@@ -12,7 +14,7 @@ export interface ConnectedService {
 }
 
 export interface ActivityDataPoint {
-  date: string
+  day: string
   completed: number
   failed: number
   rejected: number
@@ -39,9 +41,9 @@ export interface CoordinationSummaryDto {
 
 export interface DashboardSummaryResponse {
   agentStatus: AgentStatus
-  services: ConnectedService[]
+  pendingApprovalsCount: number
   recentCoordinations: CoordinationSummaryDto[]
-  activityChart: ActivityDataPoint[]
+  activitySummary: ActivityDataPoint[]
 }
 
 export interface PendingApprovalDto {

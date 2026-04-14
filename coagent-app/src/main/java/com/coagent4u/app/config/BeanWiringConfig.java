@@ -69,10 +69,17 @@ public class BeanWiringConfig {
             AgentEventExecutionPort agentEventExecutionPort,
             AgentProfilePort agentProfilePort,
             AgentApprovalPort agentApprovalPort,
-            DomainEventPublisher eventPublisher) {
+            DomainEventPublisher eventPublisher,
+            java.util.List<com.coagent4u.coordination.domain.policy.GovernancePolicy> governancePolicies) {
         return new CoordinationService(persistence,
                 agentAvailabilityPort, agentEventExecutionPort,
-                agentProfilePort, agentApprovalPort, eventPublisher);
+                agentProfilePort, agentApprovalPort, eventPublisher, governancePolicies);
+    }
+
+    @Bean
+    com.coagent4u.coordination.domain.policy.GovernancePolicy autoApprovalPolicy() {
+        // Auto-approve meetings shorter than 31 minutes
+        return new com.coagent4u.coordination.domain.policy.AutoApprovalPolicy(30);
     }
 
     @Bean
@@ -85,11 +92,12 @@ public class BeanWiringConfig {
             NotificationPort notificationPort,
             UserPersistencePort userPersistence,
             DomainEventPublisher eventPublisher,
-            com.coagent4u.agent.port.out.EventProposalPersistencePort proposalPersistence) {
+            com.coagent4u.agent.port.out.EventProposalPersistencePort proposalPersistence,
+            com.coagent4u.agent.port.out.PythonAgentPort pythonAgentPort) {
         return new AgentCommandService(agentPersistence,
                 calendarPort, llmPort, approvalPort,
                 coordinationProtocol, notificationPort, userPersistence, eventPublisher,
-                proposalPersistence);
+                proposalPersistence, pythonAgentPort);
     }
 
     // ── Capability Bridges (agent-module → coordination ports) ──
@@ -253,13 +261,23 @@ public class BeanWiringConfig {
 
         // Bridge: maps recent coordinations to summaries with resolved usernames
         com.coagent4u.agent.application.DashboardService.CoordinationSummaryMapper mapper =
-                (agentId, limit) -> coordinationQueryService.getHistory(
+                new com.coagent4u.agent.application.DashboardService.CoordinationSummaryMapper() {
+            @Override
+            public java.util.List<com.coagent4u.coordination.application.dto.CoordinationSummary> mapRecent(com.coagent4u.shared.AgentId agentId, int limit) {
+                return coordinationQueryService.getHistory(
                         // Resolve agentId back to username for the query service
                         agentPersistence.findById(agentId)
                                 .flatMap(agent -> userQuery.findById(agent.getUserId()))
                                 .map(user -> user.getUsername())
                                 .orElse("unknown"),
                         null, 0, limit).content();
+            }
+
+            @Override
+            public java.util.List<com.coagent4u.coordination.application.dto.CoordinationActivityPoint> mapActivity(com.coagent4u.shared.AgentId agentId, int days) {
+                return coordinationQueryService.getActivityStats(agentId, days);
+            }
+        };
 
         return new com.coagent4u.agent.application.DashboardService(
                 userQuery, agentPersistence,

@@ -29,9 +29,9 @@ const playfairDisplay = Playfair_Display({
 })
 
 export const metadata: Metadata = {
-  title: 'CoAgent4U | Your Personal Agent That Coordinates Your Time',
-  description: 'A coordination platform where personal agents represent users and collaborate to manage commitments, schedules, and shared time. Human-in-the-loop control.',
-  keywords: ['personal agent', 'coordination', 'scheduling', 'calendar', 'AI assistant', 'productivity'],
+  title: 'CoAgent4U | Your Personal AI Agent Powered by A2A & MCP',
+  description: 'A privacy-centric personal AI agent that manages your calendar, tasks, and productivity through MCP tools and coordinates with other agents via the A2A protocol. Human-in-the-loop control.',
+  keywords: ['personal agent', 'MCP', 'A2A', 'Model Context Protocol', 'Agent-to-Agent', 'AI agent', 'calendar', 'scheduling', 'productivity', 'LLM'],
   icons: {
     icon: [
       {

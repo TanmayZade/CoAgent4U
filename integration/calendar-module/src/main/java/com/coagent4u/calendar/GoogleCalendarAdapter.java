@@ -466,11 +466,12 @@ public class GoogleCalendarAdapter implements CalendarPort, OAuthTokenExchangePo
             JsonNode root = objectMapper.readTree(json);
             JsonNode items = root.path("items");
             for (JsonNode item : items) {
+                String id = item.path("id").asText();
                 String title = item.path("summary").asText("(No title)");
                 Instant start = parseDateTime(item.path("start"));
                 Instant end = parseDateTime(item.path("end"));
-                if (start != null && end != null) {
-                    events.add(new CalendarEvent(title, new TimeSlot(start, end)));
+                if (id != null && start != null && end != null) {
+                    events.add(new CalendarEvent(new EventId(id), title, new TimeSlot(start, end)));
                 }
             }
         } catch (Exception e) {

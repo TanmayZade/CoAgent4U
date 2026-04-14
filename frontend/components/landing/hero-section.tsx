@@ -2,11 +2,38 @@
 
 import { GridScan } from "@/components/ui/grid-scan"
 import gsap from "gsap"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Lock } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
+
+function HeroDisabledCTA({ refProp, style }: { refProp: React.Ref<HTMLDivElement>, style?: React.CSSProperties }) {
+  const [show, setShow] = useState(false)
+  return (
+    <div ref={refProp} style={style} className="relative inline-flex" onMouseEnter={() => setShow(true)} onMouseLeave={() => setShow(false)}>
+      <button
+        disabled
+        className="inline-flex items-center justify-center h-13 px-8 text-base font-medium rounded-full bg-foreground/50 text-background/70 shadow-lg cursor-not-allowed select-none gap-2"
+      >
+        <Lock className="h-4 w-4" />
+        Get Started
+        <ArrowRight className="ml-1 h-5 w-5" />
+      </button>
+      {show && (
+        <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 z-50 w-72 rounded-xl border border-border/60 bg-background/95 backdrop-blur-md p-3 shadow-xl text-sm">
+          <div className="flex items-start gap-2">
+            <Lock className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+            <span className="text-muted-foreground leading-snug">
+              Available to <span className="font-semibold text-foreground">test users only</span>. Interested? Contact{" "}
+              <a href="mailto:easychat148@gmail.com" className="text-primary underline underline-offset-2 hover:text-primary/80 break-all">easychat148@gmail.com</a>
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export function HeroSection() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -17,7 +44,8 @@ export function HeroSection() {
   const cur1Ref = useRef<HTMLSpanElement>(null)
   const cur2Ref = useRef<HTMLSpanElement>(null)
   const subheadlineRef = useRef<HTMLParagraphElement>(null)
-  const cta1Ref = useRef<HTMLAnchorElement>(null)
+  const techBadgesRef = useRef<HTMLDivElement>(null)
+  const cta1Ref = useRef<HTMLDivElement>(null)
   const cta2Ref = useRef<HTMLAnchorElement>(null)
 
   useEffect(() => {
@@ -39,8 +67,8 @@ export function HeroSection() {
       gsap.set(cur1, { opacity: 1 })
       gsap.set(cur2, { opacity: 0 })
 
-      const HEADLINE_1 = "Your Personal Agent That"
-      const HEADLINE_2 = "Collaborates for You"
+      const HEADLINE_1 = "Your Personal AI Agent"
+      const HEADLINE_2 = "Powered by A2A & MCP"
       const CHAR_SPEED = 0.098 // slowed down by another 10%
       const DUR_1 = HEADLINE_1.length * CHAR_SPEED
       const DUR_2 = HEADLINE_2.length * CHAR_SPEED
@@ -115,12 +143,20 @@ export function HeroSection() {
         TOTAL_DUR + 0.55
       )
 
+      // Tech badges slide-up
+      tl.fromTo(
+        techBadgesRef.current,
+        { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" },
+        TOTAL_DUR + 0.7
+      )
+
       // CTA buttons with stagger
       tl.fromTo(
         [cta1Ref.current, cta2Ref.current].filter(Boolean),
         { opacity: 0, scale: 0.9, y: 8 },
         { opacity: 1, scale: 1, y: 0, duration: 0.55, ease: "back.out(1.7)", stagger: 0.12 },
-        TOTAL_DUR + 0.75
+        TOTAL_DUR + 0.85
       )
 
       return () => {
@@ -199,27 +235,46 @@ export function HeroSection() {
             className="mt-8 text-lg lg:text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto"
             style={{ opacity: 0 }}
           >
-            The Coordination Platform for Personal Agents
+            A privacy-centric personal agent that manages your calendar, tasks, and productivity through MCP tools — and coordinates with other agents via A2A protocol.
           </p>
+
+          {/* Tech Badges */}
+          <div
+            ref={techBadgesRef}
+            className="mt-6 flex flex-wrap items-center justify-center gap-3"
+            style={{ opacity: 0 }}
+          >
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-foreground/5 border border-foreground/10 text-sm font-medium text-foreground/80">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              MCP Protocol
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-foreground/5 border border-foreground/10 text-sm font-medium text-foreground/80">
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              A2A Protocol
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-foreground/5 border border-foreground/10 text-sm font-medium text-foreground/80">
+              <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+              LLM-Driven Planning
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-foreground/5 border border-foreground/10 text-sm font-medium text-foreground/80">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              32 MCP Tools
+            </span>
+          </div>
 
           {/* CTAs */}
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              ref={cta1Ref}
-              href="/signin"
-              className="inline-flex items-center justify-center h-13 px-8 text-base font-medium rounded-full bg-foreground text-background hover:bg-foreground/90 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            <HeroDisabledCTA
+              refProp={cta1Ref}
               style={{ opacity: 0 }}
-            >
-              Get Started
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Link>
+            />
             <Link
               ref={cta2Ref}
-              href="#use-cases"
+              href="#architecture"
               className="inline-flex items-center justify-center h-13 px-8 text-base font-medium rounded-full border-2 border-foreground/20 hover:border-foreground/40 hover:bg-muted/50 transition-all duration-300 hover:scale-105"
               style={{ opacity: 0 }}
             >
-              View Demo
+              View Architecture
             </Link>
           </div>
 

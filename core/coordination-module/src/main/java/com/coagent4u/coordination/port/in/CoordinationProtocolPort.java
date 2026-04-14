@@ -75,6 +75,11 @@ public interface CoordinationProtocolPort {
     String getMetadata(CoordinationId coordinationId, String key);
 
     /**
+     * Retrieves the current state of a coordination.
+     */
+    CoordinationState getState(CoordinationId coordinationId);
+
+    /**
      * Terminates a coordination in FAILED or REJECTED state.
      *
      * @param coordinationId the coordination to terminate

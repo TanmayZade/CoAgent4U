@@ -1,6 +1,6 @@
 "use client"
 
-import { Calendar, ListChecks, AlertCircle, CheckSquare, Users, History } from "lucide-react"
+import { Calendar, ListChecks, AlertCircle, Brain, Plug, Cpu } from "lucide-react"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
 import { useScrollAnimation, fadeSlideUpVariants, staggerContainerVariants, itemVariants } from "@/hooks/use-framer-animations"
@@ -8,43 +8,43 @@ import { useScrollAnimation, fadeSlideUpVariants, staggerContainerVariants, item
 const capabilities = [
   {
     icon: Calendar,
-    title: "View My Schedule",
-    description: "Access your calendar instantly. Your agent retrieves commitments directly from Google Calendar.",
+    title: "Calendar via MCP",
+    description: "17 MCP tools for Google Calendar — list events, check availability, create/delete events, find free slots, all through the standard MCP protocol.",
     colorText: "text-blue-500",
     hoverColorText: "group-hover:text-blue-500",
   },
   {
     icon: ListChecks,
-    title: "Manage Commitments",
-    description: "Create and organize events, meetings, and time blocks through natural language commands.",
+    title: "Tasks via MCP",
+    description: "8 MCP tools for Google Tasks — create task lists, add/update/complete/delete tasks. Your agent manages your to-do list through natural language.",
     colorText: "text-purple-500",
     hoverColorText: "group-hover:text-purple-500",
   },
   {
-    icon: AlertCircle,
-    title: "Detect Conflicts",
-    description: "Automatic conflict detection across all your commitments. Never double-book or miss overlaps.",
-    colorText: "text-rose-500",
-    hoverColorText: "group-hover:text-rose-500",
-  },
-  {
-    icon: Users,
-    title: "Coordinate With Other Agents",
-    description: "Your agent communicates with other users' agents to find common availability automatically.",
-    colorText: "text-amber-500",
-    hoverColorText: "group-hover:text-amber-500",
-  },
-  {
-    icon: CheckSquare,
-    title: "Request Human Approval",
-    description: "Every coordination proposal requires your explicit approval before any action is taken.",
+    icon: Brain,
+    title: "LLM-Driven Planning",
+    description: "Groq-powered LLM planner decides which MCP tools to call based on your message. It plans multi-step tasks and summarizes results in natural language.",
     colorText: "text-emerald-500",
     hoverColorText: "group-hover:text-emerald-500",
   },
   {
-    icon: History,
-    title: "Maintain History",
-    description: "Full coordination history and agent activity logs. Track every agent interaction and decision.",
+    icon: Plug,
+    title: "A2A Coordination",
+    description: "Your agent communicates with other users' agents via the Agent-to-Agent protocol to find common availability and schedule meetings across calendars.",
+    colorText: "text-amber-500",
+    hoverColorText: "group-hover:text-amber-500",
+  },
+  {
+    icon: Cpu,
+    title: "Productivity Intelligence",
+    description: "7 MCP productivity tools — daily briefings, weekly summaries, focus time blocks, smart scheduling with preferences, and recurring routines.",
+    colorText: "text-rose-500",
+    hoverColorText: "group-hover:text-rose-500",
+  },
+  {
+    icon: AlertCircle,
+    title: "Conflict Detection",
+    description: "Automatic conflict detection across all your commitments before creating events. Your agent checks availability and prevents double-bookings.",
     colorText: "text-indigo-500",
     hoverColorText: "group-hover:text-indigo-500",
   },
@@ -78,13 +78,13 @@ export function AgentCapabilities() {
           animate={isInView ? "visible" : "hidden"}
         >
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-[0.2em] mb-4">
-            Capabilities
+            32 MCP Tools
           </p>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-foreground mb-4 leading-[1.1]">
-            Your agent, your rules
+            Your agent, your tools, your rules
           </h2>
           <p className="text-lg lg:text-xl text-muted-foreground leading-relaxed">
-            Each user receives a personal agent that can perform these core actions on your behalf.
+            Your personal agent connects to 3 MCP servers with 32 tools for calendar, tasks, and productivity — all accessible through natural language.
           </p>
         </motion.div>
 

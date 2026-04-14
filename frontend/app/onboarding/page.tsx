@@ -21,7 +21,7 @@ import { authAPI, integrationAPI, APIError } from "@/lib/api"
 const steps = [
   { id: 1, title: "Choose Username", description: "Pick your unique handle" },
   { id: 2, title: "Slack Verified", description: "Your Slack identity verified" },
-  { id: 3, title: "Connect Calendar", description: "Link your Google Calendar" },
+  { id: 3, title: "Connect Google", description: "Link Calendar & Tasks" },
   { id: 4, title: "Agent Ready", description: "Your agent is live" },
 ]
 
@@ -369,8 +369,8 @@ export default function OnboardingPage() {
                 <div className="w-16 h-16 mx-auto mb-4 rounded-xl bg-gradient-to-br from-cyan-400/20 to-blue-500/20 border border-cyan-400/40 flex items-center justify-center backdrop-blur-sm">
                   <Calendar className="w-8 h-8 text-cyan-300" />
                 </div>
-                <h2 className="text-2xl font-bold text-slate-50 mb-2">Connect Google Calendar</h2>
-                <p className="text-slate-400">Allow your agent to manage your schedule</p>
+                <h2 className="text-2xl font-bold text-slate-50 mb-2">Connect Google Calendar & Tasks</h2>
+                <p className="text-slate-400">Allow your agent to manage your schedule and to-dos</p>
               </div>
 
               {/* Permissions card */}
@@ -387,8 +387,15 @@ export default function OnboardingPage() {
                   <div className="flex items-start gap-3">
                     <Lock className="w-4 h-4 text-cyan-400 mt-1 flex-shrink-0" />
                     <div>
-                      <p className="text-sm font-medium text-slate-200">Create Events</p>
-                      <p className="text-xs text-slate-500">Schedule meetings with your approval</p>
+                      <p className="text-sm font-medium text-slate-200">Manage Events</p>
+                      <p className="text-xs text-slate-500">Create, update, and delete events with your approval</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Lock className="w-4 h-4 text-cyan-400 mt-1 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-slate-200">Google Tasks</p>
+                      <p className="text-xs text-slate-500">Create, complete, and organize your to-do lists</p>
                     </div>
                   </div>
                 </div>
@@ -398,7 +405,7 @@ export default function OnboardingPage() {
               <div className="flex items-start gap-3 mb-8 p-3 bg-cyan-500/10 backdrop-blur-sm rounded-lg border border-cyan-400/30">
                 <Lock className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                 <p className="text-xs text-cyan-300">
-                  Only refresh tokens are stored. Your calendar data never touches our servers.
+                  Tokens are encrypted with AES-256-GCM. Your calendar and task data never touches our servers.
                 </p>
               </div>
 
@@ -416,7 +423,7 @@ export default function OnboardingPage() {
                   ) : (
                     <div className="flex items-center gap-2">
                       <Calendar className="w-5 h-5" />
-                      <span>Connect Google Calendar</span>
+                      <span>Connect Google Calendar & Tasks</span>
                     </div>
                   )}
                 </Button>

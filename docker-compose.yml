@@ -18,5 +18,25 @@ services:
       timeout: 5s
       retries: 5
 
+  coagent-python:
+    build:
+      context: ./agent-py
+      dockerfile: Dockerfile
+    container_name: coagent4u-python
+    ports:
+      - "8000:8000"
+    depends_on:
+      - coagent-redis
+    environment:
+      - JAVA_API_URL=http://coagent-java:8080/api/internal
+      - REDIS_URL=redis://coagent-redis:6379
+      - GROQ_API_KEY=${GROQ_API_KEY}
+
+  coagent-redis:
+    image: redis:7-alpine
+    container_name: coagent4u-redis
+    ports:
+      - "6379:6379"
+
 volumes:
   coagent_pgdata:

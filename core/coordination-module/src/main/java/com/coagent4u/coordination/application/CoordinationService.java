@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,19 +61,22 @@ public class CoordinationService implements CoordinationProtocolPort {
     private final SlotMatcher slotMatcher = new SlotMatcher();
     private final ProposalGenerator proposalGenerator = new ProposalGenerator();
     private final EventCreationSaga eventCreationSaga = new EventCreationSaga();
+    private final List<com.coagent4u.coordination.domain.policy.GovernancePolicy> governancePolicies;
 
     public CoordinationService(CoordinationPersistencePort persistence,
             AgentAvailabilityPort agentAvailabilityPort,
             AgentEventExecutionPort agentEventExecutionPort,
             AgentProfilePort agentProfilePort,
             AgentApprovalPort agentApprovalPort,
-            DomainEventPublisher eventPublisher) {
+            DomainEventPublisher eventPublisher,
+            List<com.coagent4u.coordination.domain.policy.GovernancePolicy> governancePolicies) {
         this.persistence = persistence;
         this.agentAvailabilityPort = agentAvailabilityPort;
         this.agentEventExecutionPort = agentEventExecutionPort;
         this.agentProfilePort = agentProfilePort;
         this.agentApprovalPort = agentApprovalPort;
         this.eventPublisher = eventPublisher;
+        this.governancePolicies = governancePolicies;
     }
 
     // ── Step 1–5: Initiation through Slot Generation ──
@@ -82,7 +86,7 @@ public class CoordinationService implements CoordinationProtocolPort {
             TimeRange lookAheadRange, int durationMinutes,
             String title, String timezone) {
 
-        Coordination coordination = new Coordination(coordId, requesterAgentId, inviteeAgentId);
+        Coordination coordination = new Coordination(coordId, requesterAgentId, inviteeAgentId, durationMinutes);
         coordination.setMetadata("correlationId", correlationId.value().toString());
         persistence.save(coordination);
         log.info("[CoordinationService] Coordination {} created → INITIATED", coordId);
@@ -151,6 +155,13 @@ public class CoordinationService implements CoordinationProtocolPort {
         eventPublisher.publish(com.coagent4u.common.events.SlotsReceived.of(inviteeAgentId, inviteeUserId, correlationId, coordId, matched.size()));
         log.info("[CoordinationService] {} → PROPOSAL_GENERATED ({} slots available)", coordId, matched.size());
 
+        // --- GOVERNANCE LAYER: Zero-Touch Auto-Scheduling ---
+        if (evaluateGovernance(coordination, "Governance: Initial policy check after proposal generation.")) {
+            log.info("[CoordinationService] {} Governance handled initiation, stopping further processing.", coordId);
+            return coordId;
+        }
+        persistence.save(coordination);
+
         return coordId;
     }
 
@@ -166,9 +177,12 @@ public class CoordinationService implements CoordinationProtocolPort {
 
     @Override
     public void selectSlot(CoordinationId coordinationId, TimeSlot selectedSlot) {
-        log.info("[CoordinationService] Slot selection for {}: {}", coordinationId, selectedSlot);
-        Coordination coordination = load(coordinationId);
+        selectSlot(coordinationId, selectedSlot, "User selected a slot via web interface");
+    }
 
+    public void selectSlot(CoordinationId coordinationId, TimeSlot selectedSlot, String reason) {
+        Coordination coordination = load(coordinationId);
+        
         // Idempotency guard: only process if still in PROPOSAL_GENERATED
         if (coordination.getState() != CoordinationState.PROPOSAL_GENERATED) {
             log.info("[CoordinationService] {} Slot already selected (state={}), ignoring duplicate",
@@ -177,7 +191,7 @@ public class CoordinationService implements CoordinationProtocolPort {
         }
 
         coordination.selectSlot(selectedSlot);
-        log.info("[CoordinationService] {} selectedSlot={}", coordinationId, selectedSlot);
+        log.info("[CoordinationService] {} selectedSlot={} reason={}", coordinationId, selectedSlot, reason);
 
         // Generate proposal from selected slot
         MeetingProposal proposal = proposalGenerator.generate(
@@ -190,90 +204,136 @@ public class CoordinationService implements CoordinationProtocolPort {
                 IST.getId());
         coordination.setProposal(proposal);
 
-        // Invitee's slot selection (with Reject option) counts as their approval.
-        // Skip AWAITING_APPROVAL_B → go directly to AWAITING_APPROVAL_A (requester confirmation).
-        coordination.transition(CoordinationState.AWAITING_APPROVAL_A, "Invitee approved via slot selection, awaiting requester");
+        // Invitee's slot selection counts as their approval.
+        coordination.transition(CoordinationState.AWAITING_APPROVAL_A, reason);
         persistence.save(coordination);
-        log.info("[CoordinationService] {} → AWAITING_APPROVAL_A (invitee approved via slot selection)", coordinationId);
 
-        ApprovalRequestResult result = agentApprovalPort.requestApproval(coordination.getRequesterAgentId(), proposal);
-        log.info("[ApprovalService] Approval created id={} for requester agent {}", result.approvalId(),
-                coordination.getRequesterAgentId());
-
-        if (result.messageTs() != null) {
-            coordination.setMetadata("requester_approval_ts", result.messageTs());
+        // --- GOVERNANCE LAYER ---
+        if (evaluateGovernance(coordination, "Governance: Policy check after slot selection.")) {
+            log.info("[CoordinationService] {} Governance handled slot selection, stopping further processing.", coordinationId);
+            return;
         }
 
+        String correlationIdStr = coordination.getMetadata("correlationId");
+        com.coagent4u.shared.CorrelationId correlationId = (correlationIdStr != null) 
+                ? new com.coagent4u.shared.CorrelationId(java.util.UUID.fromString(correlationIdStr))
+                : com.coagent4u.shared.CorrelationId.generate();
+
+        eventPublisher.publish(com.coagent4u.common.events.SlotsReceived.of(coordination.getInviteeAgentId(), 
+                agentProfilePort.getProfile(coordination.getInviteeAgentId()).userId(), 
+                correlationId, coordinationId, 1));
         persistence.save(coordination);
+    }
+
+    private boolean evaluateGovernance(Coordination coordination, String context) {
+        log.info("[CoordinationService] Evaluating governance ({}) for {}", context, coordination.getCoordinationId());
+        
+        for (com.coagent4u.coordination.domain.policy.GovernancePolicy policy : governancePolicies) {
+            com.coagent4u.coordination.domain.policy.PolicyResult result = policy.evaluate(coordination);
+            String policyName = policy.getClass().getSimpleName();
+            log.info("[CoordinationService] Governance Policy Check: {} -> {}", 
+                policyName, result.decision());
+
+            if (result.decision() == com.coagent4u.coordination.domain.policy.PolicyResult.Decision.ALLOW) {
+                log.info("[CoordinationService] Governance: Policy ALLOWED. Auto-approving session.");
+                // Record the reason in the log
+                String reason = "Governance Policy (" + policyName + ") auto-approved session: " + result.reason();
+                
+                // Simulate both parties approving
+                this.handleApproval(coordination.getCoordinationId(), coordination.getRequesterAgentId(), true, reason);
+                this.handleApproval(coordination.getCoordinationId(), coordination.getInviteeAgentId(), true, reason);
+                return true;
+            } else if (result.decision() == com.coagent4u.coordination.domain.policy.PolicyResult.Decision.REJECT) {
+                log.warn("[CoordinationService] Governance: Policy REJECTED. Terminating session.");
+                this.terminate(coordination.getCoordinationId(), "Governance Policy (" + policyName + ") REJECTED: " + result.reason());
+                return true;
+            } else if (result.decision() == com.coagent4u.coordination.domain.policy.PolicyResult.Decision.AUTO_SELECT_SLOT) {
+                log.info("[CoordinationService] Governance: Policy AUTO_SELECT_SLOT. Automated agent picking time...");
+                if (!coordination.getAvailableSlots().isEmpty()) {
+                    com.coagent4u.shared.TimeSlot firstSlot = coordination.getAvailableSlots().get(0);
+                    this.selectSlot(coordination.getCoordinationId(), firstSlot, "Governance Policy (" + policyName + ") auto-selected slot: " + result.reason());
+                    return true;
+                }
+            }
+        }
+
+        // Default: Continue to manual approval ONLY if it's currently AWAITING_APPROVAL_A
+        if (coordination.getState() == CoordinationState.AWAITING_APPROVAL_A) {
+            log.info("[CoordinationService] Governance: Manual approval required for requester.");
+            ApprovalRequestResult approvalResult = agentApprovalPort.requestApproval(coordination.getRequesterAgentId(), coordination.getProposal());
+            if (approvalResult.messageTs() != null) {
+                coordination.setMetadata("requester_approval_ts", approvalResult.messageTs());
+            }
+        }
+        return false;
     }
 
     // ── Steps 7–9: Approval Handling ──
 
     @Override
     public void handleApproval(CoordinationId coordinationId, AgentId agentId, boolean approved) {
-        log.info("[CoordinationService] Approval decision for {}: agent={} approved={}", coordinationId, agentId,
-                approved);
+        handleApproval(coordinationId, agentId, approved, "Manual approval via UI/API");
+    }
+
+    public void handleApproval(CoordinationId coordinationId, AgentId approverAgentId, boolean approved, String reason) {
         Coordination coordination = load(coordinationId);
-        String corrIdStr = coordination.getMetadata("correlationId");
-        com.coagent4u.shared.CorrelationId correlationId = corrIdStr != null ? new com.coagent4u.shared.CorrelationId(java.util.UUID.fromString(corrIdStr)) : com.coagent4u.shared.CorrelationId.generate();
+        log.info("[CoordinationService] handleApproval id={} agent={} approved={} reason={}", 
+                coordinationId, approverAgentId, approved, reason);
+
+        String correlationIdStr = coordination.getMetadata("correlationId");
+        com.coagent4u.shared.CorrelationId correlationId = (correlationIdStr != null) 
+                ? new com.coagent4u.shared.CorrelationId(java.util.UUID.fromString(correlationIdStr))
+                : com.coagent4u.shared.CorrelationId.generate();
 
         if (!approved) {
-            String rejectReason = "REJECTED_BY_AGENT:" + agentId.value();
-            coordination.transition(CoordinationState.REJECTED, rejectReason);
+            String rejectReason = "REJECTED_BY_AGENT:" + approverAgentId.value();
+            coordination.transition(CoordinationState.REJECTED, "Manual rejection: " + reason);
             persistence.save(coordination);
-            log.info("[CoordinationService] {} → REJECTED by agent {}", coordinationId, agentId);
+            log.info("[CoordinationService] {} → REJECTED by agent {}", coordinationId, approverAgentId);
 
-            com.coagent4u.shared.UserId requesterUserId = agentProfilePort.getProfile(coordination.getRequesterAgentId()).userId();
-            com.coagent4u.shared.UserId inviteeUserId = agentProfilePort.getProfile(coordination.getInviteeAgentId()).userId();
-            eventPublisher.publish(com.coagent4u.common.events.CoordinationRejected.of(coordination.getRequesterAgentId(), requesterUserId, correlationId, coordinationId, rejectReason));
-            eventPublisher.publish(com.coagent4u.common.events.CoordinationRejected.of(coordination.getInviteeAgentId(), inviteeUserId, correlationId, coordinationId, rejectReason));
+            com.coagent4u.shared.UserId rUserId = agentProfilePort.getProfile(coordination.getRequesterAgentId()).userId();
+            com.coagent4u.shared.UserId iUserId = agentProfilePort.getProfile(coordination.getInviteeAgentId()).userId();
+            
+            eventPublisher.publish(com.coagent4u.common.events.CoordinationRejected.of(
+                    coordination.getRequesterAgentId(), rUserId, correlationId, coordinationId, rejectReason));
+            eventPublisher.publish(com.coagent4u.common.events.CoordinationRejected.of(
+                    coordination.getInviteeAgentId(), iUserId, correlationId, coordinationId, rejectReason));
             return;
         }
 
         CoordinationState currentState = coordination.getState();
+        boolean isRequester = approverAgentId.equals(coordination.getRequesterAgentId());
 
-        if (currentState == CoordinationState.AWAITING_APPROVAL_B) {
-            // Invitee approved → now request requester approval
-            coordination.transition(CoordinationState.AWAITING_APPROVAL_A, "Invitee approved, awaiting requester");
-            persistence.save(coordination);
-            log.info("[CoordinationService] {} → AWAITING_APPROVAL_A (invitee approved)", coordinationId);
-
-            ApprovalRequestResult result = agentApprovalPort.requestApproval(
-                    coordination.getRequesterAgentId(), coordination.getProposal());
-            log.info("[ApprovalService] Approval created id={} for requester agent {}", result.approvalId(),
-                    coordination.getRequesterAgentId());
-
-            if (result.messageTs() != null) {
-                coordination.setMetadata("requester_approval_ts", result.messageTs());
-            }
-
-            persistence.save(coordination);
-
-        } else if (currentState == CoordinationState.AWAITING_APPROVAL_A) {
-            // Requester approved → both approved → execute event creation saga
-            coordination.transition(CoordinationState.APPROVED_BY_BOTH, "Both parties approved");
+        if (currentState == CoordinationState.AWAITING_APPROVAL_A && isRequester) {
+            coordination.transition(CoordinationState.APPROVED_BY_BOTH, reason);
             persistence.save(coordination);
             log.info("[CoordinationService] {} → APPROVED_BY_BOTH", coordinationId);
 
             log.info("[CoordinationService] {} Executing event creation saga...", coordinationId);
-            com.coagent4u.coordination.domain.EventCreationSaga.SagaResult result = eventCreationSaga.execute(coordination, agentEventExecutionPort);
+            com.coagent4u.coordination.domain.EventCreationSaga.SagaResult sagaResult = eventCreationSaga.execute(coordination, agentEventExecutionPort);
             persistence.save(coordination);
 
-            if (result.success()) {
-                log.info("[CoordinationService] {} → COMPLETED (both events created)", coordinationId);
+            if (sagaResult.success()) {
+                log.info("[CoordinationService] {} → COMPLETED", coordinationId);
+                persistence.save(coordination);
 
+                com.coagent4u.shared.UserId rUserId = agentProfilePort.getProfile(coordination.getRequesterAgentId()).userId();
+                com.coagent4u.shared.UserId iUserId = agentProfilePort.getProfile(coordination.getInviteeAgentId()).userId();
 
-                com.coagent4u.shared.UserId requesterUserId = agentProfilePort.getProfile(coordination.getRequesterAgentId()).userId();
-                com.coagent4u.shared.UserId inviteeUserId = agentProfilePort.getProfile(coordination.getInviteeAgentId()).userId();
-
-                eventPublisher.publish(com.coagent4u.common.events.CalendarEventCreated.of(coordination.getRequesterAgentId(), requesterUserId, correlationId, coordinationId, result.eventIdA()));
-                eventPublisher.publish(com.coagent4u.common.events.CalendarEventCreated.of(coordination.getInviteeAgentId(), inviteeUserId, correlationId, coordinationId, result.eventIdB()));
+                eventPublisher.publish(com.coagent4u.common.events.CalendarEventCreated.of(
+                        coordination.getRequesterAgentId(), rUserId, correlationId, coordinationId, sagaResult.eventIdA()));
+                eventPublisher.publish(com.coagent4u.common.events.CalendarEventCreated.of(
+                        coordination.getInviteeAgentId(), iUserId, correlationId, coordinationId, sagaResult.eventIdB()));
                 
-                eventPublisher.publish(com.coagent4u.common.events.CoordinationCompleted.of(coordinationId, result.eventIdA(), result.eventIdB()));
+                eventPublisher.publish(com.coagent4u.common.events.CoordinationCompleted.of(
+                        coordinationId, sagaResult.eventIdA(), sagaResult.eventIdB()));
             } else {
-                log.error("[CoordinationService] {} → FAILED (event creation saga failed)", coordinationId);
+                log.error("[CoordinationService] {} → FAILED (saga failed)", coordinationId);
+                persistence.save(coordination);
                 eventPublisher.publish(com.coagent4u.common.events.CoordinationFailed.of(coordinationId, "Event creation saga failed"));
             }
+        } else {
+            log.info("[CoordinationService] {} - Approval recorded but not yet ready for final state", coordinationId);
         }
     }
 
@@ -316,6 +376,11 @@ public class CoordinationService implements CoordinationProtocolPort {
             persistence.save(coordination);
             eventPublisher.publish(com.coagent4u.common.events.CoordinationFailed.of(coordinationId, reason));
         }
+    }
+
+    @Override
+    public CoordinationState getState(CoordinationId coordinationId) {
+        return load(coordinationId).getState();
     }
 
     private Coordination load(CoordinationId id) {

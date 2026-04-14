@@ -54,7 +54,7 @@ class CoordinationServiceTest {
         void setUp() {
                 service = new CoordinationService(
                                 persistence, agentAvailabilityPort, agentEventExecutionPort,
-                                agentProfilePort, agentApprovalPort, eventPublisher);
+                                agentProfilePort, agentApprovalPort, eventPublisher, java.util.List.of());
         }
 
         @Test
@@ -118,7 +118,7 @@ class CoordinationServiceTest {
                 CoordinationId coordId = CoordinationId.generate();
 
                 // Create a coordination in AWAITING_APPROVAL_A state
-                Coordination coordination = new Coordination(coordId, requester, invitee);
+                Coordination coordination = new Coordination(coordId, requester, invitee, 60);
                 coordination.transition(CoordinationState.CHECKING_AVAILABILITY_A, "A");
                 coordination.transition(CoordinationState.CHECKING_AVAILABILITY_B, "B");
                 coordination.transition(CoordinationState.MATCHING, "Match");
@@ -147,7 +147,7 @@ class CoordinationServiceTest {
         @DisplayName("terminate transitions non-terminal coordination to FAILED")
         void terminate_nonTerminal_transitionsToFailed() {
                 CoordinationId coordId = CoordinationId.generate();
-                Coordination coordination = new Coordination(coordId, AgentId.generate(), AgentId.generate());
+                Coordination coordination = new Coordination(coordId, AgentId.generate(), AgentId.generate(), 60);
                 coordination.transition(CoordinationState.CHECKING_AVAILABILITY_A, "A");
 
                 when(persistence.findById(coordId)).thenReturn(Optional.of(coordination));
@@ -162,7 +162,7 @@ class CoordinationServiceTest {
         @DisplayName("terminate on already-terminal coordination is a no-op")
         void terminate_alreadyTerminal_noOp() {
                 CoordinationId coordId = CoordinationId.generate();
-                Coordination coordination = new Coordination(coordId, AgentId.generate(), AgentId.generate());
+                Coordination coordination = new Coordination(coordId, AgentId.generate(), AgentId.generate(), 60);
                 coordination.transition(CoordinationState.FAILED, "Earlier failure");
 
                 when(persistence.findById(coordId)).thenReturn(Optional.of(coordination));

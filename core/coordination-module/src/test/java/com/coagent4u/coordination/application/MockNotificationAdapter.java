@@ -21,12 +21,16 @@ public class MockNotificationAdapter implements NotificationPort {
     public record SentApproval(String slackUserId, String workspaceId, String proposalText, String approvalId) {
     }
 
+    public record SentConflict(String slackUserId, String workspaceId, String proposalText, String approvalId, String existingEventDetails) {
+    }
+
     public record SentSlotCard(String slackUserId, String workspaceId, String coordinationId,
             List<TimeSlot> slots, String requesterMention) {
     }
 
     private final List<SentMessage> messages = new ArrayList<>();
     private final List<SentApproval> approvals = new ArrayList<>();
+    private final List<SentConflict> conflicts = new ArrayList<>();
     private final List<SentSlotCard> slotCards = new ArrayList<>();
     private boolean shouldFail = false;
 
@@ -49,6 +53,15 @@ public class MockNotificationAdapter implements NotificationPort {
         if (shouldFail)
             throw new RuntimeException("Mock Slack failure");
         approvals.add(new SentApproval(slackUserId.value(), workspaceId.value(), proposalText, approvalId));
+        return "mock_ts_" + System.currentTimeMillis();
+    }
+
+    @Override
+    public String sendConflictResolutionRequest(SlackUserId slackUserId, WorkspaceId workspaceId,
+            String proposalText, String approvalId, String existingEventDetails) {
+        if (shouldFail)
+            throw new RuntimeException("Mock Slack failure");
+        conflicts.add(new SentConflict(slackUserId.value(), workspaceId.value(), proposalText, approvalId, existingEventDetails));
         return "mock_ts_" + System.currentTimeMillis();
     }
 
@@ -92,6 +105,10 @@ public class MockNotificationAdapter implements NotificationPort {
         return Collections.unmodifiableList(approvals);
     }
 
+    public List<SentConflict> getConflicts() {
+        return Collections.unmodifiableList(conflicts);
+    }
+
     public List<SentSlotCard> getSlotCards() {
         return Collections.unmodifiableList(slotCards);
     }
@@ -99,6 +116,7 @@ public class MockNotificationAdapter implements NotificationPort {
     public void reset() {
         messages.clear();
         approvals.clear();
+        conflicts.clear();
         slotCards.clear();
         shouldFail = false;
     }

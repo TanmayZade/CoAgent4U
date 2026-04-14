@@ -88,7 +88,7 @@ class CoordinationFlowIntegrationTest {
         mockCalendar = new MockCalendarAdapter();
         service = new CoordinationService(
                 persistence, availabilityPort, mockCalendar,
-                profilePort, approvalPort, eventPublisher);
+                profilePort, approvalPort, eventPublisher, java.util.List.of());
 
         // Leniently mock profiles to prevent NPE in event publishing
         org.mockito.Mockito.lenient().when(profilePort.getProfile(requester))
@@ -138,7 +138,7 @@ class CoordinationFlowIntegrationTest {
         void selectSlot_transitionsToAwaitingA() {
             // Set up a coordination in PROPOSAL_GENERATED state
             CoordinationId coordId = CoordinationId.generate();
-            Coordination coordination = new Coordination(coordId, requester, invitee);
+            Coordination coordination = new Coordination(coordId, requester, invitee, 60);
             coordination.transition(CoordinationState.CHECKING_AVAILABILITY_A, "A");
             coordination.transition(CoordinationState.CHECKING_AVAILABILITY_B, "B");
             coordination.transition(CoordinationState.MATCHING, "Match");
@@ -341,7 +341,7 @@ class CoordinationFlowIntegrationTest {
         @DisplayName("MeetingProposal carries both requester and invitee AgentIds")
         void proposalCarriesAgentIds() {
             CoordinationId coordId = CoordinationId.generate();
-            Coordination coordination = new Coordination(coordId, requester, invitee);
+            Coordination coordination = new Coordination(coordId, requester, invitee, 60);
             coordination.transition(CoordinationState.CHECKING_AVAILABILITY_A, "A");
             coordination.transition(CoordinationState.CHECKING_AVAILABILITY_B, "B");
             coordination.transition(CoordinationState.MATCHING, "Match");
@@ -377,7 +377,7 @@ class CoordinationFlowIntegrationTest {
     // ── Helper: create coordination in a specific state ──
 
     private Coordination createCoordinationInState(CoordinationId coordId, CoordinationState targetState) {
-        Coordination c = new Coordination(coordId, requester, invitee);
+        Coordination c = new Coordination(coordId, requester, invitee, 60);
         TimeSlot slot = new TimeSlot(
                 Instant.parse("2026-03-10T04:30:00Z"),
                 Instant.parse("2026-03-10T05:30:00Z"));

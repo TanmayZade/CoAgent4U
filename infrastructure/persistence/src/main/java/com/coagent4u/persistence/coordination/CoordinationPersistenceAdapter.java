@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import com.coagent4u.coordination.domain.Coordination;
 import com.coagent4u.coordination.domain.CoordinationState;
+import com.coagent4u.coordination.application.dto.CoordinationActivityPoint;
 import com.coagent4u.coordination.domain.CoordinationStateLogEntry;
 import com.coagent4u.coordination.domain.MeetingProposal;
 import com.coagent4u.coordination.port.out.CoordinationPersistencePort;
@@ -96,6 +97,14 @@ public class CoordinationPersistenceAdapter implements CoordinationPersistencePo
                 .stream().map(this::toDomain).toList();
     }
 
+    @Override
+    public List<CoordinationActivityPoint> findActivityStats(AgentId agentId, java.time.Instant since) {
+        return repository.findActivityStats(agentId.value(), since)
+                .stream()
+                .map(p -> new CoordinationActivityPoint(p.getDay(), p.getCompleted(), p.getRejected(), p.getFailed()))
+                .toList();
+    }
+
     private CoordinationJpaEntity toJpa(Coordination c) {
         CoordinationJpaEntity entity = new CoordinationJpaEntity();
         entity.setCoordinationId(c.getCoordinationId().value());
@@ -106,6 +115,7 @@ public class CoordinationPersistenceAdapter implements CoordinationPersistencePo
                 c.getProposal() != null ? MeetingProposalJsonMapper.toJson(c.getProposal()) : null);
         entity.setCreatedAt(c.getCreatedAt());
         entity.setCompletedAt(c.getCompletedAt());
+        entity.setDurationMinutes(c.getDurationMinutes());
         entity.setReason(null);
 
         // Serialize available slots and selected slot
@@ -150,7 +160,7 @@ public class CoordinationPersistenceAdapter implements CoordinationPersistencePo
             AgentId requesterId = new AgentId(e.getRequesterAgentId());
             AgentId inviteeId = new AgentId(e.getInviteeAgentId());
 
-            Coordination coord = new Coordination(coordId, requesterId, inviteeId);
+            Coordination coord = new Coordination(coordId, requesterId, inviteeId, e.getDurationMinutes());
 
             // Override internal state via reflection
             setField(coord, "state", CoordinationState.valueOf(e.getState()));

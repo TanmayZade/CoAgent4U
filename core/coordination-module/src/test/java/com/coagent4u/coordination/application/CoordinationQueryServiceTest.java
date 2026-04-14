@@ -53,7 +53,7 @@ class CoordinationQueryServiceTest {
         CoordinationQueryService.AgentProfile bobProfile = new CoordinationQueryService.AgentProfile("bob", "Bob", null);
         when(resolver.resolveProfiles(any())).thenReturn(java.util.Map.of(otherAgentId, bobProfile, agentId, new CoordinationQueryService.AgentProfile("alice", "Alice", null)));
 
-        Coordination coord = new Coordination(CoordinationId.generate(), agentId, otherAgentId);
+        Coordination coord = new Coordination(CoordinationId.generate(), agentId, otherAgentId, 60);
         when(persistence.findByAgentId(agentId, 0, 10)).thenReturn(List.of(coord));
         when(persistence.countByAgentId(agentId)).thenReturn(1L);
 
@@ -100,7 +100,7 @@ class CoordinationQueryServiceTest {
         AgentId requester = AgentId.generate();
         AgentId invitee = AgentId.generate();
         CoordinationId coordId = CoordinationId.generate();
-        Coordination coord = new Coordination(coordId, requester, invitee);
+        Coordination coord = new Coordination(coordId, requester, invitee, 60);
 
         when(resolver.resolveAgentId("alice")).thenReturn(Optional.of(requester));
         when(resolver.resolveProfile(requester)).thenReturn(new CoordinationQueryService.AgentProfile("alice", "Alice", null));
@@ -124,8 +124,7 @@ class CoordinationQueryServiceTest {
         AgentId invitee = AgentId.generate();
         AgentId outsider = AgentId.generate();
         CoordinationId coordId = CoordinationId.generate();
-
-        Coordination coord = new Coordination(coordId, requester, invitee);
+        Coordination coord = new Coordination(coordId, requester, invitee, 60);
 
         when(resolver.resolveAgentId("charlie")).thenReturn(Optional.of(outsider));
         when(persistence.findById(coordId)).thenReturn(Optional.of(coord));

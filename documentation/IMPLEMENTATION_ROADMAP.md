@@ -1,8 +1,10 @@
 # CoAgent4U — Implementation Roadmap
 
-> **Purpose:** This document is the single source of truth for the MVP implementation plan. Every decision, file path, and build order is traced back to the PRD, arc42, and C4 documentation. No code is generated here — only the roadmap that guides it.
+> **Purpose:** This document was the original single source of truth for the Java MVP. It has since been updated to reflect the multi-language Modulith Architecture (Java 21 + Python 3.11 FastAPI + Next.js).
 >
-> **Audience:** Solo developer implementing the MVP.
+> **Architecture Overview:** Please refer to `architecture_overview.md` for the unified system picture. The Python Agent Runtime with FastMCP handles the LLM operations.
+>
+> **Audience:** Solo developer implementing the MVP and Next-Gen A2A features.
 
 ---
 
@@ -727,14 +729,23 @@ For the MVP as a solo developer:
 | Feature | Status | When |
 |---------|--------|------|
 | Multi-participant scheduling (>2 users) | Deferred | Post-MVP when state machine is versioned |
-| Trust tiers / auto-approve | Deferred | After user trust is established |
-| Multiple calendar providers (Outlook, Apple) | Deferred | Post-MVP via new CalendarPort adapters |
-| LLM-based negotiation | Deferred | Non-deterministic, conflicts with Q1 |
 | Transactional outbox | Deferred (TD-01) | When user count > 1,000 |
-| Distributed cache (Redis) | Deferred (TD-02) | When cache hit ratio < 50% |
 | Multi-region deployment | Out of scope | Requires fundamental re-architecture |
 | Mobile app | Out of scope | Web + Slack covers MVP scenarios |
 
 ---
 
-> **This roadmap is complete.** Implementation begins at Phase 0. Each phase has explicit exit criteria. Every decision traces back to the PRD, arc42, or C4 documentation. No alternative architectures are proposed — the roadmap follows the documented design exactly.
+### Phase 5 — Model Context Protocol (MCP) & Python Agent (Active)
+**Goal:** Integrate the Python `FastMCP` architecture to decouple tool integrations from the Java Monolith.
+- 32 Agent MCP Tools successfully implemented (Calendar, Tasks, Productivity).
+- FastAPI Layer integration with LiteLLM running dynamic tool executions.
+
+### Phase 6 — Agent-to-Agent (A2A) Deterministic Coordination [Upcoming]
+**Goal:** Enable secure Agent-to-Agent interactions over the deterministic CoAgent Protocol (CAP).
+- Expand `CoordinationService` to emit `IntentDeclaration` payloads between tenants.
+- Introduce `ConsentEngine` to evaluate privacy rules before broadcasting availability.
+- Interactive Approval integration for user oversight before events are scheduled.
+
+---
+
+> **MVP roadmap complete. A2A progression active.** Ongoing implementation follows newly established polyglot architecture patterns defined in `architecture_overview.md`.

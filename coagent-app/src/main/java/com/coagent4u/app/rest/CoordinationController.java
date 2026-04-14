@@ -110,6 +110,22 @@ public class CoordinationController {
         }
     }
 
+    @GetMapping("/{id}/history")
+    public ResponseEntity<?> getHistory(
+            @PathVariable UUID id,
+            @RequestParam String username) {
+        try {
+            Optional<CoordinationDetail> detail = detailUseCase.getDetail(new CoordinationId(id), username);
+            return (ResponseEntity<?>) detail
+                    .map(d -> ResponseEntity.ok((Object) d.stateLog()))
+                    .orElseGet(() -> ResponseEntity.status(403)
+                            .body(Map.of("error", "Coordination not found or not authorized")));
+        } catch (Exception e) {
+            log.error("[CoordinationController] Get history error: {}", e.getMessage(), e);
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
     // ── Actions ───────────────────────────────────────────────────────────────
 
     @PostMapping("/{id}/cancel")

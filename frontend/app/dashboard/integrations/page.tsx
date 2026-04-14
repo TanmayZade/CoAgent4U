@@ -103,9 +103,9 @@ export default function IntegrationsPage() {
           </div>
           
           <div className="relative z-10">
-            <h3 className="text-lg font-semibold tracking-tight text-foreground mb-1">Google Calendar</h3>
+            <h3 className="text-lg font-semibold tracking-tight text-foreground mb-1">Google Calendar & Tasks</h3>
             <p className="text-sm text-foreground/60 mb-6">
-              Required for checking your availability and automatically scheduling meetings.
+              Required for checking your availability, scheduling meetings, and managing to-do lists.
             </p>
             
             {isGoogleLoading ? (
@@ -132,7 +132,7 @@ export default function IntegrationsPage() {
                   disabled={disconnectMutation.isPending}
                 >
                   {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Disconnect Calendar
+                  Disconnect Calendar & Tasks
                 </Button>
               </div>
             ) : (
@@ -146,7 +146,7 @@ export default function IntegrationsPage() {
                   className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   onClick={handleConnect}
                 >
-                  Connect Google Calendar
+                  Connect Google Calendar & Tasks
                 </Button>
               </div>
             )}
@@ -179,6 +179,11 @@ export default function IntegrationsPage() {
                 <td className="px-6 py-4 font-medium flex items-center gap-2"><Calendar className="w-4 h-4 text-blue-500" /> Free / Busy Status</td>
                 <td className="px-6 py-4"><span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider border bg-blue-500/10 text-blue-500 border-blue-500/20">Read Only</span></td>
                 <td className="px-6 py-4 text-foreground/70">Checking availability across time zones</td>
+              </tr>
+              <tr className="hover:bg-muted/20 transition-colors">
+                <td className="px-6 py-4 font-medium flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-blue-500" /> Google Tasks</td>
+                <td className="px-6 py-4"><span className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider border bg-emerald-500/10 text-emerald-500 border-emerald-500/20">Read / Write</span></td>
+                <td className="px-6 py-4 text-foreground/70">Creating and managing to-do lists and tasks</td>
               </tr>
               <tr className="hover:bg-muted/20 transition-colors">
                 <td className="px-6 py-4 font-medium flex items-center gap-2"><Slack className="w-4 h-4 text-[#E01E5A]" /> Slack Profile</td>

@@ -2,7 +2,7 @@
 
 import { fadeSlideUpVariants, itemVariants, staggerContainerVariants, useScrollAnimation } from "@/hooks/use-framer-animations"
 import { motion, useScroll, useSpring, useTransform } from "framer-motion"
-import { Bot, CheckCircle, Users } from "lucide-react"
+import { Bot, Plug, Shield } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 
 export function ProductExplanation() {
@@ -53,13 +53,13 @@ export function ProductExplanation() {
           animate={isInView ? "visible" : "hidden"}
         >
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-[0.2em] mb-6">
-            The Platform
+            The Architecture
           </p>
           <h2 className="text-4xl sm:text-5xl lg:text-6xl font-semibold tracking-tight text-foreground mb-8 leading-[1.1]">
-            Personal Agent Coordination Infrastructure
+            One Agent. Two Protocols. Infinite Capability.
           </h2>
           <p className="text-xl lg:text-2xl text-muted-foreground leading-relaxed max-w-3xl mx-auto">
-            CoAgent4U is a coordination layer where personal agents represent users and collaborate to manage commitments across people and tools.
+            CoAgent4U gives you a personal AI agent that accesses your tools via <span className="text-foreground font-medium">MCP</span> and collaborates with other agents via <span className="text-foreground font-medium">A2A</span> — all with you in control.
           </p>
         </motion.div>
 
@@ -91,17 +91,17 @@ export function ProductExplanation() {
               animate={{ y: [0, -8, 0] }}
               transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 0 }}
             >
-              <Bot className={`w-8 h-8 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 ${
+              <Plug className={`w-8 h-8 transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 ${
                 activeCardIndex === 0 
-                  ? "scale-110 rotate-6 text-blue-500" 
-                  : "text-foreground group-hover:text-blue-500"
+                  ? "scale-110 rotate-6 text-emerald-500" 
+                  : "text-foreground group-hover:text-emerald-500"
               }`} />
             </motion.div>
             <h3 className="text-xl font-semibold text-foreground mb-4">
-              Agent Coordination
+              MCP — Tool Access Layer
             </h3>
             <p className="text-muted-foreground text-base leading-relaxed">
-              Personal agents understand your commitments, analyze availability, and coordinate with other agents to manage your time.
+              32 tools across 3 MCP servers — Calendar (17), Tasks (8), and Productivity (7). Your agent accesses Google Calendar & Tasks through the standard Model Context Protocol.
             </p>
           </motion.div>
 
@@ -127,17 +127,17 @@ export function ProductExplanation() {
               transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 0.5 }}
               whileHover={{ rotate: [0, -10, 10, -10, 10, 0], transition: { duration: 0.5, repeat: Infinity } }}
             >
-              <Users className={`w-8 h-8 transition-all duration-300 group-hover:scale-110 ${
+              <Bot className={`w-8 h-8 transition-all duration-300 group-hover:scale-110 ${
                 activeCardIndex === 1 
-                  ? "scale-110 text-amber-500" 
-                  : "text-foreground group-hover:text-amber-500"
+                  ? "scale-110 text-blue-500" 
+                  : "text-foreground group-hover:text-blue-500"
               }`} />
             </motion.div>
             <h3 className="text-xl font-semibold text-foreground mb-4">
-              Commitment Management
+              A2A — Agent Collaboration
             </h3>
             <p className="text-muted-foreground text-base leading-relaxed">
-              Manage scheduling, events, time conflicts, work sessions, team availability, and time windows through your personal agent.
+              Agents negotiate scheduling across users using the Agent-to-Agent protocol. Your agent talks to others&apos; agents to find common availability and coordinate meetings.
             </p>
           </motion.div>
 
@@ -162,17 +162,17 @@ export function ProductExplanation() {
               animate={{ y: [0, -8, 0] }}
               transition={{ repeat: Infinity, duration: 4, ease: "easeInOut", delay: 1.0 }}
             >
-              <CheckCircle className={`w-8 h-8 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 ${
+              <Shield className={`w-8 h-8 transition-all duration-300 group-hover:scale-110 group-hover:rotate-12 ${
                 activeCardIndex === 2 
-                  ? "scale-110 rotate-12 text-green-500" 
-                  : "text-foreground group-hover:text-green-500"
+                  ? "scale-110 rotate-12 text-purple-500" 
+                  : "text-foreground group-hover:text-purple-500"
               }`} />
             </motion.div>
             <h3 className="text-xl font-semibold text-foreground mb-4">
-              Human-in-the-Loop Approvals
+              Privacy-First Design
             </h3>
             <p className="text-muted-foreground text-base leading-relaxed">
-              Users remain in control through approvals. Personal agents propose actions, humans approve before execution.
+              Human-in-the-loop approvals for every action. Your agent proposes, you decide. Data stays yours — encrypted at rest, with PII detection and data minimization.
             </p>
           </motion.div>
         </motion.div>

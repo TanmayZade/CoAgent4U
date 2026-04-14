@@ -1,45 +1,45 @@
 "use client"
 
-import { Zap, GitBranch, UserCheck, ShieldAlert, Users } from "lucide-react"
+import { Zap, GitBranch, Plug, Shield, Cpu } from "lucide-react"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
 import { useScrollAnimation, fadeSlideUpVariants, staggerContainerVariants, itemVariants } from "@/hooks/use-framer-animations"
 
 const benefits = [
   {
-    icon: Zap,
-    title: "Reduced Coordination Friction",
-    description: "Eliminate constant back-and-forth communication. Your agent handles all the coordination while you focus on work.",
-    colorText: "text-amber-500",
-    hoverColorText: "group-hover:text-amber-500",
+    icon: Plug,
+    title: "MCP-Based Extensibility",
+    description: "Adding a new tool is just adding another MCP server. No agent code changes. Calendar, Tasks, Drive, Gmail — any resource becomes an MCP tool.",
+    colorText: "text-emerald-500",
+    hoverColorText: "group-hover:text-emerald-500",
   },
   {
-    icon: Users,
-    title: "Personal Agents Representing Users",
-    description: "Each user has a personal agent that understands their commitments and coordinates on their behalf.",
+    icon: Zap,
+    title: "Agent-to-Agent Collaboration",
+    description: "Your agent talks to others' agents via A2A. Cross-user scheduling happens automatically without manual back-and-forth communication.",
     colorText: "text-blue-500",
     hoverColorText: "group-hover:text-blue-500",
   },
   {
-    icon: GitBranch,
-    title: "Deterministic Coordination Workflows",
-    description: "Predictable outcomes based on explicit rules. No AI hallucinations or unexpected behaviors.",
+    icon: Cpu,
+    title: "LLM-Orchestrated Planning",
+    description: "The Groq-powered LLM planner sees all 32 MCP tool schemas and decides the optimal execution plan for each user message.",
     colorText: "text-purple-500",
     hoverColorText: "group-hover:text-purple-500",
   },
   {
-    icon: ShieldAlert,
-    title: "Conflict-Aware Scheduling",
-    description: "Automatic detection of scheduling conflicts before they become problems across all commitments.",
-    colorText: "text-rose-500",
-    hoverColorText: "group-hover:text-rose-500",
+    icon: GitBranch,
+    title: "Hybrid Architecture",
+    description: "Java Spring Boot backend for A2A coordination + Python FastAPI agent for MCP tools and LLM planning. Best of both worlds.",
+    colorText: "text-amber-500",
+    hoverColorText: "group-hover:text-amber-500",
   },
   {
-    icon: UserCheck,
-    title: "Transparent Approval Control",
-    description: "Every coordination action requires your explicit approval. Nothing happens without consent.",
-    colorText: "text-emerald-500",
-    hoverColorText: "group-hover:text-emerald-500",
+    icon: Shield,
+    title: "Human-in-the-Loop Control",
+    description: "Every coordination action requires your explicit approval via Slack. Your agent proposes, you decide. Nothing happens without consent.",
+    colorText: "text-rose-500",
+    hoverColorText: "group-hover:text-rose-500",
   },
 ]
 
@@ -71,13 +71,13 @@ export function PlatformBenefits() {
           animate={isInView ? "visible" : "hidden"}
         >
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
-            Platform Benefits
+            Why MCP + A2A
           </p>
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground mb-4">
-            Built for how you actually work
+            Built on open protocols, not proprietary locks
           </h2>
           <p className="text-muted-foreground text-lg">
-            CoAgent4U removes coordination friction while keeping you in complete control of your commitments.
+            CoAgent4U combines MCP for tool access and A2A for agent collaboration — giving you extensibility without vendor lock-in.
           </p>
         </motion.div>
 

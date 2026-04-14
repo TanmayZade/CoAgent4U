@@ -10,6 +10,7 @@ import com.coagent4u.agent.domain.Agent;
 import com.coagent4u.agent.port.in.GetDashboardSummaryUseCase;
 import com.coagent4u.agent.port.out.AgentPersistencePort;
 import com.coagent4u.approval.port.out.ApprovalPersistencePort;
+import com.coagent4u.coordination.application.dto.CoordinationActivityPoint;
 import com.coagent4u.coordination.application.dto.CoordinationSummary;
 import com.coagent4u.shared.UserId;
 import com.coagent4u.user.domain.User;
@@ -35,6 +36,7 @@ public class DashboardService implements GetDashboardSummaryUseCase {
      */
     public interface CoordinationSummaryMapper {
         List<CoordinationSummary> mapRecent(com.coagent4u.shared.AgentId agentId, int limit);
+        List<CoordinationActivityPoint> mapActivity(com.coagent4u.shared.AgentId agentId, int days);
     }
 
     private final CoordinationSummaryMapper summaryMapper;
@@ -75,9 +77,29 @@ public class DashboardService implements GetDashboardSummaryUseCase {
         // Recent coordinations (last 5)
         List<CoordinationSummary> recentCoordinations = summaryMapper.mapRecent(agent.getAgentId(), 5);
 
-        log.info("[DashboardService] Summary for {}: agent={}, pending={}, recent={}",
-                username, agent.getStatus(), pendingCount, recentCoordinations.size());
+        // Activity stats (last 7 days)
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.util.List<CoordinationActivityPoint> rawStats = summaryMapper.mapActivity(agent.getAgentId(), 7);
+        
+        java.util.List<DashboardSummary.ActivityPointDto> activitySummary = new java.util.ArrayList<>();
+        for (int i = 6; i >= 0; i--) {
+            java.time.LocalDate date = today.minusDays(i);
+            CoordinationActivityPoint point = rawStats.stream()
+                    .filter(p -> p.date().equals(date))
+                    .findFirst()
+                    .orElse(new CoordinationActivityPoint(date, 0, 0, 0));
+            
+            activitySummary.add(new DashboardSummary.ActivityPointDto(
+                    point.date().toString(),
+                    point.completed(),
+                    point.rejected(),
+                    point.failed()
+            ));
+        }
 
-        return new DashboardSummary(agentStatus, pendingCount, recentCoordinations, List.of());
+        log.info("[DashboardService] Summary for {}: agent={}, pending={}, recent={}, activity={}",
+                username, agent.getStatus(), pendingCount, recentCoordinations.size(), activitySummary.size());
+
+        return new DashboardSummary(agentStatus, pendingCount, recentCoordinations, activitySummary);
     }
 }

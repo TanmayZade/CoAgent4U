@@ -160,6 +160,9 @@ public class NaturalDateResolver {
     }
 
     private LocalTime resolveTime(String text) {
+        // Normalize dot-separated variants: "p.m." → "pm", "a.m." → "am"
+        text = text.replaceAll("(?i)p\\.m\\.?", "pm").replaceAll("(?i)a\\.m\\.?", "am");
+
         Matcher timeMatcher = TIME_PATTERN.matcher(text);
         if (timeMatcher.find()) {
             int hour = Integer.parseInt(timeMatcher.group(1));

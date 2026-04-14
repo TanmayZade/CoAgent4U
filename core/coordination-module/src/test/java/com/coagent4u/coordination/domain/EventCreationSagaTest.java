@@ -31,7 +31,7 @@ class EventCreationSagaTest {
     private Coordination createApprovedCoordination() {
         AgentId requester = AgentId.generate();
         AgentId invitee = AgentId.generate();
-        Coordination c = new Coordination(CoordinationId.generate(), requester, invitee);
+        Coordination c = new Coordination(CoordinationId.generate(), requester, invitee, 60);
         TimeSlot slot = new TimeSlot(Instant.now().plusSeconds(3600), Instant.now().plusSeconds(5400));
         MeetingProposal proposal = new MeetingProposal(
                 "proposal-" + UUID.randomUUID(), UUID.randomUUID().toString(), requester, invitee,

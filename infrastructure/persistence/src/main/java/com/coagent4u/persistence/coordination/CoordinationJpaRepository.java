@@ -27,4 +27,16 @@ public interface CoordinationJpaRepository extends JpaRepository<CoordinationJpa
         return findByRequesterAgentIdOrInviteeAgentIdOrderByCreatedAtDesc(
                 agentId, agentId, PageRequest.of(0, n)).getContent();
     }
+
+    @org.springframework.data.jpa.repository.Query(nativeQuery = true, value = 
+            "SELECT CAST(created_at AS date) as day, " +
+            "SUM(CASE WHEN state = 'COMPLETED' THEN 1 ELSE 0 END) as completed, " +
+            "SUM(CASE WHEN state = 'REJECTED' THEN 1 ELSE 0 END) as rejected, " +
+            "SUM(CASE WHEN state = 'FAILED' THEN 1 ELSE 0 END) as failed " +
+            "FROM coordinations " +
+            "WHERE (requester_agent_id = :agentId OR invitee_agent_id = :agentId) " +
+            "AND created_at >= :since " +
+            "GROUP BY day " +
+            "ORDER BY day ASC")
+    List<ActivityStatsProjection> findActivityStats(@org.springframework.data.repository.query.Param("agentId") UUID agentId, @org.springframework.data.repository.query.Param("since") java.time.Instant since);
 }
