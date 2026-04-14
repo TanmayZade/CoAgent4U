@@ -29,6 +29,27 @@ desktop.ini
 .env
 .env.local
 .env.production
+.env.*
+!.env.example
+
+# === Credentials & Keys ===
+credentials/
+**/application.properties
+**/application-prod.properties
+**/application-staging.properties
+*cred*.json
+*secret*
+*.pem
+*.key
+*.p12
+*.jks
+
+# === Debug / Build Logs (may contain secrets) ===
+debug*.txt
+*_log.txt
+*_output.txt
+build_errors.txt
+compile_errors.txt
 
 # === Docker ===
 docker-compose.override.yml
