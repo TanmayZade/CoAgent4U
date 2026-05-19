@@ -109,7 +109,7 @@ export default function CoordinationDetailPage() {
                           </p>
                           {stateLog && (
                             <p className="text-[10px] text-foreground/50 mt-1 font-mono">
-                              {new Date(stateLog.occurredAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                              {new Date(stateLog.transitionedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                             </p>
                           )}
                         </div>

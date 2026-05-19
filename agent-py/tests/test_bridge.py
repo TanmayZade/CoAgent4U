@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
 
 from app.bridge.java_client import JavaBridgeClient
-from app.bridge.models import UserResponse, CalendarEventResponse
+from app.bridge.models import UserResponse
 
 
 @pytest.fixture

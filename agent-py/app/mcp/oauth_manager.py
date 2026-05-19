@@ -7,7 +7,6 @@ Responsibilities:
   - Auto-refresh expired tokens
   - Revoke access
 """
-import json
 import logging
 import os
 
@@ -50,12 +49,12 @@ class OAuthManager:
                 "redirect_uris": [self.redirect_uri],
             }
         }
-        
+
         # Keep track of pending OAuth flows in memory to preserve the PKCE code_verifier
         self._pending_flows: dict[str, Flow] = {}
-        
+
         self.java_client = JavaBridgeClient()
-        logger.info(f"[OAuth] Manager initialized (using Java DB for token persistence)")
+        logger.info("[OAuth] Manager initialized (using Java DB for token persistence)")
 
     # ── Authorization URL ─────────────────────────────────────
 
@@ -102,7 +101,7 @@ class OAuthManager:
                 scopes=self.scopes,
                 redirect_uri=self.redirect_uri,
             )
-            
+
         flow.fetch_token(code=auth_code)
         creds = flow.credentials
 

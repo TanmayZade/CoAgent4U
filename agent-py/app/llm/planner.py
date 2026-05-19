@@ -249,13 +249,13 @@ class LlmPlanner:
 
             # No tool calls — direct response
             direct = message.content or "I'm not sure how to help with that."
-            logger.info(f"[LLM] Direct response (no tools needed)")
+            logger.info("[LLM] Direct response (no tools needed)")
             return PlanResult(direct_response=direct)
 
         except Exception as e:
             error_str = str(e)
 
-            # Groq-specific: tool_use_failed — retry WITHOUT conversation history 
+            # Groq-specific: tool_use_failed — retry WITHOUT conversation history
             # (old history confuses Groq's tool call format)
             if "tool_use_failed" in error_str:
                 logger.warning("[LLM] Groq tool_use_failed — retrying with clean context")
@@ -325,10 +325,10 @@ class LlmPlanner:
             agent_id="system-summary",
         )
         messages = [{"role": "system", "content": system_prompt}]
-        
+
         if history:
             messages.extend(history)
-            
+
         messages.append({"role": "user", "content": user_message})
 
         # Reconstruct the assistant message with tool calls

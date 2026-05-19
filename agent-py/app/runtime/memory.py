@@ -5,7 +5,7 @@ for referencing previous tool calls and approvals.
 """
 import json
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict
 
 from redis.asyncio import Redis, ConnectionPool
 
@@ -46,7 +46,7 @@ class ConversationMemory:
 
     async def get_history(self, agent_id: str) -> List[Dict[str, str]]:
         """Retrieve recent conversation history formatted for LiteLLM.
-        
+
         Returns:
             List of dicts: [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
         """
@@ -72,11 +72,11 @@ class ConversationMemory:
             }
             # Add to the RIGHT (end) of the list
             await self.redis.rpush(key, json.dumps(exchange))
-            
+
             # Trim the list from the LEFT to keep only the MAX EXCHANGES
             # If MAX=20, keep indices -20 to -1
             await self.redis.ltrim(key, -settings.MEMORY_MAX_EXCHANGES, -1)
-            
+
             # Reset TTL so inactive sessions expire
             await self.redis.expire(key, settings.MEMORY_TTL_SECONDS)
         except Exception as e:

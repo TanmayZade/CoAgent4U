@@ -19,16 +19,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
-import httpx
 
 from app.config import get_settings
 from app.bridge.java_client import JavaBridgeClient
 from app.bridge.models import HandleMessageRequest, HandleMessageResponse
 
 # MCP tool modules
-from app.mcp.calendar_tools import calendar_mcp, set_google_client as cal_set_client, set_oauth_manager as cal_set_oauth
-from app.mcp.task_tools import task_mcp, set_google_client as task_set_client, set_oauth_manager as task_set_oauth
-from app.mcp.productivity_tools import productivity_mcp, set_google_client as prod_set_client, set_oauth_manager as prod_set_oauth
+from app.mcp.calendar_tools import set_google_client as cal_set_client, set_oauth_manager as cal_set_oauth
+from app.mcp.task_tools import set_google_client as task_set_client, set_oauth_manager as task_set_oauth
+from app.mcp.productivity_tools import set_google_client as prod_set_client, set_oauth_manager as prod_set_oauth
 from app.mcp.google_calendar_client import GoogleCalendarClient
 from app.mcp.oauth_manager import OAuthManager
 
@@ -138,7 +137,6 @@ async def verify_internal_service(
 @app.get("/health")
 async def health():
     """Health check endpoint for Docker and load balancers."""
-    oauth = app.state.oauth_manager
     return {
         "status": "ok",
         "service": "coagent-python",

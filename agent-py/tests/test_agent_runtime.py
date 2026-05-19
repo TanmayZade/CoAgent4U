@@ -1,11 +1,10 @@
 """Tests for Agent Runtime — verifies the plan → execute → respond cycle."""
-import json
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock
 
 from app.runtime.agent import AgentRuntime
 from app.runtime.memory import ConversationMemory
-from app.llm.planner import LlmPlanner, PlanResult, ToolCallRequest
+from app.llm.planner import LlmPlanner, PlanResult
 from app.bridge.models import HandleMessageRequest
 from app.mcp.calendar_tools import set_bridge, set_agent_context
 
@@ -30,7 +29,7 @@ class TestAgentRuntime:
             direct_response="Hello! How can I help you today?"
         )
         memory = AsyncMock(spec=ConversationMemory)
-        
+
         runtime = AgentRuntime(planner=planner, memory=memory)
         request = HandleMessageRequest(
             agent_id="test-agent-001",

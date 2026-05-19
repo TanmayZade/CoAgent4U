@@ -434,7 +434,7 @@ async def update_event(
         event = await client.update_event(creds, event_id, updates, calendar_id)
         return json.dumps({
             "status": "success",
-            "message": f"Event updated successfully.",
+            "message": "Event updated successfully.",
             "event": _format_event(event),
         })
 
