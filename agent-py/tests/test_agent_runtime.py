@@ -6,16 +6,6 @@ from app.runtime.agent import AgentRuntime
 from app.runtime.memory import ConversationMemory
 from app.llm.planner import LlmPlanner, PlanResult
 from app.bridge.models import HandleMessageRequest
-from app.mcp.calendar_tools import set_bridge, set_agent_context
-
-
-@pytest.fixture(autouse=True)
-def setup_context():
-    """Set up test context."""
-    bridge = AsyncMock()
-    set_bridge(bridge)
-    set_agent_context("test-agent-001")
-    return bridge
 
 
 class TestAgentRuntime:
