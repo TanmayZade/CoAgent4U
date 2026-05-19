@@ -1,5 +1,4 @@
 """CoAgent Python Agent Service — Configuration."""
-import os
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 from dotenv import load_dotenv

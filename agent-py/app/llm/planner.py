@@ -242,7 +242,7 @@ class LlmPlanner:
                             name=tool_name,
                             arguments=args,
                         ))
-                
+
                 if tool_calls:
                     logger.info(f"[LLM] Parsed {len(tool_calls)} raw XML tool call(s) from content")
                     return PlanResult(tool_calls=tool_calls)

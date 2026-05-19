@@ -16,7 +16,7 @@ export type CoordinationState =
   | "FAILED"
 
 interface StatusChipProps {
-  state: CoordinationState
+  state: CoordinationState | string
   className?: string
 }
 

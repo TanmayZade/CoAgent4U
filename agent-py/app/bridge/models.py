@@ -1,6 +1,5 @@
 """Shared DTOs for Java ↔ Python bridge communication."""
 from pydantic import BaseModel
-from datetime import datetime
 
 
 # ── Requests (Python → Java) ──

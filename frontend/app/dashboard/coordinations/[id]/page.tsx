@@ -48,7 +48,7 @@ export default function CoordinationDetailPage() {
         <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-3">
-              Meeting with {data?.withUsername || '...'}
+              Meeting with {data ? (data.role === 'REQUESTER' ? (data.inviteeDisplayName || data.inviteeUsername) : (data.requesterDisplayName || data.requesterUsername)) : '...'}
               {data && <StatusChip state={data.state} />}
             </h1>
             <p className="text-foreground/50 font-mono text-xs mt-1">
@@ -89,7 +89,7 @@ export default function CoordinationDetailPage() {
                     const isActive = data.state === stateInfo || 
                                     (isTerminalRejection && stateInfo === data.state)
                     const isPast = PROTOCOL_STATES.indexOf(data.state) > index && !isTerminalRejection
-                    const stateLog = data.stateLogs?.find((log: any) => log.toState === stateInfo)
+                    const stateLog = data.stateLog?.find((log: any) => log.toState === stateInfo)
 
                     let colorClass = "bg-muted border-border/50 text-foreground/40"
                     if (isActive) {
@@ -139,15 +139,15 @@ export default function CoordinationDetailPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Proposal Context */}
-            {data.meetingTime && (
+            {data.proposal?.startTime && (
               <div className="rounded-xl border border-border/50 bg-card p-6 shadow-sm">
                 <h3 className="text-lg font-semibold tracking-tight mb-4 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-primary" />
                   Proposed Schedule
                 </h3>
                 <div className="bg-muted/20 p-4 rounded-lg border border-border/50">
-                  <p className="text-foreground text-lg mb-1">{new Date(data.meetingTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p className="text-primary font-mono text-xl">{new Date(data.meetingTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                  <p className="text-foreground text-lg mb-1">{new Date(data.proposal!.startTime).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="text-primary font-mono text-xl">{new Date(data.proposal!.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                 </div>
               </div>
             )}
@@ -168,7 +168,7 @@ export default function CoordinationDetailPage() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                  <span className="text-sm font-medium">{data.withUsername}</span>
+                  <span className="text-sm font-medium">{data.role === 'REQUESTER' ? (data.inviteeDisplayName || data.inviteeUsername) : (data.requesterDisplayName || data.requesterUsername)}</span>
                   <div className="flex items-center gap-2 text-xs">
                      {data.state === 'AWAITING_APPROVAL_B' ? (
                         <span className="text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full font-medium animate-pulse">Pending...</span>

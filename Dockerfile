@@ -12,6 +12,7 @@ COPY core/approval-module/pom.xml core/approval-module/pom.xml
 COPY integration/calendar-module/pom.xml integration/calendar-module/pom.xml
 COPY integration/messaging-module/pom.xml integration/messaging-module/pom.xml
 COPY integration/llm-module/pom.xml integration/llm-module/pom.xml
+COPY integration/a2a-module/pom.xml integration/a2a-module/pom.xml
 COPY infrastructure/persistence/pom.xml infrastructure/persistence/pom.xml
 COPY infrastructure/security/pom.xml infrastructure/security/pom.xml
 COPY infrastructure/config/pom.xml infrastructure/config/pom.xml
