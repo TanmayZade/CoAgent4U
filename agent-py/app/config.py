@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     # MCP
     MCP_TRANSPORT: str = "in-process"  # "in-process" or "http"
 
+    # LLM Tuning
+    PLANNING_TEMPERATURE: float = 0.1   # Low for reliable tool selection
+    SUMMARY_TEMPERATURE: float = 0.3    # Slightly higher for natural summaries
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 

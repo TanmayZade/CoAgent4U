@@ -51,24 +51,26 @@ public class A2AAdapter {
         int duration = (Integer) params.get("duration_minutes");
         String title = (String) params.get("title");
         
+        String timezone = params.getOrDefault("timezone", "UTC").toString();
+
         // Simple 7-day lookahead for now
         TimeRange range = new TimeRange(LocalDate.now(), LocalDate.now().plusDays(7));
         
         CoordinationId coordId = CoordinationId.generate();
         CorrelationId corrId = CorrelationId.generate();
 
-        coordinationPort.initiate(coordId, corrId, requester, invitee, range, duration, title, "Asia/Kolkata");
+        coordinationPort.initiate(coordId, corrId, requester, invitee, range, duration, title, timezone);
 
         return RPCResponse.success(request.id(), Map.of("session_id", coordId.value().toString(), "status", "INITIATED"));
     }
 
     private RPCResponse handleSelectConsensus(RPCRequest request) {
-        // Implementation for selecting a slot/consensus item
-        return RPCResponse.success(request.id(), Map.of("status", "SUCCESS"));
+        throw new UnsupportedOperationException(
+                "select_governance_consensus is not yet implemented — see roadmap");
     }
 
     private RPCResponse handleTerminateSession(RPCRequest request) {
-        // Implementation for terminating a session
-        return RPCResponse.success(request.id(), Map.of("status", "TERMINATED"));
+        throw new UnsupportedOperationException(
+                "terminate_session is not yet implemented — see roadmap");
     }
 }

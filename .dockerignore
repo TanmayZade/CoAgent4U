@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.iml
+
+# Frontend (built separately)
+frontend/node_modules
+frontend/.next
+frontend/tsconfig.tsbuildinfo
+
+# Python
+agent-py/__pycache__
+agent-py/.venv
+agent-py/venv
+
+# Documentation & non-runtime files
+documentation/
+logos/
+*.md
+!README.md
+LICENSE
+
+# Build artifacts
+*.zip
+*.tar.gz
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Agent / AI tooling
+.agent

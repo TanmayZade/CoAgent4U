@@ -1,4 +1,4 @@
-version: '3.9'
+# CoAgent4U — Local Development Stack
 
 services:
   coagent-db:

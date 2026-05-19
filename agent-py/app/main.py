@@ -12,10 +12,11 @@ Communication flow:
   Slack → Java (webhook) → Python (this service) → MCP tools/LLM → Python → Java (notify) → Slack
   OR: Direct HTTP → Python → MCP tools/LLM → response
 """
+import html
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, Depends, Header, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 import httpx
@@ -53,7 +54,7 @@ async def lifespan(app: FastAPI):
 
     # 2. Initialize OAuth manager
     app.state.oauth_manager = OAuthManager()
-    logger.info(f"[OAuth] Manager initialized, client_id={settings.GOOGLE_CLIENT_ID[:20]}...")
+    logger.info("[OAuth] Manager initialized, Google OAuth configured")
 
     # 3. Connect MCP tools to Google client and OAuth
     cal_set_client(app.state.gcal_client)
@@ -108,6 +109,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ──────────────────────────────────────────────────────────────
+# Internal Service Authentication
+# ──────────────────────────────────────────────────────────────
+
+
+async def verify_internal_service(
+    x_internal_service: str | None = Header(None, alias="X-Internal-Service"),
+):
+    """Verify requests come from a trusted internal service.
+
+    In production, replace with a shared secret or mTLS.
+    """
+    if x_internal_service != "coagent-python" and x_internal_service != "coagent-java":
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: missing or invalid X-Internal-Service header",
+        )
 
 
 # ──────────────────────────────────────────────────────────────
@@ -169,7 +189,7 @@ async def oauth_callback(request: Request):
 
     if error:
         return HTMLResponse(
-            content=f"<h1>Authorization Failed</h1><p>Error: {error}</p>",
+            content=f"<h1>Authorization Failed</h1><p>Error: {html.escape(error)}</p>",
             status_code=400,
         )
 
@@ -183,11 +203,12 @@ async def oauth_callback(request: Request):
         oauth: OAuthManager = app.state.oauth_manager
         oauth.handle_callback(agent_id=state, auth_code=code)
 
+        safe_state = html.escape(state)
         return HTMLResponse(content=f"""
         <html>
         <body style="font-family: system-ui; max-width: 600px; margin: 50px auto; text-align: center;">
             <h1>✓ Google Calendar Connected!</h1>
-            <p>Your Google Calendar and Tasks are now linked to agent <code>{state}</code>.</p>
+            <p>Your Google Calendar and Tasks are now linked to agent <code>{safe_state}</code>.</p>
             <p>You can close this tab and return to your chat.</p>
             <p style="color: #666; margin-top: 40px;">
                 CoAgent can now read your calendar, manage events, and track tasks.
@@ -231,7 +252,7 @@ async def oauth_revoke(agent_id: str):
 # ──────────────────────────────────────────────────────────────
 
 
-@app.post("/agent/handle", response_model=HandleMessageResponse)
+@app.post("/agent/handle", response_model=HandleMessageResponse, dependencies=[Depends(verify_internal_service)])
 async def handle_message(request: HandleMessageRequest):
     """Handle a user message.
 
@@ -269,7 +290,7 @@ async def handle_message(request: HandleMessageRequest):
 # ──────────────────────────────────────────────────────────────
 
 
-@app.get("/bridge/test/user/{user_id}")
+@app.get("/bridge/test/user/{user_id}", dependencies=[Depends(verify_internal_service)])
 async def test_bridge_user(user_id: str):
     """Test: Can Python read user data from Java?"""
     try:
@@ -279,7 +300,7 @@ async def test_bridge_user(user_id: str):
         raise HTTPException(status_code=502, detail=f"Java bridge error: {e}")
 
 
-@app.post("/bridge/test/notify")
+@app.post("/bridge/test/notify", dependencies=[Depends(verify_internal_service)])
 async def test_bridge_notify(user_id: str, message: str = "Test from Python agent"):
     """Test: Can Python send a Slack message via Java?"""
     try:

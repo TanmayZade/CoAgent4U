@@ -137,8 +137,8 @@ class LlmPlanner:
     """Plans tool calls using an LLM via LiteLLM (model-agnostic)."""
 
     def __init__(self, model: str | None = None):
-        settings = get_settings()
-        self.model = model or settings.DEFAULT_LLM_MODEL
+        self.settings = get_settings()
+        self.model = model or self.settings.DEFAULT_LLM_MODEL
         logger.info(f"[LLM] Planner initialized with model={self.model}")
 
     async def plan(
@@ -185,7 +185,7 @@ class LlmPlanner:
                 messages=messages,
                 tools=tools,
                 tool_choice="auto",
-                temperature=0.1,  # Low temp for reliable tool selection
+                temperature=self.settings.PLANNING_TEMPERATURE,
             )
 
             choice = response.choices[0]
@@ -269,7 +269,7 @@ class LlmPlanner:
                         messages=clean_messages,
                         tools=tools,
                         tool_choice="auto",
-                        temperature=0.1,
+                        temperature=self.settings.PLANNING_TEMPERATURE,
                     )
                     choice = response.choices[0]
                     message = choice.message
@@ -363,7 +363,7 @@ class LlmPlanner:
             response = await litellm.acompletion(
                 model=self.model,
                 messages=messages,
-                temperature=0.3,
+                temperature=self.settings.SUMMARY_TEMPERATURE,
             )
 
             return response.choices[0].message.content or "Here are your results."

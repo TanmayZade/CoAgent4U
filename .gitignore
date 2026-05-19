@@ -25,6 +25,14 @@ hs_err_pid*
 Thumbs.db
 desktop.ini
 
+# === Archives ===
+*.zip
+*.tar.gz
+
+# === Frontend Build Artifacts ===
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
 # === Environment / Secrets ===
 .env
 .env.local

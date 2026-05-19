@@ -230,14 +230,6 @@ class JavaBridgeClient:
             if e.response.status_code != 404:
                 raise
 
-    async def get_contact(self, owner_id: str, contact_id: str) -> dict | None:
-        """Get contact relationship and trust level."""
-        try:
-            return await self._get(f"/contacts/{owner_id}/{contact_id}")
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 404:
-                return None
-            raise
 
     # ──────────────────────────────────────────────────────────────
     # Internal HTTP helpers

@@ -57,30 +57,6 @@ class AgentRuntime:
         }
         logger.info("[Runtime] AgentRuntime initialized with 3 MCP tool servers")
 
-    async def _gather_all_tools(self) -> tuple[list[dict], dict[str, McpClient]]:
-        """Gather tool schemas from all MCP servers and build a tool→client map.
-
-        Returns:
-            (mcp_tool_defs, tool_client_map) where tool_client_map maps tool_name → client
-        """
-        mcp_tool_defs = []
-        tool_client_map: dict[str, McpClient] = {}
-
-        for server_name, client in self.mcp_clients.items():
-            async with client as c:
-                # We can't use the client outside the async context,
-                # so we just collect the tool definitions here
-                tool_list = await c.list_tools()
-                for tool in tool_list:
-                    mcp_tool_defs.append({
-                        "name": tool.name,
-                        "description": tool.description or "",
-                        "inputSchema": tool.inputSchema if hasattr(tool, 'inputSchema') else {},
-                    })
-                    tool_client_map[tool.name] = server_name
-
-        return mcp_tool_defs, tool_client_map
-
     def _resolve_server(self, tool_name: str) -> str:
         """Determine which MCP server a tool belongs to based on naming convention."""
         # Task tools
